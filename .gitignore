@@ -1,0 +1,6 @@
+# Local research notes are not part of the public demo.
+md/
+
+# OS metadata
+.DS_Store
+Thumbs.db
