@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>StudyMeta Learner Model v0.1</title>
+  <style>
+    :root {
+      --page: #f7f9fc;
+      --surface: #ffffff;
+      --surface-soft: #f9fafb;
+      --line: #e4e8ef;
+      --line-strong: #d5dbe5;
+      --text: #18212f;
+      --muted: #687386;
+      --muted-light: #929bad;
+      --blue: #2563eb;
+      --blue-dark: #1746a2;
+      --blue-soft: #eff6ff;
+      --blue-line: #93c5fd;
+      --green: #15803d;
+      --green-soft: #f0fdf4;
+      --amber: #a16207;
+      --amber-soft: #fffbeb;
+      --red: #b42318;
+      --red-soft: #fff4f2;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .04);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--text);
+      background: var(--page);
+      font-family: Inter, Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font: inherit; }
+
+    .page-shell {
+      width: min(1240px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 40px 0 64px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.15;
+      letter-spacing: -.04em;
+    }
+
+    .intro {
+      max-width: 720px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(7, auto);
+      align-items: center;
+      justify-content: start;
+      gap: 10px;
+      margin: 30px 0;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow);
+    }
+
+    .pipeline-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 12px;
+      color: var(--muted);
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pipeline-step.is-active {
+      color: var(--blue-dark);
+      background: var(--blue-soft);
+      border-color: var(--blue-line);
+    }
+
+    .step-number {
+      display: grid;
+      width: 20px;
+      height: 20px;
+      place-items: center;
+      color: inherit;
+      background: rgba(255, 255, 255, .72);
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .pipeline-arrow {
+      color: var(--muted-light);
+      font-size: 17px;
+    }
+
+    .section-card {
+      margin-bottom: 20px;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 18px;
+    }
+
+    .section-kicker {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .12em;
+    }
+
+    h2 {
+      margin-bottom: 3px;
+      font-size: 20px;
+      line-height: 1.3;
+      letter-spacing: -.02em;
+    }
+
+    .section-description {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .scenario-count {
+      flex: 0 0 auto;
+      padding: 5px 9px;
+      color: var(--muted);
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .scenario-button {
+      display: flex;
+      min-height: 60px;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 13px;
+      color: var(--text);
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color .12s ease, background-color .12s ease, box-shadow .12s ease;
+    }
+
+    .scenario-button:hover { border-color: #aeb8c8; }
+
+    .scenario-button:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, .2);
+      outline-offset: 2px;
+    }
+
+    .scenario-button[aria-pressed="true"] {
+      color: var(--blue-dark);
+      background: var(--blue-soft);
+      border-color: var(--blue);
+      box-shadow: 0 0 0 1px var(--blue);
+    }
+
+    .scenario-index {
+      display: grid;
+      flex: 0 0 28px;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      color: var(--muted);
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .scenario-button[aria-pressed="true"] .scenario-index {
+      color: #fff;
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .scenario-title {
+      overflow-wrap: anywhere;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .raw-input {
+      display: grid;
+      grid-template-columns: 132px 1fr;
+      gap: 20px;
+      margin-top: 18px;
+      padding: 18px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+    }
+
+    .raw-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .raw-label::before {
+      width: 8px;
+      height: 8px;
+      background: var(--blue);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .raw-text {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .model-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+      align-items: start;
+      gap: 20px;
+    }
+
+    .model-column { min-width: 0; }
+
+    .model-column > .section-card { height: 100%; }
+
+    .dictionary-group + .dictionary-group,
+    .state-group + .state-group {
+      margin-top: 22px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .group-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .1em;
+    }
+
+    .group-title::before {
+      width: 4px;
+      height: 13px;
+      background: var(--line-strong);
+      border-radius: 2px;
+      content: "";
+    }
+
+    .evidence-list,
+    .state-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .evidence-item,
+    .state-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+
+    .evidence-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 48px;
+      padding: 10px 12px;
+      color: #4d586a;
+    }
+
+    .evidence-item.is-active,
+    .state-item.is-active {
+      color: var(--blue-dark);
+      background: var(--blue-soft);
+      border-color: var(--blue);
+      box-shadow: inset 3px 0 0 var(--blue);
+    }
+
+    .evidence-name {
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    code {
+      padding: 2px 5px;
+      color: var(--muted);
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 10px;
+      overflow-wrap: anywhere;
+    }
+
+    .evidence-item.is-active code,
+    .state-item.is-active code {
+      color: var(--blue-dark);
+      background: rgba(255, 255, 255, .62);
+      border-color: var(--blue-line);
+    }
+
+    .active-dot {
+      display: none;
+      flex: 0 0 7px;
+      width: 7px;
+      height: 7px;
+      background: var(--blue);
+      border-radius: 50%;
+    }
+
+    .is-active .active-dot { display: block; }
+
+    .evidence-meta {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .state-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 12px;
+      color: #4d586a;
+    }
+
+    .state-name-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 3px;
+    }
+
+    .state-name {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .state-description {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .state-change {
+      align-self: center;
+      min-width: 92px;
+      padding: 5px 8px;
+      color: var(--muted-light);
+      text-align: center;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .state-item.is-active .state-change {
+      color: var(--blue-dark);
+      background: #fff;
+      border-color: var(--blue-line);
+    }
+
+    .interpretation-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr);
+      gap: 18px;
+    }
+
+    .interpretation-panel,
+    .decision-panel {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+    }
+
+    .interpretation-panel { background: var(--surface-soft); }
+
+    .decision-panel {
+      background: var(--blue-soft);
+      border-color: var(--blue-line);
+    }
+
+    .panel-label {
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .decision-panel .panel-label { color: var(--blue-dark); }
+
+    .panel-title {
+      margin-bottom: 6px;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    .panel-copy {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .decision-panel .panel-copy {
+      color: #254f91;
+      font-weight: 650;
+    }
+
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .principle {
+      padding: 13px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .principle strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 12px;
+    }
+
+    .principle span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .footer-note {
+      margin: 22px 0 0;
+      color: var(--muted-light);
+      text-align: center;
+      font-size: 11px;
+    }
+
+    @media (max-width: 920px) {
+      .pipeline {
+        grid-template-columns: 1fr 20px 1fr;
+      }
+
+      .pipeline-step { justify-content: center; }
+      .pipeline-arrow:nth-of-type(2) { display: none; }
+
+      .model-grid { grid-template-columns: 1fr; }
+      .scenario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .principles { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .page-shell {
+        width: min(100% - 24px, 1240px);
+        padding-top: 24px;
+      }
+
+      .pipeline {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        margin: 22px 0;
+      }
+
+      .pipeline-step { justify-content: flex-start; }
+      .pipeline-arrow { display: none; }
+      .section-card { padding: 17px; }
+      .section-heading { gap: 12px; }
+      .scenario-grid { grid-template-columns: 1fr; }
+
+      .raw-input {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 15px;
+      }
+
+      .state-item { grid-template-columns: 1fr; }
+
+      .state-change {
+        justify-self: start;
+        min-width: 0;
+      }
+
+      .interpretation-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <header>
+      <p class="eyebrow">StudyMeta · Learner Intelligence Layer</p>
+      <h1>Learner Model Pipeline</h1>
+      <p class="intro">관찰된 입력이 Evidence로 분류되고, 관련 Student State만 선택적으로 업데이트되는 과정을 탐색합니다.</p>
+    </header>
+
+    <nav class="pipeline" aria-label="Learner Model 처리 단계">
+      <div class="pipeline-step is-active"><span class="step-number">1</span>관찰된 입력</div>
+      <span class="pipeline-arrow" aria-hidden="true">→</span>
+      <div class="pipeline-step is-active"><span class="step-number">2</span>Evidence 분류</div>
+      <span class="pipeline-arrow" aria-hidden="true">→</span>
+      <div class="pipeline-step is-active"><span class="step-number">3</span>State 업데이트</div>
+      <span class="pipeline-arrow" aria-hidden="true">→</span>
+      <div class="pipeline-step is-active"><span class="step-number">4</span>Teaching Decision</div>
+    </nav>
+
+    <section class="section-card" aria-labelledby="scenario-heading">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">SECTION 01</span>
+          <h2 id="scenario-heading">관찰된 입력 Scenario 선택</h2>
+          <p class="section-description">입력의 맥락이 달라지면 같은 정답도 서로 다른 State를 업데이트합니다.</p>
+        </div>
+        <span class="scenario-count">9 scenarios</span>
+      </div>
+      <div class="scenario-grid" id="scenarioGrid" aria-label="시나리오 목록"></div>
+      <div class="raw-input" aria-live="polite">
+        <div class="raw-label">Raw Input</div>
+        <p class="raw-text" id="rawInput"></p>
+      </div>
+    </section>
+
+    <div class="model-grid">
+      <section class="model-column" aria-labelledby="evidence-heading">
+        <div class="section-card">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">SECTION 02</span>
+              <h2 id="evidence-heading">Evidence Dictionary</h2>
+              <p class="section-description">모든 Evidence를 표시하고, 현재 입력에서 추출된 항목만 강조합니다.</p>
+            </div>
+          </div>
+          <div id="evidenceDictionary"></div>
+        </div>
+      </section>
+
+      <section class="model-column" aria-labelledby="state-heading">
+        <div class="section-card">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">SECTION 03</span>
+              <h2 id="state-heading">Student State</h2>
+              <p class="section-description">Evidence가 연결된 State만 업데이트하며, 나머지는 변화 없음으로 유지합니다.</p>
+            </div>
+          </div>
+          <div id="stateDictionary"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="section-card" aria-labelledby="interpretation-heading">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">INTERPRETATION</span>
+          <h2 id="interpretation-heading">이번 Input의 해석</h2>
+          <p class="section-description">Raw Input → Evidence → State → Teaching Decision</p>
+        </div>
+      </div>
+      <div class="interpretation-grid" aria-live="polite">
+        <div class="interpretation-panel">
+          <p class="panel-label">Why this update</p>
+          <h3 class="panel-title" id="interpretationTitle"></h3>
+          <p class="panel-copy" id="interpretationCopy"></p>
+        </div>
+        <div class="decision-panel">
+          <p class="panel-label">Teaching Decision</p>
+          <h3 class="panel-title" id="decisionTitle"></h3>
+          <p class="panel-copy" id="decisionCopy"></p>
+        </div>
+      </div>
+
+      <div class="principles" aria-label="Learner Model 핵심 원칙">
+        <div class="principle">
+          <strong>Raw Input ≠ State Update</strong>
+          <span>입력은 Evidence를 거쳐서만 State를 변경합니다.</span>
+        </div>
+        <div class="principle">
+          <strong>하나의 Input → 여러 Evidence</strong>
+          <span>한 관찰에서 성과·도움·오류 Evidence가 함께 생길 수 있습니다.</span>
+        </div>
+        <div class="principle">
+          <strong>Evidence가 없는 State는 유지</strong>
+          <span>모든 Evidence가 모든 State를 업데이트하지는 않습니다.</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">StudyMeta Learner Model v0.1 · Interactive model discussion view</p>
+  </main>
+
+  <script>
+    "use strict";
+
+    const evidenceTypes = {
+      "PERFORMANCE": [
+        { id: "correct", label: "Correct" },
+        { id: "incorrect", label: "Incorrect" },
+        { id: "partial_success", label: "Partial Success" }
+      ],
+      "ASSISTANCE": [
+        { id: "independent_success", label: "Independent Success" },
+        { id: "hint_requested", label: "Hint Requested" },
+        { id: "success_after_hint", label: "Success After Hint" },
+        { id: "success_after_explanation", label: "Success After Explanation" }
+      ],
+      "ERROR": [
+        { id: "first_error", label: "First Error" },
+        { id: "repeated_error", label: "Repeated Error" },
+        { id: "misconception_candidate", label: "Misconception Candidate" },
+        { id: "self_correction", label: "Self-Correction" }
+      ],
+      "MEMORY / RETRIEVAL": [
+        { id: "immediate_retrieval_success", label: "Immediate Retrieval Success" },
+        { id: "delayed_retrieval_success", label: "Delayed Retrieval Success" },
+        { id: "delayed_retrieval_failure", label: "Delayed Retrieval Failure" },
+        { id: "relearning", label: "Relearning" }
+      ],
+      "TRANSFER": [
+        { id: "novel_application_success", label: "Novel Application Success" },
+        { id: "novel_application_failure", label: "Novel Application Failure" }
+      ],
+      "METACOGNITION": [
+        { id: "confidence_report", label: "Confidence Report" },
+        { id: "perceived_understanding", label: "Perceived Understanding" },
+        { id: "perceived_difficulty", label: "Perceived Difficulty" },
+        { id: "error_awareness", label: "Error Awareness" }
+      ],
+      "PROCESS": [
+        { id: "response_time", label: "Response Time" },
+        { id: "stuck_duration", label: "Stuck Duration" },
+        { id: "attempt_count", label: "Attempt Count" }
+      ]
+    };
+
+    const stateTypes = {
+      "STUDENT × SKILL": [
+        {
+          id: "conceptual_mastery",
+          label: "Conceptual Mastery",
+          description: "개념의 원리와 의미를 이해하는 정도"
+        },
+        {
+          id: "procedural_mastery",
+          label: "Procedural Mastery",
+          description: "실제 풀이 절차를 수행할 수 있는 정도"
+        },
+        {
+          id: "retrievability",
+          label: "Retrievability",
+          description: "해당 Skill을 도움 없이 기억에서 꺼낼 수 있는 정도"
+        },
+        {
+          id: "transferability",
+          label: "Transferability",
+          description: "새로운 상황에 같은 지식을 적용할 수 있는 정도"
+        },
+        {
+          id: "help_need",
+          label: "Help Need",
+          description: "독립 해결을 위해 필요한 지원의 수준"
+        },
+        {
+          id: "misconception",
+          label: "Misconception",
+          description: "특정한 잘못된 개념 또는 규칙을 가졌을 가능성"
+        },
+        {
+          id: "state_confidence",
+          label: "State Confidence",
+          description: "현재 State 추정을 뒷받침하는 Evidence의 충분성"
+        }
+      ],
+      "STUDENT × DOMAIN": [
+        {
+          id: "calibration",
+          label: "Calibration",
+          description: "자기 판단·확신과 실제 수행 사이의 일치 정도"
+        }
+      ],
+      "STUDENT × DOMAIN × INTERVENTION": [
+        {
+          id: "intervention_response",
+          label: "Intervention Response",
+          description: "Hint 등 특정 학습 개입이 실제로 효과적인 정도"
+        }
+      ]
+    };
+
+    const scenarios = [
+      {
+        id: "independent-correct",
+        title: "힌트 없이 정답",
+        rawInput: "Chain Rule 문제를 학생이 힌트 없이 독립적으로 정확히 해결했다.",
+        evidence: ["correct", "independent_success"],
+        stateUpdates: {
+          conceptual_mastery: "↑ 상승",
+          procedural_mastery: "소폭 ↑",
+          retrievability: "소폭 ↑",
+          help_need: "↓ 감소",
+          state_confidence: "↑ 상승"
+        },
+        explanation: "정답뿐 아니라 독립 해결이 함께 관찰되어 개념 이해와 절차 수행 가능성을 높인다. 다만 즉시 수행만으로 장기 기억이나 새로운 상황의 전이까지 확정하지는 않는다.",
+        decisionTitle: "개입을 줄이고 독립 수행을 확인",
+        decision: "직접 설명보다 한 단계 높은 문제나 짧은 확인 문제를 제시한다."
+      },
+      {
+        id: "perceived-understanding",
+        title: "\"완전히 이해했어\"",
+        rawInput: "학생이 \"나 이제 Chain Rule 완전히 이해했어\"라고 말했다.",
+        evidence: ["perceived_understanding"],
+        stateUpdates: {
+          calibration: "관찰값 추가",
+          state_confidence: "소폭 ↑"
+        },
+        explanation: "자기보고는 Perceived Understanding Evidence이지만 객관적 수행 증거는 아니다. 따라서 Conceptual Mastery를 직접 높이지 않고, 이후 실제 수행과 비교할 Calibration 관찰값으로 저장한다.",
+        decisionTitle: "짧은 확인 문제로 검증",
+        decision: "설명을 반복하기보다 도움 없는 retrieval 문제로 이해 판단을 검증한다."
+      },
+      {
+        id: "hint-success",
+        title: "힌트 요청 후 성공",
+        rawInput: "학생이 문제에서 막혀 힌트를 요청했고, Hint Level 1을 받은 뒤 풀이를 성공했다.",
+        evidence: ["hint_requested", "success_after_hint"],
+        stateUpdates: {
+          procedural_mastery: "↑ 상승",
+          help_need: "수준 조정",
+          intervention_response: "Hint 효과 ↑",
+          state_confidence: "↑ 상승"
+        },
+        explanation: "도움이 필요했지만 낮은 수준의 힌트 후 성공했으므로 절차 지식은 존재할 가능성이 높다. 동시에 Hint가 효과적인 개입이라는 Evidence가 쌓인다.",
+        decisionTitle: "최소 힌트 전략 유지",
+        decision: "다음에는 독립 시도를 먼저 기다리고, 막힐 때만 같은 수준의 힌트를 제공한다."
+      },
+      {
+        id: "hint-self-correction",
+        title: "힌트 후 스스로 수정",
+        rawInput: "학생이 오류를 낸 뒤 약한 힌트를 받고 자신의 잘못을 찾아 스스로 수정했다.",
+        evidence: ["hint_requested", "success_after_hint", "self_correction", "error_awareness"],
+        stateUpdates: {
+          procedural_mastery: "↑ 상승",
+          help_need: "↓ / 조정",
+          calibration: "관찰값 추가",
+          intervention_response: "Hint 효과 ↑",
+          state_confidence: "↑ 상승"
+        },
+        explanation: "힌트 뒤 정답만 낸 것이 아니라 오류를 인식하고 스스로 수정했다. 절차 숙련도와 오류 인식, 그리고 약한 Hint에 대한 반응을 함께 업데이트한다.",
+        decisionTitle: "자기설명으로 수정 과정을 강화",
+        decision: "정답을 설명해 주기보다 무엇이 잘못됐는지 학생이 직접 말하게 한다."
+      },
+      {
+        id: "repeated-error",
+        title: "같은 오류 3회 반복",
+        rawInput: "Chain Rule 문제 세 개에서 inner derivative 누락 오류가 반복되었다.",
+        evidence: ["incorrect", "repeated_error", "misconception_candidate"],
+        stateUpdates: {
+          procedural_mastery: "↓ 하락",
+          misconception: "↑ 상승",
+          state_confidence: "↑ 상승"
+        },
+        explanation: "같은 유형의 오류가 여러 문제에서 반복되어 단순 실수보다 안정적인 잘못된 규칙일 가능성이 커진다. Misconception은 후보로 올리되 원인 확인 전에는 확정하지 않는다.",
+        decisionTitle: "오류 패턴을 명시적으로 진단",
+        decision: "inner derivative가 필요한 이유를 대조 예제와 짧은 진단 질문으로 확인한다."
+      },
+      {
+        id: "delayed-success",
+        title: "5일 후 독립 성공",
+        rawInput: "5일 전에 배운 Chain Rule을 다시 테스트했고 학생이 힌트 없이 정확히 해결했다.",
+        evidence: ["correct", "independent_success", "delayed_retrieval_success"],
+        stateUpdates: {
+          procedural_mastery: "↑ 상승",
+          retrievability: "큰 폭 ↑",
+          help_need: "↓ 감소",
+          state_confidence: "↑ 상승"
+        },
+        explanation: "시간 간격 뒤에도 도움 없이 성공했기 때문에 즉시 정답보다 강한 기억 Evidence다. Procedural Mastery와 함께 Retrievability를 크게 업데이트한다.",
+        decisionTitle: "복습 간격을 늘리고 전이로 이동",
+        decision: "같은 형태의 반복 대신 더 긴 간격의 복습이나 새로운 적용 문제를 제시한다."
+      },
+      {
+        id: "delayed-failure",
+        title: "5일 후 기억 못함",
+        rawInput: "5일 전에 성공했던 Chain Rule을 다시 물었지만 학생이 기억에서 꺼내지 못했다.",
+        evidence: ["delayed_retrieval_failure"],
+        stateUpdates: {
+          retrievability: "큰 폭 ↓",
+          state_confidence: "↑ 상승"
+        },
+        explanation: "과거 성공과 달리 지연 회상에 실패해 현재 Retrievability가 낮다는 직접 Evidence가 생겼다. 개념을 전혀 이해하지 못한다고 단정하지는 않는다.",
+        decisionTitle: "간격 회상 연습을 우선",
+        decision: "전체 재설명 전에 단서가 있는 retrieval practice로 기억 경로를 다시 활성화한다."
+      },
+      {
+        id: "novel-application",
+        title: "처음 보는 적용문제 성공",
+        rawInput: "기존 연습문제와 표면 형태가 다른 새로운 문제에서 같은 Chain Rule 원리를 독립적으로 적용해 성공했다.",
+        evidence: ["correct", "independent_success", "novel_application_success"],
+        stateUpdates: {
+          conceptual_mastery: "↑ 상승",
+          procedural_mastery: "↑ 상승",
+          transferability: "큰 폭 ↑",
+          help_need: "↓ 감소",
+          state_confidence: "↑ 상승"
+        },
+        explanation: "문제가 새로운 형태라는 조건 때문에 Novel Application Success Evidence가 발생한다. 일반적인 정답과 달리 같은 원리를 다른 맥락에 적용한 Transferability를 강하게 업데이트한다.",
+        decisionTitle: "더 복합적인 맥락으로 확장",
+        decision: "단순 반복을 줄이고 다른 개념과 결합된 전이 문제로 난도를 높인다."
+      },
+      {
+        id: "overconfident-incorrect",
+        title: "\"90% 확실해\" 후 오답",
+        rawInput: "학생이 답에 90% 확신한다고 말했지만 실제 답은 틀렸다.",
+        evidence: ["confidence_report", "incorrect"],
+        stateUpdates: {
+          conceptual_mastery: "↓ 조정",
+          procedural_mastery: "↓ 조정",
+          calibration: "Overconfidence ↑",
+          state_confidence: "↑ 상승"
+        },
+        explanation: "높은 자기 확신과 실제 오답의 불일치가 Overconfidence Evidence를 만든다. 수행 State를 하향 조정하면서 Calibration gap을 별도로 업데이트한다.",
+        decisionTitle: "예측과 결과를 연결해 보정",
+        decision: "풀이 전 확신도와 결과를 함께 되돌아보게 하고 오류 근거를 직접 찾게 한다."
+      }
+    ];
+
+    const elements = {
+      scenarioGrid: document.getElementById("scenarioGrid"),
+      rawInput: document.getElementById("rawInput"),
+      evidenceDictionary: document.getElementById("evidenceDictionary"),
+      stateDictionary: document.getElementById("stateDictionary"),
+      interpretationTitle: document.getElementById("interpretationTitle"),
+      interpretationCopy: document.getElementById("interpretationCopy"),
+      decisionTitle: document.getElementById("decisionTitle"),
+      decisionCopy: document.getElementById("decisionCopy")
+    };
+
+    function createScenarioButtons() {
+      scenarios.forEach((scenario, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "scenario-button";
+        button.dataset.scenarioId = scenario.id;
+        button.setAttribute("aria-pressed", "false");
+        button.innerHTML = `
+          <span class="scenario-index">${String(index + 1).padStart(2, "0")}</span>
+          <span class="scenario-title">${scenario.title}</span>
+        `;
+        button.addEventListener("click", () => selectScenario(scenario.id));
+        elements.scenarioGrid.appendChild(button);
+      });
+    }
+
+    function createEvidenceDictionary() {
+      Object.entries(evidenceTypes).forEach(([category, types]) => {
+        const group = document.createElement("section");
+        group.className = "dictionary-group";
+        group.innerHTML = `<h3 class="group-title">${category}</h3>`;
+
+        const list = document.createElement("ul");
+        list.className = "evidence-list";
+        types.forEach((type) => {
+          const item = document.createElement("li");
+          item.className = "evidence-item";
+          item.dataset.evidenceId = type.id;
+          item.innerHTML = `
+            <span class="evidence-name">${type.label}</span>
+            <span class="evidence-meta"><span class="active-dot" aria-hidden="true"></span><code>${type.id}</code></span>
+          `;
+          list.appendChild(item);
+        });
+        group.appendChild(list);
+        elements.evidenceDictionary.appendChild(group);
+      });
+    }
+
+    function createStateDictionary() {
+      Object.entries(stateTypes).forEach(([category, types]) => {
+        const group = document.createElement("section");
+        group.className = "state-group";
+        group.innerHTML = `<h3 class="group-title">${category}</h3>`;
+
+        const list = document.createElement("ul");
+        list.className = "state-list";
+        types.forEach((type) => {
+          const item = document.createElement("li");
+          item.className = "state-item";
+          item.dataset.stateId = type.id;
+          item.innerHTML = `
+            <div>
+              <div class="state-name-row"><span class="state-name">${type.label}</span><code>${type.id}</code></div>
+              <p class="state-description">${type.description}</p>
+            </div>
+            <span class="state-change">— 변화 없음</span>
+          `;
+          list.appendChild(item);
+        });
+        group.appendChild(list);
+        elements.stateDictionary.appendChild(group);
+      });
+    }
+
+    function selectScenario(id) {
+      const scenario = scenarios.find((item) => item.id === id);
+      if (!scenario) return;
+
+      document.querySelectorAll(".scenario-button").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.scenarioId === id));
+      });
+
+      elements.rawInput.textContent = scenario.rawInput;
+
+      document.querySelectorAll(".evidence-item").forEach((item) => {
+        const isActive = scenario.evidence.includes(item.dataset.evidenceId);
+        item.classList.toggle("is-active", isActive);
+        item.setAttribute("aria-current", isActive ? "true" : "false");
+      });
+
+      document.querySelectorAll(".state-item").forEach((item) => {
+        const update = scenario.stateUpdates[item.dataset.stateId];
+        const isActive = Boolean(update);
+        item.classList.toggle("is-active", isActive);
+        item.setAttribute("aria-current", isActive ? "true" : "false");
+        item.querySelector(".state-change").textContent = update || "— 변화 없음";
+      });
+
+      elements.interpretationTitle.textContent = scenario.title;
+      elements.interpretationCopy.textContent = scenario.explanation;
+      elements.decisionTitle.textContent = scenario.decisionTitle;
+      elements.decisionCopy.textContent = scenario.decision;
+    }
+
+    createScenarioButtons();
+    createEvidenceDictionary();
+    createStateDictionary();
+    selectScenario(scenarios[0].id);
+  </script>
+</body>
+</html>
