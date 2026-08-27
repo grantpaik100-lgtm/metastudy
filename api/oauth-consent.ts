@@ -23,7 +23,11 @@ export default function handler(
     "cache-control": "no-store",
     "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh; connect-src 'self' https://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   });
-  response.end(`<!doctype html>
+  response.end(renderOAuthConsentPage(config));
+}
+
+export function renderOAuthConsentPage(config: string): string {
+  return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -75,7 +79,7 @@ export default function handler(
         "Client: " + (data?.client?.name ?? "AI client"),
         "Scopes: " + (data?.scope ?? "openid email profile"),
         "Access: learner profile, domain/skill state, recent evidence, and append-only learning events"
-      ].join("\n");
+      ].join("\\n");
       consent.classList.remove("hidden");
       setStatus("Review and approve this request.");
     }
@@ -98,5 +102,5 @@ export default function handler(
     await showCurrentStep();
   </script>
 </body>
-</html>`);
+</html>`;
 }
