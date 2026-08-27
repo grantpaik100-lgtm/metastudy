@@ -1,6 +1,13 @@
 # Local research notes are not part of the public demo.
 md/
 
+# Node / local environment
+node_modules/
+dist/
+.env
+.env.local
+.vercel/
+
 # OS metadata
 .DS_Store
 Thumbs.db

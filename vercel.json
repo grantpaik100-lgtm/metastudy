@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/mcp.ts": {
+      "maxDuration": 30
+    },
+    "api/learner-context.ts": {
+      "maxDuration": 10
+    }
+  }
+}
