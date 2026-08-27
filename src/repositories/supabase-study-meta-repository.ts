@@ -155,10 +155,14 @@ export class SupabaseStudyMetaRepository implements StudyMetaRepository {
 
 export function createSupabaseRepository(
   url: string,
-  serviceRoleKey: string,
+  key: string,
+  accessToken?: string,
 ): SupabaseStudyMetaRepository {
-  const client = createClient(url, serviceRoleKey, {
+  const client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    ...(accessToken
+      ? { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
+      : {}),
   });
   return new SupabaseStudyMetaRepository(client);
 }

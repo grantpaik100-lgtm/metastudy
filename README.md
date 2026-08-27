@@ -55,6 +55,8 @@ Preference는 측정된 Intervention Effectiveness와 동일하게 취급하지 
 ```dotenv
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
+SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+OAUTH_ALLOWED_EMAILS=you@example.com
 PORT=3000
 ```
 
@@ -198,6 +200,17 @@ SUPABASE_SERVICE_ROLE_KEY
 ```text
 https://YOUR_SITE.vercel.app/api/mcp
 ```
+
+ChatGPT/Codex OAuth connection also requires Supabase Authentication > OAuth Server
+to be enabled with dynamic client registration. Set the Supabase Site URL to the
+production site and the authorization path to `/oauth/consent`, then run
+`supabase/migrations/202608270002_oauth_student_access.sql`.
+
+The MCP endpoint returns an RFC 9728 protected-resource challenge when no bearer
+token is provided. Supabase Auth performs OAuth 2.1 authorization-code + PKCE,
+and authenticated MCP database calls use the user's token so RLS limits access
+to the linked learner. `OAUTH_ALLOWED_EMAILS` controls which accounts may claim
+the seeded Demo Student during this MVP flow.
 
 현재 skeleton에는 사용자 인증/OAuth가 없습니다. 공개 배포 전에 MCP endpoint 인증과 학생별 접근 제어를 추가해야 합니다.
 

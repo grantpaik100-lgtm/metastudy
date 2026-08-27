@@ -13,7 +13,7 @@
     "build": "tsc -p tsconfig.json && node scripts/build-static.mjs",
     "start": "node dist/src/http.js",
     "start:stdio": "node dist/src/stdio.js",
-    "test": "node --import tsx --test tests/mcp.integration.test.ts"
+    "test": "node --import tsx --test tests/mcp.integration.test.ts tests/oauth.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "2.0.0",

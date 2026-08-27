@@ -1,4 +1,4 @@
-import { getEnvironment } from "../config/env.js";
+import { getEnvironment, getSupabasePublicKey } from "../config/env.js";
 import { createSupabaseRepository } from "../repositories/supabase-study-meta-repository.js";
 import { createStudyMetaServices, type StudyMetaServices } from "./service-container.js";
 
@@ -14,4 +14,14 @@ export function getDefaultServices(): StudyMetaServices {
     services = createStudyMetaServices(repository);
   }
   return services;
+}
+
+export function createAuthenticatedServices(accessToken: string): StudyMetaServices {
+  const environment = getEnvironment();
+  const repository = createSupabaseRepository(
+    environment.SUPABASE_URL,
+    getSupabasePublicKey(environment),
+    accessToken,
+  );
+  return createStudyMetaServices(repository);
 }
