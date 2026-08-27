@@ -4,6 +4,7 @@ md/
 # Node / local environment
 node_modules/
 dist/
+public/
 .env
 .env.local
 .vercel/
