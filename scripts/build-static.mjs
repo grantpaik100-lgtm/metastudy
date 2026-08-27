@@ -6,7 +6,10 @@ const publicDirectory = resolve(projectRoot, "public");
 
 await mkdir(publicDirectory, { recursive: true });
 await Promise.all(
-  ["index.html", "viewer.html"].map((fileName) =>
-    copyFile(resolve(projectRoot, fileName), resolve(publicDirectory, fileName)),
+  ["index.html", "viewer.html"].map((outputFileName) =>
+    copyFile(
+      resolve(projectRoot, "viewer.html"),
+      resolve(publicDirectory, outputFileName),
+    ),
   ),
 );
