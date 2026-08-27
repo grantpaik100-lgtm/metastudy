@@ -95,6 +95,25 @@ npm run dev:stdio
 
 ## MCP 도구
 
+### `get_my_learner_context`
+
+OAuth로 로그인한 사용자의 `student_auth_links`를 통해 학생을 자동 식별합니다. `student_id`를 입력하지 않습니다. `domain`을 생략하면 가장 최근에 업데이트된 학습 과목을 선택합니다.
+
+입력 예시:
+
+```json
+{}
+```
+
+과목이나 Skill이 명시된 경우에만 전달합니다.
+
+```json
+{
+  "domain": "calculus",
+  "skill_id": "chain_rule"
+}
+```
+
 ### `get_learner_context`
 
 입력:

@@ -2,6 +2,8 @@ import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import {
   GetLearnerContextInputSchema,
   GetLearnerContextOutputSchema,
+  GetMyLearnerContextInputSchema,
+  GetMyLearnerContextOutputSchema,
   RecordLearningEventInputSchema,
   RecordLearningEventOutputSchema,
 } from "../domain/contracts.js";
@@ -20,6 +22,34 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
     name: "studymeta-mcp",
     version: "0.1.0",
   });
+
+  server.registerTool(
+    "get_my_learner_context",
+    {
+      title: "Get my learner context",
+      description:
+        "Start or resume a personalized StudyMeta session for the authenticated learner. Resolve the student from OAuth automatically, choose the most recent domain when omitted, and return the learner profile, state, recent evidence, and teaching context. Call this when the user starts StudyMeta, asks to continue studying, or asks about their own learning state. Never ask the user for a student_id.",
+      inputSchema: GetMyLearnerContextInputSchema,
+      outputSchema: GetMyLearnerContextOutputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const output = await services.learnerStateService.getMyContext(input);
+        return {
+          content: [{ type: "text", text: JSON.stringify(output) }],
+          structuredContent: output,
+        };
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
 
   server.registerTool(
     "get_learner_context",

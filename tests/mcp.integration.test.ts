@@ -81,6 +81,20 @@ class MemoryRepository implements StudyMetaRepository {
     },
   ];
 
+  async getCurrentStudentId(): Promise<string | null> {
+    return this.student.id;
+  }
+
+  async getMostRelevantDomain(
+    studentId: string,
+    skillId?: string,
+  ): Promise<string | null> {
+    return studentId === this.student.id &&
+      (!skillId || skillId === this.skillState.skill_id)
+      ? this.skillState.domain
+      : null;
+  }
+
   async getStudent(studentId: string): Promise<Student | null> {
     return studentId === this.student.id ? this.student : null;
   }
@@ -168,7 +182,24 @@ test("MCP tools read all three learner layers and append evidence without changi
     const tools = await client.listTools();
     assert.deepEqual(
       tools.tools.map((tool) => tool.name).sort(),
-      ["get_learner_context", "record_learning_event"],
+      ["get_learner_context", "get_my_learner_context", "record_learning_event"],
+    );
+
+    const started = await client.callTool({
+      name: "get_my_learner_context",
+      arguments: {},
+    });
+    assert.equal(started.isError, undefined);
+    const startedContext = started.structuredContent as Record<string, unknown>;
+    assert.equal(startedContext.student_id, demoStudentId);
+    assert.equal(startedContext.resolved_domain, "calculus");
+    assert.equal(
+      (startedContext.student as Record<string, unknown>).display_name,
+      "Demo Student",
+    );
+    assert.equal(
+      (startedContext.skill_states as Array<Record<string, unknown>>)[0]?.skill_id,
+      "chain_rule",
     );
 
     const initial = await client.callTool({

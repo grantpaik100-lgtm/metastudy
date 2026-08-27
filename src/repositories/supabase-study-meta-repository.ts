@@ -29,6 +29,50 @@ function assertQuerySucceeded<T>(
 export class SupabaseStudyMetaRepository implements StudyMetaRepository {
   constructor(private readonly client: SupabaseClient) {}
 
+  async getCurrentStudentId(): Promise<string | null> {
+    const result = await this.client.rpc("current_student_id");
+    const data = assertQuerySucceeded("get current student id", result);
+    return typeof data === "string" ? data : null;
+  }
+
+  async getMostRelevantDomain(
+    studentId: string,
+    skillId?: string,
+  ): Promise<string | null> {
+    let skillQuery = this.client
+      .from("learner_states")
+      .select("domain")
+      .eq("student_id", studentId);
+
+    if (skillId) {
+      skillQuery = skillQuery.eq("skill_id", skillId);
+    }
+
+    const skillResult = await skillQuery
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const skillData = assertQuerySucceeded("get most relevant skill domain", skillResult);
+    if (skillData && typeof skillData.domain === "string") {
+      return skillData.domain;
+    }
+
+    const domainResult = await this.client
+      .from("domain_states")
+      .select("domain")
+      .eq("student_id", studentId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const domainData = assertQuerySucceeded(
+      "get most relevant domain state",
+      domainResult,
+    );
+    return domainData && typeof domainData.domain === "string"
+      ? domainData.domain
+      : null;
+  }
+
   async getStudent(studentId: string): Promise<Student | null> {
     const result = await this.client
       .from("students")

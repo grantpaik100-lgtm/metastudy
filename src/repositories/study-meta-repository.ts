@@ -9,6 +9,11 @@ import type {
 } from "../domain/contracts.js";
 
 export interface StudyMetaRepository {
+  getCurrentStudentId(): Promise<string | null>;
+  getMostRelevantDomain(
+    studentId: string,
+    skillId?: string,
+  ): Promise<string | null>;
   getStudent(studentId: string): Promise<Student | null>;
   getLearnerProfile(studentId: string): Promise<LearnerProfile | null>;
   getDomainState(studentId: string, domain: string): Promise<DomainState | null>;

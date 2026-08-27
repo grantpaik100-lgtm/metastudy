@@ -78,12 +78,22 @@ export const GetLearnerContextInputSchema = z.object({
 
 export const GetLearnerContextOutputSchema = z.object({
   student_id: z.string().uuid(),
+  student: StudentSchema,
   learner_profile: LearnerProfileSchema.nullable(),
   domain_state: DomainStateSchema.nullable(),
   skill_state: SkillStateSchema.nullable(),
   skill_states: z.array(SkillStateSchema),
   recent_evidence: z.array(RecentLearningEventSchema),
   teaching_context: TeachingContextSchema,
+});
+
+export const GetMyLearnerContextInputSchema = z.object({
+  domain: z.string().trim().min(1).optional(),
+  skill_id: z.string().trim().min(1).optional(),
+});
+
+export const GetMyLearnerContextOutputSchema = GetLearnerContextOutputSchema.extend({
+  resolved_domain: z.string().nullable(),
 });
 
 export const RecordLearningEventInputSchema = z.object({
@@ -112,6 +122,8 @@ export type RecentLearningEvent = z.infer<typeof RecentLearningEventSchema>;
 export type TeachingContext = z.infer<typeof TeachingContextSchema>;
 export type GetLearnerContextInput = z.input<typeof GetLearnerContextInputSchema>;
 export type GetLearnerContextOutput = z.infer<typeof GetLearnerContextOutputSchema>;
+export type GetMyLearnerContextInput = z.input<typeof GetMyLearnerContextInputSchema>;
+export type GetMyLearnerContextOutput = z.infer<typeof GetMyLearnerContextOutputSchema>;
 export type RecordLearningEventInput = z.infer<typeof RecordLearningEventInputSchema>;
 export type RecordLearningEventRawInput = z.input<typeof RecordLearningEventInputSchema>;
 export type RecordLearningEventOutput = z.infer<typeof RecordLearningEventOutputSchema>;
