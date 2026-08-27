@@ -9,6 +9,7 @@ const EnvironmentSchema = z.object({
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   OAUTH_ALLOWED_EMAILS: z.string().default(""),
+  OPENAI_APPS_CHALLENGE_TOKEN: z.string().min(1).optional(),
   DEMO_STUDENT_ID: z.uuid().default("00000000-0000-4000-8000-000000000001"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 });

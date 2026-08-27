@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">StudyMeta logo</title>
+  <desc id="desc">A blue rounded square with a white learner-state network.</desc>
+  <rect width="512" height="512" rx="112" fill="#2563EB"/>
+  <path d="M150 174h156c31 0 56 25 56 56s-25 56-56 56H206c-31 0-56 25-56 56s25 56 56 56h156" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="150" cy="174" r="28" fill="#BFDBFE" stroke="#fff" stroke-width="12"/>
+  <circle cx="362" cy="342" r="28" fill="#BFDBFE" stroke="#fff" stroke-width="12"/>
+  <circle cx="256" cy="286" r="30" fill="#fff"/>
+</svg>

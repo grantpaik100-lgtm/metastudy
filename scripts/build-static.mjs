@@ -5,10 +5,19 @@ const projectRoot = resolve(import.meta.dirname, "..");
 const publicDirectory = resolve(projectRoot, "public");
 
 await mkdir(publicDirectory, { recursive: true });
+const staticFiles = [
+  ["viewer.html", "index.html"],
+  ["viewer.html", "viewer.html"],
+  ["privacy.html", "privacy.html"],
+  ["terms.html", "terms.html"],
+  ["support.html", "support.html"],
+  ["studymeta-logo.svg", "studymeta-logo.svg"],
+];
+
 await Promise.all(
-  ["index.html", "viewer.html"].map((outputFileName) =>
+  staticFiles.map(([sourceFileName, outputFileName]) =>
     copyFile(
-      resolve(projectRoot, "viewer.html"),
+      resolve(projectRoot, sourceFileName),
       resolve(publicDirectory, outputFileName),
     ),
   ),

@@ -20,6 +20,10 @@
     {
       "source": "/.well-known/oauth-protected-resource/api/mcp",
       "destination": "/api/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/openai-apps-challenge",
+      "destination": "/api/openai-apps-challenge"
     }
   ]
 }
