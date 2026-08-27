@@ -212,7 +212,16 @@
       try {
         const response = await fetch(`/api/learner-context?${params.toString()}`);
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "조회에 실패했습니다.");
+        if (!response.ok) {
+          const details = Array.isArray(data.details)
+            ? data.details
+                .map((issue) => `${issue.path?.join(".") || "input"}: ${issue.message}`)
+                .join(" / ")
+            : "";
+          throw new Error(
+            [data.error || "조회에 실패했습니다.", details].filter(Boolean).join(" — "),
+          );
+        }
 
         renderDefinitionList(profile, data.learner_profile, [
           "preferred_explanation_depth", "preferred_pace",
