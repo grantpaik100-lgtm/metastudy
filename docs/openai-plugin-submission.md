@@ -11,7 +11,7 @@ Use this file as the source of truth when completing the OpenAI Platform plugin 
 - Support: `https://metastudy-dusky.vercel.app/support.html`
 - Privacy policy: `https://metastudy-dusky.vercel.app/privacy.html`
 - Terms of service: `https://metastudy-dusky.vercel.app/terms.html`
-- Logo: `https://metastudy-dusky.vercel.app/studymeta-logo.svg`
+- Logo: `https://metastudy-dusky.vercel.app/studymeta-logo.png`
 - Initial availability: South Korea
 
 Short description:
@@ -128,11 +128,11 @@ Create or select a dedicated Supabase Auth reviewer account that:
 
 ## Pre-submit checklist
 
-- [ ] Individual or business developer identity verified in the OpenAI Platform organization.
+- [x] Individual developer identity verified in the OpenAI Platform organization.
 - [ ] `Apps Management` write access confirmed.
 - [ ] Production policy, terms, support, and logo URLs return HTTP 200.
 - [ ] Domain challenge token configured and verified.
-- [ ] Supabase OAuth metadata advertises `openid`, `email`, and a UserInfo endpoint.
+- [x] Supabase OAuth metadata advertises `openid`, `email`, and a UserInfo endpoint.
 - [ ] Reviewer account works without MFA or confirmation prompts.
 - [ ] `Scan Tools` discovers all three tools and accepts their schemas and annotations.
 - [ ] Five positive and three negative test cases entered.

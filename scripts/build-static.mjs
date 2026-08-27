@@ -12,6 +12,7 @@ const staticFiles = [
   ["terms.html", "terms.html"],
   ["support.html", "support.html"],
   ["studymeta-logo.svg", "studymeta-logo.svg"],
+  ["studymeta-logo.png", "studymeta-logo.png"],
 ];
 
 await Promise.all(
