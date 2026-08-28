@@ -176,7 +176,7 @@ export function buildTeachingPlan(input: TeachingContextInput): TeachingPlan {
       profile_type: input.profileType,
       label:
         input.profileType === "synthetic_demo"
-          ? "Demo Learner · Synthetic Profile · Illustrative State"
+          ? "Synthetic Demo Learner · Illustrative State"
           : "Stored Learner Profile",
       is_real_user_data: input.profileType === "stored",
     },
