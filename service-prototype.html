@@ -736,6 +736,9 @@ function exampleSubjects() {
   return [
     {
       id: "calc", name: "미적분학", analyzed: true,
+      // MCP get_learner_context가 쓰는 domain 값. 있으면 addExampleSubject()가
+      // 이 과목 안의 mcpSkillId 붙은 스킬을 실제 학습자 컨텍스트로 갱신해본다.
+      mcpDomain: "calculus",
       materials: [{ name: "미적분학_강의노트.pdf", analyzed: true }, { name: "연습문제_3주차.pdf", analyzed: true }],
       calibrationText: "예상과 실제가 꽤 잘 맞고 있어요",
       exams: [
@@ -744,6 +747,7 @@ function exampleSubjects() {
       ],
       skills: [
         newSkill("Chain Rule", { id: "chain-rule", unattempted: false,
+          mcpSkillId: "chain-rule",
           conceptual_mastery: "up", procedural_mastery: "up", retrievability: "up", help_need: "down", misconception: "down", state_confidence: "up",
           lastRecord: { scenarioId: "independent-correct", at: ago(1), source: "claude" } }),
         newSkill("극한의 정의", { id: "limit-def", unattempted: false,
@@ -758,8 +762,60 @@ function exampleSubjects() {
 }
 
 // MCP record_learning_event의 source 값에 대응하는 표시 라벨
-const SOURCE_LABELS = { claude: "Claude", chatgpt: "ChatGPT", camera: "카메라", quiz: "퀴즈", manual: "직접 입력" };
+const SOURCE_LABELS = { claude: "Claude", chatgpt: "ChatGPT", camera: "카메라", quiz: "퀴즈", manual: "직접 입력", mcp: "연결된 앱" };
 function sourceLabel(src) { return SOURCE_LABELS[src] || "연결된 앱"; }
+
+// 온보딩/화면 A에서 인증 없이도 "예시 과목"을 실제 학습자 컨텍스트로 보여주기 위한
+// 고정 데모 학습자 ID. 실제 로그인 붙이기 전까지만 쓰는 값이다 — 로그인이 생기면
+// state.user 쪽 실제 student_id로 바꿔야 한다.
+const MCP_DEMO_STUDENT_ID = "00000000-0000-4000-8000-000000000001";
+
+// api/learner-context.js(Vercel 서버리스 함수, MCP 프록시)를 호출해 스킬의 State를
+// 실제 학습자 컨텍스트로 덮어쓴다. 브라우저는 MCP 툴을 직접 부를 수 없어서 이 프록시를
+// 거친다(lib/mcp-client.js, MCP_INTEGRATION.md 참고).
+//
+// 백엔드가 배포되지 않았거나(MCP_SERVER_URL 미설정) 이 파일을 file://로 열어
+// /api가 없을 때도 있다 — 그런 경우 조용히 실패하고 이미 들어있는 예시 값을 그대로
+// 둔다. 그 값도 "예시"라고 분명히 표시된 데이터라 거짓 정보가 아니다.
+async function syncSkillWithMcp(subject, skill) {
+  if (!subject.mcpDomain || !skill.mcpSkillId) return;
+  const params = new URLSearchParams({
+    student_id: MCP_DEMO_STUDENT_ID,
+    domain: subject.mcpDomain,
+    skill_id: skill.mcpSkillId
+  });
+
+  let res;
+  try {
+    res = await fetch("/api/learner-context?" + params.toString());
+  } catch (err) {
+    console.info("[MCP] /api/learner-context에 연결할 수 없어요(백엔드 미배포이거나 정적 파일로 열림). 예시 값을 유지합니다.", err);
+    return;
+  }
+  if (!res.ok) {
+    console.info("[MCP] 학습자 컨텍스트를 가져오지 못했어요(HTTP " + res.status + "). 예시 값을 유지합니다.");
+    return;
+  }
+
+  const payload = await res.json();
+  if (!payload.skill) return;
+
+  Object.assign(skill, {
+    conceptual_mastery: payload.skill.conceptual_mastery,
+    procedural_mastery: payload.skill.procedural_mastery,
+    retrievability: payload.skill.retrievability,
+    transferability: payload.skill.transferability,
+    help_need: payload.skill.help_need,
+    misconception: payload.skill.misconception,
+    state_confidence: payload.skill.state_confidence,
+    unattempted: false,
+    lastRecord: { source: "mcp", at: toISODate(TODAY), scenarioId: null }
+  });
+  subject.calibrationText = payload.calibration_text;
+  save();
+  if (currentScreen === "screenA") renderScreenA();
+  if (currentScreen === "screenB" && recordContext && recordContext.skillId === skill.id) renderScreenB();
+}
 
 /* =========================================================================
    2. 라우팅
@@ -1041,11 +1097,18 @@ function renderOnbSubjects() {
 }
 
 function addExampleSubject() {
+  const added = [];
   exampleSubjects().forEach((d) => {
-    if (!state.subjects.some((s) => s.name === d.name)) state.subjects.push(d);
+    if (!state.subjects.some((s) => s.name === d.name)) { state.subjects.push(d); added.push(d); }
   });
   state.currentSubjectId = state.subjects[0] ? state.subjects[0].id : null;
   save();
+
+  // 백그라운드로 실제 MCP 학습자 컨텍스트를 가져와본다 — 성공하면 화면이
+  // 저절로 갱신되고, 실패하면 위 정적 예시 값이 그대로 남는다.
+  added.forEach((subject) => {
+    subject.skills.forEach((skill) => { syncSkillWithMcp(subject, skill); });
+  });
 }
 
 document.getElementById("onbSeedDemo").addEventListener("click", () => {
@@ -1499,6 +1562,51 @@ function relativeDayLabel(dateStr) {
   return diff + "일 전";
 }
 
+// MCP get_learner_context에서 실제로 받아온 스킬 상태를 보여준다(api/learner-context.js
+// 참고). 9개 시나리오처럼 "이번 회차가 정답/오답이었는지"를 알 수 없는 현재 상태
+// 스냅샷이라, 결과 배너 대신 지금 상태 목록으로만 보여준다.
+function renderLiveSkillSnapshot(skill, banner, changeCards, chipsWrap, fullList) {
+  banner.className = "result-banner";
+  document.getElementById("resultTitle").textContent = "지금까지의 학습 상태예요";
+  document.getElementById("resultSub").textContent = "연결된 앱에서 실제로 쌓인 기록을 반영했어요.";
+
+  const cardOrder = ["misconception","conceptual_mastery","procedural_mastery","retrievability","help_need"];
+  changeCards.innerHTML = "";
+  let shown = 0;
+  cardOrder.forEach((id) => {
+    if (shown >= 3) return;
+    const dir = skill[id];
+    if (!dir || dir === "neutral") return;
+    const meta = stateMeta[id];
+    const div = document.createElement("div");
+    div.className = "change-card";
+    div.innerHTML = `<span class="change-text">${escapeHtml(meta[dir])}</span>`;
+    changeCards.appendChild(div);
+    shown++;
+  });
+  if (!shown) {
+    changeCards.innerHTML = `<div class="change-card"><span class="change-text">아직 눈에 띄게 달라진 항목은 없어요.</span></div>`;
+  }
+
+  document.getElementById("decisionText").textContent = "연결된 앱에서 계속 공부하면 이 상태가 갱신돼요.";
+
+  // 스냅샷에는 "이번 회차에 감지된 Evidence" 목록이 없다(현재 상태만 온다) — 자세히 보기의
+  // Evidence 칩은 비워둔다.
+  chipsWrap.innerHTML = "";
+
+  fullList.innerHTML = "";
+  SKILL_STATE_IDS.forEach((id) => {
+    const meta = stateMeta[id];
+    const dir = skill[id] || "neutral";
+    const active = dir !== "neutral";
+    const text = active ? meta[dir] : "— 변화 없음";
+    const div = document.createElement("div");
+    div.className = "full-state-item" + (active ? " is-active" : "");
+    div.innerHTML = `<span>${escapeHtml(meta.label)}</span><span>${escapeHtml(text)}</span>`;
+    fullList.appendChild(div);
+  });
+}
+
 function renderScreenB() {
   const subject = recordContext ? state.subjects.find((s) => s.id === recordContext.subjectId) : null;
   const skill = subject ? subject.skills.find((k) => k.id === recordContext.skillId) : null;
@@ -1528,6 +1636,12 @@ function renderScreenB() {
   const fullList = document.getElementById("fullStateList");
 
   if (!sc) {
+    // MCP에서 직접 받아온 스냅샷(9개 시나리오가 아닌 실제 학습자 컨텍스트)이면
+    // "이번 이벤트가 정답/오답이었는지"가 아니라 지금 상태 자체를 보여준다.
+    if (skill && skill.lastRecord && skill.lastRecord.source === "mcp") {
+      renderLiveSkillSnapshot(skill, banner, changeCards, chipsWrap, fullList);
+      return;
+    }
     banner.className = "result-banner";
     document.getElementById("resultTitle").textContent = "아직 기록이 없어요";
     document.getElementById("resultSub").textContent = "연결된 앱에서 공부를 시작하면 여기에 기록이 표시돼요.";

@@ -4,3 +4,9 @@ md/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# MCP 백엔드(api/, lib/) 의존성 및 로컬 환경변수. 실제 값은 절대 커밋하지 않는다.
+node_modules/
+.env
+.env.local
+.vercel

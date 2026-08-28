@@ -1,0 +1,13 @@
+{
+  "name": "studymeta-service-prototype",
+  "private": true,
+  "version": "0.1.0",
+  "description": "StudyMeta 서비스 프로토타입 + MCP 연동 백엔드(Vercel 서버리스 함수)",
+  "scripts": {
+    "dev": "node scripts/dev-server.js",
+    "vercel-dev": "vercel dev"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  }
+}
