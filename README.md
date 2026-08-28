@@ -6,8 +6,6 @@ StudyMeta Learner Model v0.1의 Evidence → Student State 업데이트 구조�
 
 별도 설치 없이 `index.html`을 브라우저에서 열면 됩니다.
 
-`m/index.html`은 모바일 클릭더미 프로토타입입니다 (아래 참조).
-
 ## 수정 후 배포
 
 ```bash
@@ -21,5 +19,6 @@ Vercel에서 이 GitHub 저장소의 `main` 브랜치를 연결하면, 이후 `g
 ## 구조
 
 - `index.html`: HTML, CSS, Vanilla JavaScript가 모두 포함된 배포 파일 (Learner Model 파이프라인 데모)
-- `m/index.html`: **모바일 클릭더미 프로토타입** — StudyMeta UX 결정사항(`md/StudyMeta_UX_Decisions.md`)의 4주차 검증용 화면. 홈(발사대) → 학습 시작(핸드오프) → Claude 학습(모의) → 복귀 반영 → L2(단원 상세)/L3(State 수치, 옵트인) 흐름을 탭으로 체험할 수 있습니다. Vercel에 배포되면 `/m/` 경로로 접근합니다
+- `design.md`: 학생용 UI 설계 문서 (과목 대시보드/즉시 피드백/학습 플래너)
+- `student-ui-prototype.html`: `design.md` 기준 화면 A/B/C 와이어프레임 프로토타입
 - `md/`: 로컬 연구 노트이며 공개 저장소에는 업로드하지 않음
