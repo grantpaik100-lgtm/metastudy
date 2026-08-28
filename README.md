@@ -19,6 +19,7 @@ Vercel에서 이 GitHub 저장소의 `main` 브랜치를 연결하면, 이후 `g
 ## 구조
 
 - `index.html`: HTML, CSS, Vanilla JavaScript가 모두 포함된 배포 파일 (Learner Model 파이프라인 데모)
+- `AGENTS.md`: **작업 지침** — 러너 모델 보존 규칙, 확정된 설계 결정, 코딩 규칙. 이 저장소에서 작업하기 전에 먼저 읽으세요
 - `design.md`: 학생용 UI 설계 문서 (과목 대시보드/즉시 피드백/학습 플래너)
 - `student-ui-prototype.html`: `design.md` 기준 화면 A/B/C 와이어프레임 프로토타입
 - `md/`: 로컬 연구 노트이며 공개 저장소에는 업로드하지 않음
