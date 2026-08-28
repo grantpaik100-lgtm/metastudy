@@ -352,7 +352,7 @@ test("production and demo modes share one adaptive policy while only display cha
   );
 });
 
-test("synthetic demo learner is explicit and drives bidirectional adaptive scaffolding", async () => {
+test("synthetic demo learner returns a deterministic chain_rule_ir first-turn contract", async () => {
   const service = createStudyMetaServices(new MemoryRepository()).learnerStateService;
   const context = await service.getContext({
     student_id: demoStudentId,
@@ -362,15 +362,34 @@ test("synthetic demo learner is explicit and drives bidirectional adaptive scaff
     learner_profile_type: "synthetic",
   });
 
-  assert.equal(context.learner_profile_metadata.profile_type, "synthetic");
+  assert.equal(context.profile_type, "synthetic_demo");
+  assert.equal(context.learner_profile_metadata.profile_type, "synthetic_demo");
   assert.equal(context.learner_profile_metadata.is_real_user_data, false);
-  assert.match(context.learner_profile_metadata.label, /Synthetic Profile/);
+  assert.match(context.learner_profile_metadata.label, /Synthetic Demo Learner/);
   assert.equal(context.skill_state?.conceptual_mastery, 0.85);
   assert.equal(context.skill_state?.procedural_mastery, 0.35);
   assert.equal(context.skill_state?.retrievability, 0.3);
   assert.equal(context.skill_state?.transferability, 0.2);
   assert.equal(context.skill_state?.help_need, 0.75);
   assert.equal(context.skill_state?.state_confidence, 0.8);
+  assert.equal(context.learner_profile?.preferred_explanation_depth, "concise");
+  assert.deepEqual(context.learner_state, context.skill_state);
+  assert.deepEqual(context.pedagogical_policy, context.interaction_policy);
+  assert.equal(context.demo_scenario, "chain_rule_ir");
+  assert.equal(context.first_turn_contract?.problem, "y = (3x² + 1)^5");
+  assert.equal(
+    context.first_turn_contract?.closing_instruction,
+    "→ ㄱ / ㄴ / ㄷ 중 하나를 입력해주세요.",
+  );
+  assert.equal(context.first_turn_contract?.stop_after_closing_instruction, true);
+  assert.match(
+    context.first_turn_contract?.exact_response_template ?? "",
+    /STEP 1 · 구조 인식/,
+  );
+  assert.match(
+    context.teaching_context.executable_instructions[0] ?? "",
+    /DETERMINISTIC IR FIRST-TURN CONTRACT/,
+  );
   assert.equal(context.interaction_policy.initial_scaffold, "multiple_choice");
   assert.deepEqual(context.interaction_policy.success_path, [
     "multiple_choice",
@@ -404,7 +423,7 @@ test("IR deployment defaults can enable demo while an explicit request can disab
     skill_id: "chain_rule",
   });
   assert.equal(irDefault.display.demo_mode, true);
-  assert.equal(irDefault.learner_profile_metadata.profile_type, "synthetic");
+  assert.equal(irDefault.learner_profile_metadata.profile_type, "synthetic_demo");
 
   const productionOverride = await service.getContext({
     student_id: demoStudentId,
@@ -415,4 +434,68 @@ test("IR deployment defaults can enable demo while an explicit request can disab
   });
   assert.equal(productionOverride.display.demo_mode, false);
   assert.equal(productionOverride.learner_profile_metadata.profile_type, "stored");
+});
+
+test("synthetic state is denied outside the explicit demo student chain-rule scope", async () => {
+  const service = createStudyMetaServices(new MemoryRepository(), undefined, {
+    demoMode: true,
+    learnerProfileType: "synthetic_demo",
+  }).learnerStateService;
+
+  const wrongSkill = await service.getContext({
+    student_id: demoStudentId,
+    domain: "calculus",
+    skill_id: "product_rule",
+    demo_mode: true,
+    learner_profile_type: "synthetic_demo",
+  });
+  assert.equal(wrongSkill.profile_type, "stored");
+  assert.equal(wrongSkill.demo_scenario, null);
+  assert.equal(wrongSkill.first_turn_contract, null);
+  assert.equal(wrongSkill.skill_state, null);
+
+  const production = await service.getContext({
+    student_id: demoStudentId,
+    domain: "calculus",
+    skill_id: "chain_rule",
+    demo_mode: false,
+    learner_profile_type: "synthetic_demo",
+  });
+  assert.equal(production.profile_type, "stored");
+  assert.equal(production.skill_state?.procedural_mastery, 0.7);
+});
+
+test("evidence write derives independent_success value separately from confidence", async () => {
+  const repository = new MemoryRepository();
+  const services = createStudyMetaServices(repository);
+
+  await services.learningEventService.record({
+    student_id: demoStudentId,
+    domain: "calculus",
+    skill_id: "chain_rule",
+    source: "chatgpt",
+    event_type: "problem_attempt",
+    raw_event: {
+      problem: "y=(3x^2+1)^5",
+      student_answer: "15x(3x^2+1)^4",
+      interaction_summary: "Correct after one retry and a hint.",
+    },
+    evidence: [
+      { type: "correct", value: true, extractor_confidence: 1 },
+      { type: "hint_used", value: true, extractor_confidence: 1 },
+      { type: "retry_count", value: 1, extractor_confidence: 1 },
+      {
+        type: "independent_success",
+        value: true,
+        extractor_confidence: 0.95,
+      },
+    ],
+  });
+
+  const storedEvidence = repository.events.at(-1)?.evidence ?? [];
+  const independent = storedEvidence.find(
+    (item) => item.type === "independent_success",
+  );
+  assert.equal(independent?.value, false);
+  assert.equal(independent?.extractor_confidence, 0.95);
 });

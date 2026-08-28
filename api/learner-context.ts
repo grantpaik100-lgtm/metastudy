@@ -49,7 +49,12 @@ export default async function handler(
       ...(skillId ? { skill_id: skillId } : {}),
       ...(demoMode ? { demo_mode: demoMode === "true" } : {}),
       ...(learnerProfileType
-        ? { learner_profile_type: learnerProfileType as "stored" | "synthetic" }
+        ? {
+            learner_profile_type: learnerProfileType as
+              | "stored"
+              | "synthetic"
+              | "synthetic_demo",
+          }
         : {}),
     });
     sendJson(response, 200, context);

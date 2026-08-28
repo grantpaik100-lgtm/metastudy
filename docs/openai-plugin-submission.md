@@ -88,9 +88,10 @@ The endpoint returns only the configured plain-text token.
 
 - User prompt: `Chain Rule을 가르쳐줘.`
 - Expected behavior: Call `get_my_learner_context` with `{ "domain": "calculus", "skill_id": "chain_rule" }` and execute the returned policy rather than explaining it.
-- Expected result: Visibly label the Synthetic Demo Learner, show Procedural Mastery 0.35 and Help Need 0.75, summarize the selected strategy, ask one 3-choice structure-recognition question, and stop for the learner response.
+- Expected result: Confirm `profile_type=synthetic_demo` and `demo_scenario=chain_rule_ir`, then use `first_turn_contract.exact_response_template` as the complete first response. Visibly label the Synthetic Demo Learner, show Procedural Mastery 0.35 and Help Need 0.75, summarize the selected strategy, ask one 3-choice structure-recognition question, and stop for the learner response.
 - Success branch: `ㄱ` → guided short answer → independent solution.
 - Failure branch: retry → small hint → stronger hint/choices → worked example only after repeated failure.
+- Forbidden first-turn behavior: full lecture, formula explanation, answer, hint, STEP 2, unavailable-context disclaimer, or any text after the `ㄱ/ㄴ/ㄷ` request.
 
 ### 5. Record a learning event
 

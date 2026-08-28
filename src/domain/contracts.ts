@@ -72,6 +72,19 @@ export const TeachingContextSchema = z.object({
 });
 
 export const InteractionPolicySchema = z.object({
+  interaction_mode: z.enum(["guided", "independent"]),
+  initial_scaffolding: z.enum(["high", "medium", "low"]),
+  response_granularity: z.literal("one_step_at_a_time"),
+  initial_prompt_type: z.enum([
+    "multiple_choice",
+    "guided_short_answer",
+    "independent_solution",
+  ]),
+  success_action: z.literal("reduce_scaffolding"),
+  failure_action: z.literal("increase_scaffolding"),
+  wait_for_student_response: z.literal(true),
+  retrieval_before_explanation: z.boolean(),
+  transfer_problem_after_success: z.boolean(),
   teaching_approach: z.array(z.string()),
   initial_scaffold: z.enum([
     "multiple_choice",
@@ -105,9 +118,30 @@ export const DisplayPolicySchema = z.object({
 });
 
 export const LearnerProfileMetadataSchema = z.object({
-  profile_type: z.enum(["stored", "synthetic"]),
+  profile_type: z.enum(["stored", "synthetic_demo"]),
   label: z.string(),
   is_real_user_data: z.boolean(),
+});
+
+export const DemoChoiceSchema = z.object({
+  key: z.enum(["ㄱ", "ㄴ", "ㄷ"]),
+  text: z.string(),
+});
+
+export const FirstTurnContractSchema = z.object({
+  scenario: z.literal("chain_rule_ir"),
+  applies_to_first_tutoring_turn_only: z.literal(true),
+  banner: z.literal("[StudyMeta · Demo Learner]"),
+  state_summary: z.array(z.string()),
+  strategy_summary: z.literal("Step-by-step · Socratic · Adaptive Scaffolding"),
+  step_label: z.literal("STEP 1 · 구조 인식"),
+  problem: z.literal("y = (3x² + 1)^5"),
+  question: z.literal("가장 먼저 해야 할 행동은?"),
+  choices: z.tuple([DemoChoiceSchema, DemoChoiceSchema, DemoChoiceSchema]),
+  closing_instruction: z.literal("→ ㄱ / ㄴ / ㄷ 중 하나를 입력해주세요."),
+  stop_after_closing_instruction: z.literal(true),
+  exact_response_template: z.string(),
+  forbidden_content: z.array(z.string()),
 });
 
 export const StateSignalSchema = z.object({
@@ -130,7 +164,9 @@ export const GetLearnerContextInputSchema = z.object({
   domain: z.string().trim().min(1),
   skill_id: z.string().trim().min(1).optional(),
   demo_mode: z.boolean().optional(),
-  learner_profile_type: z.enum(["stored", "synthetic"]).optional(),
+  learner_profile_type: z
+    .enum(["stored", "synthetic", "synthetic_demo"])
+    .optional(),
 });
 
 export const GetLearnerContextOutputSchema = z.object({
@@ -141,10 +177,15 @@ export const GetLearnerContextOutputSchema = z.object({
   skill_state: SkillStateSchema.nullable(),
   skill_states: z.array(SkillStateSchema),
   recent_evidence: z.array(RecentLearningEventSchema),
+  profile_type: z.enum(["stored", "synthetic_demo"]),
+  learner_state: SkillStateSchema.nullable(),
   learner_profile_metadata: LearnerProfileMetadataSchema,
   state_signals: z.array(StateSignalSchema),
   teaching_context: TeachingContextSchema,
   interaction_policy: InteractionPolicySchema,
+  pedagogical_policy: InteractionPolicySchema,
+  demo_scenario: z.literal("chain_rule_ir").nullable(),
+  first_turn_contract: FirstTurnContractSchema.nullable(),
   display: DisplayPolicySchema,
   evidence_writeback: EvidenceWritebackSchema,
 });
@@ -153,7 +194,9 @@ export const GetMyLearnerContextInputSchema = z.object({
   domain: z.string().trim().min(1).optional(),
   skill_id: z.string().trim().min(1).optional(),
   demo_mode: z.boolean().optional(),
-  learner_profile_type: z.enum(["stored", "synthetic"]).optional(),
+  learner_profile_type: z
+    .enum(["stored", "synthetic", "synthetic_demo"])
+    .optional(),
 });
 
 export const GetMyLearnerContextOutputSchema = GetLearnerContextOutputSchema.extend({
@@ -187,6 +230,7 @@ export type TeachingContext = z.infer<typeof TeachingContextSchema>;
 export type InteractionPolicy = z.infer<typeof InteractionPolicySchema>;
 export type DisplayPolicy = z.infer<typeof DisplayPolicySchema>;
 export type LearnerProfileMetadata = z.infer<typeof LearnerProfileMetadataSchema>;
+export type FirstTurnContract = z.infer<typeof FirstTurnContractSchema>;
 export type StateSignal = z.infer<typeof StateSignalSchema>;
 export type EvidenceWriteback = z.infer<typeof EvidenceWritebackSchema>;
 export type GetLearnerContextInput = z.input<typeof GetLearnerContextInputSchema>;

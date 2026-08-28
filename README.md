@@ -126,10 +126,24 @@ StudyMeta 배너·주요 State·선택된 Strategy·Step 라벨을 표시하라�
 `Demo Learner · Synthetic Profile · Illustrative State`로 명시됩니다.
 
 현재 IR 배포는 `vercel.json`에서 `STUDYMETA_DEMO_MODE=true`와
-`STUDYMETA_LEARNER_PROFILE_TYPE=synthetic`을 명시적으로 설정합니다. 라이브 MCP에서
+`STUDYMETA_LEARNER_PROFILE_TYPE=synthetic_demo`를 명시적으로 설정합니다. 라이브 MCP에서
 옵션을 생략하면 Demo/Synthetic이 적용되지만, 코드와 다른 환경의 기본값은 여전히
 Production/Stored입니다. 요청에 `demo_mode: false`, `learner_profile_type: "stored"`를
 전달하면 배포 환경에서도 Production 동작을 직접 확인할 수 있습니다.
+
+Synthetic state는 환경변수만으로 모든 사용자에게 적용되지 않습니다. 다음 조건을 모두
+만족할 때만 `profile_type: "synthetic_demo"`와 `demo_scenario: "chain_rule_ir"`가 반환됩니다.
+
+- `demo_mode=true`
+- `student_id`가 `DEMO_STUDENT_ID`와 일치
+- `domain=calculus`
+- `skill_id=chain_rule`
+- 요청 또는 서버 설정의 profile type이 `synthetic_demo` (`synthetic`은 legacy alias)
+
+`chain_rule_ir` 응답에는 `first_turn_contract.exact_response_template`이 포함됩니다. 연결된
+AI는 첫 tutoring turn에서 이 template만 실행하고, `ㄱ/ㄴ/ㄷ` 입력 요청 뒤 즉시 멈춰야
+합니다. 이 deterministic scenario는 일반 State → Policy engine과 별도 파일에 있으며
+Production tutoring에는 적용되지 않습니다.
 
 ### `get_learner_context`
 
@@ -157,6 +171,8 @@ Production/Stored입니다. 요청에 `demo_mode: false`, `learner_profile_type:
 - stored/synthetic을 구분하는 `learner_profile_metadata`
 - `state_signals` (`retrievability`/`transferability`는 experimental로 표시)
 - 자동 State 갱신 여부를 명시하는 `evidence_writeback`
+- 명시적 `profile_type`, `learner_state`, `pedagogical_policy`
+- IR 전용 `demo_scenario`, `first_turn_contract`
 
 `skill_id`를 생략하면 특정 Skill 하나 대신 해당 Domain의 Skill State 목록을 반환합니다.
 
@@ -190,6 +206,11 @@ Production/Stored입니다. 요청에 `demo_mode: false`, `learner_profile_type:
 ```
 
 `event_type`을 생략하면 `observation`을 사용합니다. `occurred_at`도 선택적으로 전달할 수 있으며 생략 시 서버 시간이 적용됩니다.
+
+Evidence의 `value`와 `extractor_confidence`는 서로 다른 의미입니다. 예를 들어
+`independent_success`는 `value: false`처럼 관찰 결과를 저장하고, `extractor_confidence: 0.95`는
+그 관찰을 추출한 신뢰도만 나타냅니다. `correct`, `hint_used`, `retry_count`가 함께 전달되면
+서버는 독립 성공을 “정답 + 힌트 없음 + 재시도 0회”로 정합성 검사합니다.
 
 출력:
 
@@ -267,3 +288,4 @@ the seeded Demo Student during this MVP flow.
 - State → Pedagogical Policy는 `src/services/teaching-context.ts`의 `buildTeachingPlan`에서 생성합니다.
 - Production/Demo는 이 함수를 공유하며, `display`와 실행 지침의 노출 방식만 달라집니다.
 - Synthetic fixture는 `src/services/synthetic-learner.ts`에 분리되어 있고 tutoring 문구를 포함하지 않습니다.
+- Deterministic IR scenario와 첫 턴 계약은 `src/services/demo-scenarios.ts`에 분리되어 있습니다.

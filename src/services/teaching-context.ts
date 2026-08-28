@@ -2,6 +2,7 @@ import type {
   DisplayPolicy,
   DomainState,
   EvidenceWriteback,
+  FirstTurnContract,
   InteractionPolicy,
   LearnerProfile,
   LearnerProfileMetadata,
@@ -16,7 +17,8 @@ interface TeachingContextInput {
   skillState: SkillState | null;
   skillStates: SkillState[];
   demoMode: boolean;
-  profileType: "stored" | "synthetic";
+  profileType: "stored" | "synthetic_demo";
+  firstTurnContract: FirstTurnContract | null;
 }
 
 export interface TeachingPlan {
@@ -148,10 +150,18 @@ export function buildTeachingPlan(input: TeachingContextInput): TeachingPlan {
     "Infer success or failure from the learner's latest response; use the success_path or failure_path for the next turn.",
     "Do not invent learner-state updates. Evidence may be written separately, but the current state updater is not automated.",
   );
+  if (input.firstTurnContract) {
+    executableInstructions.unshift(
+      "DETERMINISTIC IR FIRST-TURN CONTRACT: This contract overrides ordinary opening behavior for the first tutoring response only.",
+      "Return the exact_response_template from first_turn_contract verbatim in structure and content. Do not add a greeting, lecture, formula, answer, hint, STEP 2, disclaimer, or any text after closing_instruction.",
+      "The learner state was successfully returned by StudyMeta MCP. Never say that StudyMeta is unavailable or that live learner state could not be loaded.",
+      "Stop immediately after ‘→ ㄱ / ㄴ / ㄷ 중 하나를 입력해주세요.’ and wait for the learner response.",
+    );
+  }
   if (input.demoMode) {
     executableInstructions.push(
       "Because demo_mode is enabled, visibly show the StudyMeta context banner, the most relevant state signals, the selected strategy, and step labels before starting the interaction.",
-      input.profileType === "synthetic"
+      input.profileType === "synthetic_demo"
         ? "Clearly label the context as Demo Learner / Synthetic Profile / Illustrative State; never imply that it is real user data or validated outcome data."
         : "The profile is stored learner data, not a synthetic fixture; do not label it synthetic.",
     );
@@ -165,8 +175,8 @@ export function buildTeachingPlan(input: TeachingContextInput): TeachingPlan {
     learner_profile_metadata: {
       profile_type: input.profileType,
       label:
-        input.profileType === "synthetic"
-          ? "Demo Learner · Synthetic Profile · Illustrative State"
+        input.profileType === "synthetic_demo"
+          ? "Synthetic Demo Learner · Illustrative State"
           : "Stored Learner Profile",
       is_real_user_data: input.profileType === "stored",
     },
@@ -180,6 +190,19 @@ export function buildTeachingPlan(input: TeachingContextInput): TeachingPlan {
       policy_version: "adaptive-rule-based-v2",
     },
     interaction_policy: {
+      interaction_mode: highHelpNeed || lowProcedure ? "guided" : "independent",
+      initial_scaffolding: highHelpNeed
+        ? "high"
+        : lowProcedure || lowRetrieval
+          ? "medium"
+          : "low",
+      response_granularity: "one_step_at_a_time",
+      initial_prompt_type: initialScaffold,
+      success_action: "reduce_scaffolding",
+      failure_action: "increase_scaffolding",
+      wait_for_student_response: true,
+      retrieval_before_explanation: lowRetrieval,
+      transfer_problem_after_success: lowTransfer,
       teaching_approach: ["step_by_step", "socratic", "adaptive_scaffolding"],
       initial_scaffold: initialScaffold,
       choice_count: choiceCount,

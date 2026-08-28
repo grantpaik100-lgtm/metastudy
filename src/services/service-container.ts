@@ -16,8 +16,13 @@ export function createStudyMetaServices(
   updater: LearnerStateUpdater = new NoOpLearnerStateUpdater(),
   contextDefaults: {
     demoMode: boolean;
-    learnerProfileType: "stored" | "synthetic";
-  } = { demoMode: false, learnerProfileType: "stored" },
+    learnerProfileType: "stored" | "synthetic" | "synthetic_demo";
+    demoStudentId?: string;
+  } = {
+    demoMode: false,
+    learnerProfileType: "stored",
+    demoStudentId: "00000000-0000-4000-8000-000000000001",
+  },
 ): StudyMetaServices {
   return {
     learnerStateService: new LearnerStateService(repository, contextDefaults),
