@@ -59,7 +59,7 @@ The endpoint returns only the configured plain-text token.
 ### 1. Start without learner IDs
 
 - User prompt: `오늘 학습을 시작할래.`
-- Expected behavior: Call `get_my_learner_context` with `{}`. Do not ask for `student_id`.
+- Expected behavior: Call `get_my_learner_context` with `{}`. The IR deployment defaults to Demo Mode + Synthetic Profile. Do not ask for `student_id`.
 - Expected result: The authenticated learner, most recent domain, relevant skill states, recent evidence, and teaching context are returned. The assistant greets the learner and offers a short next-step choice.
 - Fixture: Reviewer OAuth account linked to the seeded Demo Student.
 
@@ -83,6 +83,14 @@ The endpoint returns only the configured plain-text token.
 - Expected behavior: Call `get_my_learner_context` with `{ "domain": "calculus", "skill_id": "chain_rule" }`.
 - Expected result: The Chain Rule state and matching recent evidence are returned for the authenticated learner.
 - Fixture: Reviewer OAuth account linked to the seeded Demo Student.
+
+### 4a. IR adaptive Chain Rule interaction
+
+- User prompt: `Chain Rule을 가르쳐줘.`
+- Expected behavior: Call `get_my_learner_context` with `{ "domain": "calculus", "skill_id": "chain_rule" }` and execute the returned policy rather than explaining it.
+- Expected result: Visibly label the Synthetic Demo Learner, show Procedural Mastery 0.35 and Help Need 0.75, summarize the selected strategy, ask one 3-choice structure-recognition question, and stop for the learner response.
+- Success branch: `ㄱ` → guided short answer → independent solution.
+- Failure branch: retry → small hint → stronger hint/choices → worked example only after repeated failure.
 
 ### 5. Record a learning event
 

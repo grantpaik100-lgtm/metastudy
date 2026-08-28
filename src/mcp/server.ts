@@ -28,7 +28,7 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
     {
       title: "Get my learner context",
       description:
-        "Start or resume a personalized StudyMeta session for the authenticated learner. Resolve the student from OAuth automatically, choose the most recent domain when omitted, and return the learner profile, state, recent evidence, and teaching context. Call this when the user starts StudyMeta, asks to continue studying, or asks about their own learning state. Never ask the user for a student_id.",
+        "Start or resume a personalized StudyMeta session for the authenticated learner. Resolve the student from OAuth automatically, choose the most recent domain when omitted, and return executable teaching and interaction policy derived from learner state. Apply executable_instructions in the answer itself, present only one learning step, and wait for the learner response. demo_mode only changes visible presentation; when omitted it uses server configuration, whose code default is false. Never ask the user for a student_id.",
       inputSchema: GetMyLearnerContextInputSchema,
       outputSchema: GetMyLearnerContextOutputSchema,
       annotations: {
@@ -56,7 +56,7 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
     {
       title: "Get learner context",
       description:
-        "Read the learner's global profile, domain state, skill state, recent evidence, and teaching context. This tool does not calculate or mutate Student Model state.",
+        "Read learner state and return an executable adaptive teaching plan. Apply the teaching context in the answer itself rather than explaining it: one step at a time, wait for the learner response, reduce scaffolding after success, and increase it after failure. demo_mode only changes visible presentation; omitted options use server configuration with production/stored code defaults. learner_profile_type=synthetic is explicitly illustrative. This tool does not calculate or mutate Student Model state.",
       inputSchema: GetLearnerContextInputSchema,
       outputSchema: GetLearnerContextOutputSchema,
       annotations: {

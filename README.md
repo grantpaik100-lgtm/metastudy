@@ -110,9 +110,22 @@ OAuth로 로그인한 사용자의 `student_auth_links`를 통해 학생을 자�
 ```json
 {
   "domain": "calculus",
-  "skill_id": "chain_rule"
+  "skill_id": "chain_rule",
+  "demo_mode": false,
+  "learner_profile_type": "stored"
 }
 ```
+
+`demo_mode`의 기본값은 `false`입니다. `true`여도 교육 정책은 바뀌지 않고,
+StudyMeta 배너·주요 State·선택된 Strategy·Step 라벨을 표시하라는 display 지침만
+활성화됩니다. `learner_profile_type`은 별도 옵션이며 `synthetic`을 선택하면 반환 데이터가
+`Demo Learner · Synthetic Profile · Illustrative State`로 명시됩니다.
+
+현재 IR 배포는 `vercel.json`에서 `STUDYMETA_DEMO_MODE=true`와
+`STUDYMETA_LEARNER_PROFILE_TYPE=synthetic`을 명시적으로 설정합니다. 라이브 MCP에서
+옵션을 생략하면 Demo/Synthetic이 적용되지만, 코드와 다른 환경의 기본값은 여전히
+Production/Stored입니다. 요청에 `demo_mode: false`, `learner_profile_type: "stored"`를
+전달하면 배포 환경에서도 Production 동작을 직접 확인할 수 있습니다.
 
 ### `get_learner_context`
 
@@ -122,7 +135,9 @@ OAuth로 로그인한 사용자의 `student_auth_links`를 통해 학생을 자�
 {
   "student_id": "00000000-0000-4000-8000-000000000001",
   "domain": "calculus",
-  "skill_id": "chain_rule"
+  "skill_id": "chain_rule",
+  "demo_mode": true,
+  "learner_profile_type": "synthetic"
 }
 ```
 
@@ -132,7 +147,12 @@ OAuth로 로그인한 사용자의 `student_auth_links`를 통해 학생을 자�
 - `domain_state`
 - `skill_state` 또는 domain의 `skill_states`
 - `recent_evidence`
-- rule-based placeholder인 `teaching_context`
+- 바로 실행 가능한 `teaching_context.executable_instructions`
+- State에서 생성된 `interaction_policy` (success/failure scaffold 경로 포함)
+- 표현만 제어하는 `display`
+- stored/synthetic을 구분하는 `learner_profile_metadata`
+- `state_signals` (`retrievability`/`transferability`는 experimental로 표시)
+- 자동 State 갱신 여부를 명시하는 `evidence_writeback`
 
 `skill_id`를 생략하면 특정 Skill 하나 대신 해당 Domain의 Skill State 목록을 반환합니다.
 
@@ -192,6 +212,8 @@ npm run build
 4. 재조회 시 최근 Evidence에 나타나는지
 5. Event 기록 후에도 no-op updater가 Skill State를 변경하지 않는지
 6. 동일한 계약이 Streamable HTTP에서 호출되는지
+7. Production/Demo가 같은 adaptive policy를 공유하고 display만 다른지
+8. Synthetic profile 표시와 성공/실패 scaffold 경로가 정확한지
 
 실제 Supabase 저장 검증에는 유효한 `.env`가 필요합니다.
 
@@ -238,4 +260,6 @@ the seeded Demo Student during this MVP flow.
 - `src/services/learner-state-updater.ts`의 `NoOpLearnerStateUpdater`는 의도적인 placeholder입니다.
 - Student Model 팀은 `LearnerStateUpdater.process(event)` 구현체를 제공하고 service container에 주입하면 됩니다.
 - MCP tool, Supabase repository, Viewer 안에는 Evidence → State 계산 규칙을 넣지 않습니다.
-- `teaching_context`의 규칙도 `src/services/teaching-context.ts`로 분리되어 있어 향후 Policy Engine으로 교체할 수 있습니다.
+- State → Pedagogical Policy는 `src/services/teaching-context.ts`의 `buildTeachingPlan`에서 생성합니다.
+- Production/Demo는 이 함수를 공유하며, `display`와 실행 지침의 노출 방식만 달라집니다.
+- Synthetic fixture는 `src/services/synthetic-learner.ts`에 분리되어 있고 tutoring 문구를 포함하지 않습니다.

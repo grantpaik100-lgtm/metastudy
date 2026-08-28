@@ -67,13 +67,70 @@ export const RecentLearningEventSchema = z.object({
 export const TeachingContextSchema = z.object({
   summary: z.string(),
   recommendations: z.array(z.string()),
-  policy_version: z.literal("mvp-rule-based-v1"),
+  executable_instructions: z.array(z.string()),
+  policy_version: z.literal("adaptive-rule-based-v2"),
+});
+
+export const InteractionPolicySchema = z.object({
+  teaching_approach: z.array(z.string()),
+  initial_scaffold: z.enum([
+    "multiple_choice",
+    "guided_short_answer",
+    "independent_solution",
+  ]),
+  choice_count: z.number().int().min(0).max(4),
+  direct_answer: z.enum(["avoid_initially", "allow"]),
+  wait_for_learner_response: z.literal(true),
+  success_path: z.array(z.string()),
+  failure_path: z.array(z.string()),
+  independent_success_action: z.string(),
+  transfer_probe: z.object({
+    enabled: z.boolean(),
+    signal_status: z.enum(["experimental", "not_applicable"]),
+    instruction: z.string(),
+  }),
+  retrievability_probe: z.object({
+    enabled: z.boolean(),
+    signal_status: z.enum(["experimental", "not_applicable"]),
+    instruction: z.string(),
+  }),
+});
+
+export const DisplayPolicySchema = z.object({
+  demo_mode: z.boolean(),
+  show_studymeta_banner: z.boolean(),
+  show_state_summary: z.boolean(),
+  show_policy_summary: z.boolean(),
+  show_step_labels: z.boolean(),
+});
+
+export const LearnerProfileMetadataSchema = z.object({
+  profile_type: z.enum(["stored", "synthetic"]),
+  label: z.string(),
+  is_real_user_data: z.boolean(),
+});
+
+export const StateSignalSchema = z.object({
+  name: z.string(),
+  value: z.number().min(0).max(1),
+  level: z.enum(["low", "moderate", "high"]),
+  evidence_status: z.enum(["validated_focus", "experimental"]),
+});
+
+export const EvidenceWritebackSchema = z.object({
+  tool: z.literal("record_learning_event"),
+  event_type: z.literal("problem_attempt"),
+  evidence_fields: z.array(z.string()),
+  state_update_automated: z.literal(false),
+  instruction: z.string(),
 });
 
 export const GetLearnerContextInputSchema = z.object({
   student_id: z.string().uuid(),
   domain: z.string().trim().min(1),
   skill_id: z.string().trim().min(1).optional(),
+  demo_mode: z.boolean().optional(),
+  learner_profile_type: z.enum(["stored", "synthetic"]).optional(),
 });
 
 export const GetLearnerContextOutputSchema = z.object({
@@ -84,12 +141,19 @@ export const GetLearnerContextOutputSchema = z.object({
   skill_state: SkillStateSchema.nullable(),
   skill_states: z.array(SkillStateSchema),
   recent_evidence: z.array(RecentLearningEventSchema),
+  learner_profile_metadata: LearnerProfileMetadataSchema,
+  state_signals: z.array(StateSignalSchema),
   teaching_context: TeachingContextSchema,
+  interaction_policy: InteractionPolicySchema,
+  display: DisplayPolicySchema,
+  evidence_writeback: EvidenceWritebackSchema,
 });
 
 export const GetMyLearnerContextInputSchema = z.object({
   domain: z.string().trim().min(1).optional(),
   skill_id: z.string().trim().min(1).optional(),
+  demo_mode: z.boolean().optional(),
+  learner_profile_type: z.enum(["stored", "synthetic"]).optional(),
 });
 
 export const GetMyLearnerContextOutputSchema = GetLearnerContextOutputSchema.extend({
@@ -120,6 +184,11 @@ export type DomainState = z.infer<typeof DomainStateSchema>;
 export type SkillState = z.infer<typeof SkillStateSchema>;
 export type RecentLearningEvent = z.infer<typeof RecentLearningEventSchema>;
 export type TeachingContext = z.infer<typeof TeachingContextSchema>;
+export type InteractionPolicy = z.infer<typeof InteractionPolicySchema>;
+export type DisplayPolicy = z.infer<typeof DisplayPolicySchema>;
+export type LearnerProfileMetadata = z.infer<typeof LearnerProfileMetadataSchema>;
+export type StateSignal = z.infer<typeof StateSignalSchema>;
+export type EvidenceWriteback = z.infer<typeof EvidenceWritebackSchema>;
 export type GetLearnerContextInput = z.input<typeof GetLearnerContextInputSchema>;
 export type GetLearnerContextOutput = z.infer<typeof GetLearnerContextOutputSchema>;
 export type GetMyLearnerContextInput = z.input<typeof GetMyLearnerContextInputSchema>;

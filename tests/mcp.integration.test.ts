@@ -320,3 +320,99 @@ test("Streamable HTTP exposes the same MCP tool contract", async () => {
     );
   }
 });
+
+test("production and demo modes share one adaptive policy while only display changes", async () => {
+  const repository = new MemoryRepository();
+  const service = createStudyMetaServices(repository).learnerStateService;
+
+  const production = await service.getContext({
+    student_id: demoStudentId,
+    domain: "calculus",
+    skill_id: "chain_rule",
+  });
+  const demo = await service.getContext({
+    student_id: demoStudentId,
+    domain: "calculus",
+    skill_id: "chain_rule",
+    demo_mode: true,
+  });
+
+  assert.equal(production.display.demo_mode, false, "demo mode must default false");
+  assert.equal(production.display.show_studymeta_banner, false);
+  assert.equal(demo.display.show_studymeta_banner, true);
+  assert.deepEqual(production.interaction_policy, demo.interaction_policy);
+  assert.equal(production.teaching_context.policy_version, "adaptive-rule-based-v2");
+  assert.match(
+    production.teaching_context.executable_instructions.at(-1) ?? "",
+    /do not mention StudyMeta/i,
+  );
+  assert.match(
+    demo.teaching_context.executable_instructions.at(-1) ?? "",
+    /stored learner data/i,
+  );
+});
+
+test("synthetic demo learner is explicit and drives bidirectional adaptive scaffolding", async () => {
+  const service = createStudyMetaServices(new MemoryRepository()).learnerStateService;
+  const context = await service.getContext({
+    student_id: demoStudentId,
+    domain: "calculus",
+    skill_id: "chain_rule",
+    demo_mode: true,
+    learner_profile_type: "synthetic",
+  });
+
+  assert.equal(context.learner_profile_metadata.profile_type, "synthetic");
+  assert.equal(context.learner_profile_metadata.is_real_user_data, false);
+  assert.match(context.learner_profile_metadata.label, /Synthetic Profile/);
+  assert.equal(context.skill_state?.conceptual_mastery, 0.85);
+  assert.equal(context.skill_state?.procedural_mastery, 0.35);
+  assert.equal(context.skill_state?.retrievability, 0.3);
+  assert.equal(context.skill_state?.transferability, 0.2);
+  assert.equal(context.skill_state?.help_need, 0.75);
+  assert.equal(context.skill_state?.state_confidence, 0.8);
+  assert.equal(context.interaction_policy.initial_scaffold, "multiple_choice");
+  assert.deepEqual(context.interaction_policy.success_path, [
+    "multiple_choice",
+    "guided_short_answer",
+    "independent_solution",
+    "novel_form_transfer_probe",
+  ]);
+  assert.deepEqual(context.interaction_policy.failure_path, [
+    "retry_without_answer",
+    "small_hint",
+    "stronger_hint_or_choices",
+    "worked_example_then_new_attempt",
+  ]);
+  assert.equal(context.interaction_policy.wait_for_learner_response, true);
+  assert.equal(context.interaction_policy.transfer_probe.signal_status, "experimental");
+  assert.equal(context.interaction_policy.retrievability_probe.signal_status, "experimental");
+  assert.equal(context.evidence_writeback.tool, "record_learning_event");
+  assert.equal(context.evidence_writeback.state_update_automated, false);
+});
+
+test("IR deployment defaults can enable demo while an explicit request can disable it", async () => {
+  const repository = new MemoryRepository();
+  const service = createStudyMetaServices(repository, undefined, {
+    demoMode: true,
+    learnerProfileType: "synthetic",
+  }).learnerStateService;
+
+  const irDefault = await service.getContext({
+    student_id: demoStudentId,
+    domain: "calculus",
+    skill_id: "chain_rule",
+  });
+  assert.equal(irDefault.display.demo_mode, true);
+  assert.equal(irDefault.learner_profile_metadata.profile_type, "synthetic");
+
+  const productionOverride = await service.getContext({
+    student_id: demoStudentId,
+    domain: "calculus",
+    skill_id: "chain_rule",
+    demo_mode: false,
+    learner_profile_type: "stored",
+  });
+  assert.equal(productionOverride.display.demo_mode, false);
+  assert.equal(productionOverride.learner_profile_metadata.profile_type, "stored");
+});

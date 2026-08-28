@@ -1,5 +1,5 @@
 insert into public.students (id, display_name)
-values ('00000000-0000-4000-8000-000000000001', 'Demo Student')
+values ('00000000-0000-4000-8000-000000000001', 'Demo Learner (Synthetic Profile)')
 on conflict (id) do update set display_name = excluded.display_name;
 
 insert into public.student_profiles (
@@ -8,6 +8,7 @@ insert into public.student_profiles (
   preferred_pace,
   preferred_interaction_style,
   example_preference,
+  direct_answer_preference,
   preferred_language
 )
 values (
@@ -16,6 +17,7 @@ values (
   'step_by_step',
   'socratic',
   'example_first',
+  'avoid',
   'ko'
 )
 on conflict (student_id) do update set
@@ -23,6 +25,7 @@ on conflict (student_id) do update set
   preferred_pace = excluded.preferred_pace,
   preferred_interaction_style = excluded.preferred_interaction_style,
   example_preference = excluded.example_preference,
+  direct_answer_preference = excluded.direct_answer_preference,
   preferred_language = excluded.preferred_language;
 
 insert into public.domain_states (
@@ -62,13 +65,13 @@ values (
   'calculus',
   'chain_rule',
   'Chain Rule',
-  0.82,
-  0.70,
-  0.40,
-  0.30,
+  0.85,
   0.35,
+  0.30,
+  0.20,
+  0.75,
   '[]'::jsonb,
-  0.70
+  0.80
 )
 on conflict (student_id, domain, skill_id) do update set
   skill_name = excluded.skill_name,

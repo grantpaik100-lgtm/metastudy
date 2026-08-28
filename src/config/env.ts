@@ -11,6 +11,10 @@ const EnvironmentSchema = z.object({
   OAUTH_ALLOWED_EMAILS: z.string().default(""),
   OPENAI_APPS_CHALLENGE_TOKEN: z.string().min(1).optional(),
   DEMO_STUDENT_ID: z.uuid().default("00000000-0000-4000-8000-000000000001"),
+  STUDYMETA_DEMO_MODE: z.enum(["true", "false"]).default("false"),
+  STUDYMETA_LEARNER_PROFILE_TYPE: z
+    .enum(["stored", "synthetic"])
+    .default("stored"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 });
 

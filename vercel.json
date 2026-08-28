@@ -1,5 +1,9 @@
 {
   "outputDirectory": "public",
+  "env": {
+    "STUDYMETA_DEMO_MODE": "true",
+    "STUDYMETA_LEARNER_PROFILE_TYPE": "synthetic"
+  },
   "functions": {
     "api/mcp.ts": {
       "maxDuration": 30

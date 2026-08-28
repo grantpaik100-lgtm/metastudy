@@ -11,7 +11,10 @@ export function getDefaultServices(): StudyMetaServices {
       environment.SUPABASE_URL,
       environment.SUPABASE_SERVICE_ROLE_KEY,
     );
-    services = createStudyMetaServices(repository);
+    services = createStudyMetaServices(repository, undefined, {
+      demoMode: environment.STUDYMETA_DEMO_MODE === "true",
+      learnerProfileType: environment.STUDYMETA_LEARNER_PROFILE_TYPE,
+    });
   }
   return services;
 }
@@ -23,5 +26,8 @@ export function createAuthenticatedServices(accessToken: string): StudyMetaServi
     getSupabasePublicKey(environment),
     accessToken,
   );
-  return createStudyMetaServices(repository);
+  return createStudyMetaServices(repository, undefined, {
+    demoMode: environment.STUDYMETA_DEMO_MODE === "true",
+    learnerProfileType: environment.STUDYMETA_LEARNER_PROFILE_TYPE,
+  });
 }

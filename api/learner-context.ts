@@ -31,6 +31,8 @@ export default async function handler(
   const studentId = url.searchParams.get("student_id");
   const domain = url.searchParams.get("domain");
   const skillId = url.searchParams.get("skill_id");
+  const demoMode = url.searchParams.get("demo_mode");
+  const learnerProfileType = url.searchParams.get("learner_profile_type");
 
   if (!studentId || !domain) {
     sendJson(response, 400, {
@@ -45,6 +47,10 @@ export default async function handler(
       student_id: studentId,
       domain,
       ...(skillId ? { skill_id: skillId } : {}),
+      ...(demoMode ? { demo_mode: demoMode === "true" } : {}),
+      ...(learnerProfileType
+        ? { learner_profile_type: learnerProfileType as "stored" | "synthetic" }
+        : {}),
     });
     sendJson(response, 200, context);
   } catch (error) {
