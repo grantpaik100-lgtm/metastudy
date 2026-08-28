@@ -84,22 +84,6 @@
   .form-error { font-size: 13px; font-weight: 700; color: var(--red); margin-top: 8px; }
   .form-hint { font-size: 12.5px; color: var(--muted-light); margin-top: 6px; }
 
-  /* ---- 리뷰 전용 스위처 ---- */
-  .note { width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 10px 0 0; color: var(--muted); font-size: 12px; }
-  .proto-switch {
-    position: sticky; top: 0; z-index: 20;
-    display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 10px;
-    background: rgba(247,249,252,.94); backdrop-filter: blur(6px);
-    border-bottom: 1px solid var(--line);
-  }
-  .proto-switch button {
-    padding: 7px 12px; border: 1px solid var(--line-strong); border-radius: 999px;
-    background: var(--surface); color: var(--muted); font-size: 12.5px; font-weight: 700;
-  }
-  .proto-switch button.is-active { background: var(--blue); border-color: var(--blue); color: #fff; }
-  .proto-switch .spacer { flex: 1 1 auto; }
-  .proto-switch .reset { border-color: var(--red-line); color: var(--red); background: var(--red-soft); }
-
   /* ---- 온보딩 스텝 표시 ---- */
   .steps { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
   .step-pill {
@@ -112,8 +96,7 @@
   /* ---- 가입/로그인 ---- */
   .auth-wrap { max-width: 420px; margin: 40px auto 0; }
   .brand { text-align: center; margin-bottom: 22px; }
-  .brand-mark { font-size: 32px; }
-  .brand-name { font-size: 24px; font-weight: 850; letter-spacing: -.02em; margin-top: 6px; }
+  .brand-name { font-size: 24px; font-weight: 850; letter-spacing: -.02em; }
   .brand-copy { font-size: 14px; color: var(--muted); margin-top: 4px; }
   .auth-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
   .auth-tabs button {
@@ -254,27 +237,17 @@
     background: var(--surface-soft); border: 1px solid var(--line); font-size: 12.5px; font-weight: 700; color: var(--muted);
   }
   .record-source[hidden] { display: none; }
-  .scenario-picker { margin-bottom: 20px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); }
-  .scenario-picker-label { font-size: 11px; font-weight: 800; color: var(--muted-light); letter-spacing: .06em; margin-bottom: 8px; text-transform: uppercase; }
-  .scenario-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
-  .scenario-btn {
-    padding: 8px 10px; font-size: 12px; font-weight: 700; text-align: left;
-    border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--muted);
-  }
-  .scenario-btn.is-active { background: var(--blue); border-color: var(--blue); color: #fff; }
 
   .result-banner { display: flex; align-items: center; gap: 14px; padding: 20px; margin-bottom: 14px; border-radius: var(--radius-lg); border: 1px solid var(--line); }
   .result-banner.correct { background: var(--green-soft); border-color: var(--green-line); }
   .result-banner.incorrect { background: var(--red-soft); border-color: var(--red-line); }
-  .result-icon { font-size: 30px; }
   .result-title { font-size: 18px; font-weight: 800; }
   .result-banner.correct .result-title { color: var(--green); }
   .result-banner.incorrect .result-title { color: var(--red); }
   .result-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
   .change-cards { display: grid; gap: 8px; margin-bottom: 14px; }
-  .change-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
-  .change-icon { font-size: 20px; flex: none; }
+  .change-card { display: flex; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
   .change-text { font-size: 14px; font-weight: 650; }
 
   .decision-card { padding: 18px; margin-bottom: 14px; background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius-lg); }
@@ -342,7 +315,6 @@
   .planner-msg { margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--amber); min-height: 19px; }
 
   @media (max-width: 640px) {
-    .scenario-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
     .subject-banner { flex-direction: column; align-items: stretch; }
     .planner-link { width: 100%; }
   }
@@ -352,29 +324,6 @@
 </style>
 </head>
 <body>
-
-  <p class="note">
-    ⚠ <code>design.md</code>(v0.5) + <code>AGENTS.md</code> 기준 <strong>전체 서비스 프로토타입</strong>입니다.
-    가입 → 온보딩(기본 정보 / 과목·자료·시험 등록 / 자료 분석 / 학습 연결 / 플래너 초안) → 화면 A·B·C 흐름 전체를 담았습니다.
-    <strong>학습(문제 풀이)은 홈이 아니라 MCP로 연결된 Claude·ChatGPT 같은 프론티어 모델 앱에서 일어납니다.</strong>
-    홈은 그 결과인 학습 현황(화면 A)·최근 기록(화면 B)·플래너(화면 C)만 보여줍니다.
-    아래 스위처와 "데모 초기화"는 검토 편의를 위한 프로토타입 전용 UI이며 실제 앱의 내비게이션이 아닙니다.
-    입력값은 이 브라우저의 localStorage에만 저장되며 서버로 전송되지 않습니다.
-  </p>
-
-  <nav class="proto-switch" id="protoSwitch" aria-label="프로토타입 화면 이동(리뷰 전용)">
-    <button type="button" data-target="auth">가입/로그인</button>
-    <button type="button" data-target="onbInfo">온보딩 1 · 기본 정보</button>
-    <button type="button" data-target="onbSubjects">온보딩 2 · 과목 등록</button>
-    <button type="button" data-target="onbAnalyze">온보딩 3 · 자료 분석</button>
-    <button type="button" data-target="onbConnect">온보딩 4 · 학습 연결</button>
-    <button type="button" data-target="onbPlan">온보딩 5 · 플래너 초안</button>
-    <button type="button" data-target="screenA">A · 학습 현황</button>
-    <button type="button" data-target="screenB">B · 최근 학습 기록</button>
-    <button type="button" data-target="screenC">C · 학습 플래너</button>
-    <span class="spacer"></span>
-    <button type="button" class="reset" id="resetBtn">데모 초기화</button>
-  </nav>
 
   <main class="shell">
 
@@ -388,7 +337,6 @@
     <section class="screen" id="auth">
       <div class="auth-wrap">
         <div class="brand">
-          <div class="brand-mark">📚</div>
           <div class="brand-name">StudyMeta</div>
           <p class="brand-copy">전공 공부에 붙는 개인 과외 선생님.<br>자료를 올리면 시험까지의 계획을 짜드려요.</p>
         </div>
@@ -434,21 +382,14 @@
       <div class="card">
         <div class="field-row">
           <label class="field">
-            <span class="field-label">학교 <span class="optional">(선택)</span></span>
-            <input class="input" id="infoSchool" placeholder="예: 한국대학교">
+            <span class="field-label">소속 <span class="optional">(선택)</span></span>
+            <input class="input" id="infoOrg" placeholder="예: 한국대학교 / (주)스터디컴퍼니">
           </label>
           <label class="field">
-            <span class="field-label">학년 <span class="optional">(선택)</span></span>
-            <select class="input" id="infoYear">
-              <option value="">선택 안 함</option>
-              <option>1학년</option><option>2학년</option><option>3학년</option><option>4학년</option><option>기타</option>
-            </select>
+            <span class="field-label">직무 또는 전공 <span class="optional">(선택)</span></span>
+            <input class="input" id="infoRole" placeholder="예: 기계공학과 / 프로덕트 매니저">
           </label>
         </div>
-        <label class="field">
-          <span class="field-label">전공 <span class="optional">(선택)</span></span>
-          <input class="input" id="infoMajor" placeholder="예: 기계공학과">
-        </label>
 
         <div class="btn-row end" style="margin-top:8px">
           <button type="button" class="btn ghost" id="infoSkip">건너뛰기</button>
@@ -470,7 +411,7 @@
       <p class="form-error" id="onbSubjectsError" hidden></p>
 
       <div class="btn-row end" style="margin-top:14px">
-        <button type="button" class="btn ghost" id="onbSeedDemo">데모 데이터로 빠르게 채우기</button>
+        <button type="button" class="btn ghost" id="onbSeedDemo">예시 과목으로 먼저 둘러보기</button>
         <button type="button" class="btn primary" id="onbSubjectsNext">등록 완료</button>
       </div>
     </section>
@@ -569,13 +510,7 @@
 
       <div class="record-source" id="recordSource"></div>
 
-      <div class="scenario-picker">
-        <div class="scenario-picker-label">시연용 · MCP로 이런 기록이 들어왔다면</div>
-        <div class="scenario-grid" id="scenarioGrid"></div>
-      </div>
-
       <div class="result-banner" id="resultBanner">
-        <div class="result-icon" id="resultIcon"></div>
         <div>
           <div class="result-title" id="resultTitle"></div>
           <div class="result-sub" id="resultSub"></div>
@@ -644,24 +579,24 @@ const evidenceLabels = {
 
 // design.md 8-2 표
 const stateMeta = {
-  conceptual_mastery: { label: "개념 이해", icon: "🧠", onCard: true,
+  conceptual_mastery: { label: "개념 이해", onCard: true,
     up: "개념 이해가 좋아지고 있어요", down: "개념 이해를 다시 점검해볼 시간이에요", neutral: "개념 이해를 다시 확인해볼게요" },
-  procedural_mastery: { label: "풀이 능숙도", icon: "🛠️", onCard: true,
+  procedural_mastery: { label: "풀이 능숙도", onCard: true,
     up: "풀이 과정이 능숙해지고 있어요", down: "풀이 과정을 다시 점검해볼 시간이에요", neutral: "풀이 과정을 다시 확인해볼게요" },
-  retrievability: { label: "기억 유지", icon: "⏳", onCard: true,
+  retrievability: { label: "기억 유지", onCard: true,
     up: "이 내용을 잘 기억하고 있어요", down: "이 내용을 까먹기 시작했어요", neutral: "기억 상태를 다시 확인 중이에요" },
-  transferability: { label: "응용력", icon: "🔀", onCard: false,
+  transferability: { label: "응용력", onCard: false,
     up: "다른 문제에도 잘 적용하고 있어요", down: "다른 문제에 적용하기 어려워하고 있어요", neutral: "응용력을 지켜보는 중이에요" },
-  help_need: { label: "필요한 도움", icon: "🤝", onCard: true,
+  help_need: { label: "필요한 도움", onCard: true,
     up: "도움이 좀 더 필요해요", down: "필요한 도움이 줄고 있어요", neutral: "도움이 필요한 정도를 다시 보는 중이에요" },
-  misconception: { label: "헷갈리는 부분", icon: "❓", onCard: true,
+  misconception: { label: "헷갈리는 부분", onCard: true,
     up: "헷갈리는 부분이 있는 것 같아요", down: "헷갈리던 부분이 줄고 있어요", neutral: "헷갈리는 부분을 계속 지켜볼게요" },
-  state_confidence: { label: "확신도(내부 지표)", icon: "📊", onCard: false,
+  state_confidence: { label: "확신도", onCard: false,
     up: "판단 근거가 쌓이고 있어요", down: "판단 근거가 아직 부족해요", neutral: "판단 근거를 모으는 중이에요" },
-  calibration: { label: "예측-실제 비교", icon: "🎯", onCard: false,
+  calibration: { label: "예측-실제 비교", onCard: false,
     up: "예상과 실제 결과를 비교해볼게요", down: "예상과 실제 결과를 비교해볼게요", neutral: "예상과 실제 결과를 비교해볼게요" },
-  intervention_response: { label: "힌트 반응(내부 지표)", icon: "🔧", onCard: false,
-    up: "", down: "", neutral: "" } // 학생 비노출
+  intervention_response: { label: "힌트 반응", onCard: false,
+    up: "", down: "", neutral: "" } // 학생 비노출, 화면에 렌더링되지 않음
 };
 
 const SKILL_STATE_IDS = ["conceptual_mastery","procedural_mastery","retrievability","transferability","help_need","misconception","state_confidence"];
@@ -757,7 +692,7 @@ function uid(prefix) { return prefix + "-" + Math.random().toString(36).slice(2,
 
 function emptyState() {
   return {
-    user: null,          // { email, provider, school, year, major }
+    user: null,          // { email, provider, org, role }
     connection: null,    // { client, connectedAt } — 학습이 실제로 일어나는 프론티어 모델 앱
     onboarded: false,
     subjects: [],        // { id, name, materials[], analyzed, calibrationText, skills[], exams[] }
@@ -793,9 +728,10 @@ function newSkill(name, overrides) {
   return Object.assign(base, overrides || {});
 }
 
-// 데모 프리셋: 화면 A/C를 바로 시연할 수 있도록 State가 이미 쌓인 과목
-// (State는 연결된 프론티어 모델이 MCP로 보낸 학습 이벤트로 쌓인 것이라는 설정)
-function demoSubjects() {
+// 온보딩 중 "예시 과목으로 먼저 둘러보기"를 누르면 추가되는 예시 과목.
+// 연결된 프론티어 모델이 MCP로 이미 몇 차례 학습 이벤트를 보낸 상태를 보여준다.
+// 실제 등록과 똑같은 형태의 데이터이며, 언제든 삭제하고 본인 과목으로 바꿀 수 있다.
+function exampleSubjects() {
   const ago = (n) => toISODate(addDays(TODAY, -n));
   return [
     {
@@ -835,7 +771,6 @@ let currentScreen = "auth";
 function go(id) {
   currentScreen = id;
   document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("is-visible", s.id === id));
-  document.querySelectorAll("#protoSwitch button[data-target]").forEach((b) => b.classList.toggle("is-active", b.dataset.target === id));
 
   const nav = document.getElementById("appNav");
   nav.classList.toggle("is-visible", APP_SCREENS.indexOf(id) !== -1);
@@ -854,31 +789,9 @@ function go(id) {
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
-// 리뷰 전용 스위처: 데이터가 없는 상태로 앱 화면에 바로 뛰어들면 데모 데이터를 채워준다
-document.getElementById("protoSwitch").addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-target]");
-  if (!btn) return;
-  const target = btn.dataset.target;
-  if (APP_SCREENS.indexOf(target) !== -1 && !state.subjects.length) {
-    seedDemo();
-    if (!state.user) state.user = { email: "demo@univ.ac.kr", provider: "demo", school: "", year: "", major: "" };
-    state.onboarded = true;
-    save();
-  }
-  go(target);
-});
-
 document.getElementById("appNav").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-nav]");
   if (btn) go(btn.dataset.nav);
-});
-
-document.getElementById("resetBtn").addEventListener("click", () => {
-  if (!confirm("저장된 가입/온보딩 데이터를 지우고 처음 화면부터 다시 볼까요?")) return;
-  try { localStorage.removeItem(STORE_KEY); } catch (e) { /* noop */ }
-  state = emptyState();
-  planMsg("");
-  go("auth");
 });
 
 const STEP_LABELS = ["기본 정보", "과목 등록", "자료 분석", "학습 연결", "플래너 초안"];
@@ -920,7 +833,7 @@ function showAuthError(msg) {
 function hideAuthError() { document.getElementById("authError").hidden = true; }
 
 function enterAfterAuth(user) {
-  state.user = Object.assign({ school: "", year: "", major: "" }, state.user || {}, user);
+  state.user = Object.assign({ org: "", role: "" }, state.user || {}, user);
   save();
   // design.md 온보딩 엣지 케이스: 기존 사용자는 온보딩을 건너뛰고 화면 A로 바로 진입
   if (state.onboarded && state.subjects.length) go("screenA");
@@ -950,9 +863,8 @@ document.querySelectorAll("[data-social]").forEach((btn) => {
 
 function saveInfo() {
   state.user = Object.assign({ email: "guest@example.com", provider: "demo" }, state.user || {}, {
-    school: document.getElementById("infoSchool").value.trim(),
-    year: document.getElementById("infoYear").value,
-    major: document.getElementById("infoMajor").value.trim()
+    org: document.getElementById("infoOrg").value.trim(),
+    role: document.getElementById("infoRole").value.trim()
   });
   save();
 }
@@ -1012,7 +924,7 @@ function buildSubjectForm(options) {
     draft.files.forEach((f, i) => {
       const pill = document.createElement("span");
       pill.className = "file-pill";
-      pill.innerHTML = `📄 ${escapeHtml(f.name)}`;
+      pill.innerHTML = escapeHtml(f.name);
       const rm = document.createElement("button");
       rm.type = "button";
       rm.className = "move-btn";
@@ -1128,8 +1040,8 @@ function renderOnbSubjects() {
   }));
 }
 
-function seedDemo() {
-  demoSubjects().forEach((d) => {
+function addExampleSubject() {
+  exampleSubjects().forEach((d) => {
     if (!state.subjects.some((s) => s.name === d.name)) state.subjects.push(d);
   });
   state.currentSubjectId = state.subjects[0] ? state.subjects[0].id : null;
@@ -1137,7 +1049,7 @@ function seedDemo() {
 }
 
 document.getElementById("onbSeedDemo").addEventListener("click", () => {
-  seedDemo();
+  addExampleSubject();
   document.getElementById("onbSubjectsError").hidden = true;
   renderOnbSubjects();
 });
@@ -1255,7 +1167,7 @@ function renderConnect() {
     btn.setAttribute("aria-pressed", String(on));
     btn.innerHTML = `<span class="connect-name">${c.name}</span>
       <span class="connect-desc">${c.desc}</span>
-      <span class="connect-cta">${on ? "연결됨 ✓" : "연결하기"}</span>`;
+      <span class="connect-cta">${on ? "연결됨" : "연결하기"}</span>`;
     btn.addEventListener("click", () => {
       state.connection = on ? null : { client: c.id, connectedAt: toISODate(TODAY) };
       save();
@@ -1490,12 +1402,12 @@ function renderSkillGrid() {
       : (skill.unattempted ? `<span class="badge new">아직 시작 전</span>` : `<span class="badge good">잘하고 있어요</span>`);
 
     const stateRows = skill.unattempted
-      ? `<div class="detail-state-item"><span>🕘 아직 기록 없음</span><span>연결된 앱에서 공부하면 여기에 상태가 쌓여요</span></div>`
+      ? `<div class="detail-state-item"><span>아직 기록 없음</span><span>연결된 앱에서 공부하면 여기에 상태가 쌓여요</span></div>`
       : SKILL_STATE_IDS.map((id) => {
           const meta = stateMeta[id];
           const dir = skill[id] || "neutral";
           const notable = dir !== "neutral" ? " is-notable" : "";
-          return `<div class="detail-state-item${notable}"><span>${meta.icon} ${escapeHtml(meta.label)}</span><span>${escapeHtml(meta[dir])}</span></div>`;
+          return `<div class="detail-state-item${notable}"><span>${escapeHtml(meta.label)}</span><span>${escapeHtml(meta[dir])}</span></div>`;
         }).join("");
 
     const recordBtnHtml = skill.unattempted
@@ -1568,63 +1480,16 @@ document.getElementById("subjectFileInput").addEventListener("change", (e) => {
 /* =========================================================================
    9. 화면 B · 최근 학습 기록
       실제 학습은 이 홈이 아니라 MCP로 연결된 프론티어 모델 앱(Claude, ChatGPT 등)에서
-      일어난다. 홈은 그 결과로 들어온 학습 이벤트를 "기록"으로만 보여준다.
-      아래 시나리오 선택 UI는 실제 문제 풀이 화면이 아니라, MCP로 어떤 기록이
-      들어왔을 때 홈에 어떻게 반영되는지 보여주는 시연용 도구다.
+      일어난다. 홈은 그 결과로 들어온 학습 이벤트를 "기록"으로만 보여준다 — 여기서
+      직접 상태를 바꾸지 않는다.
    ========================================================================= */
 
 let recordContext = null;   // { subjectId, skillId } — 어느 스킬의 기록을 보고 있는지
-let currentScenarioId = scenarios[0].id;
 let detailsOpen = false;
 
 function viewRecord(subjectId, skillId) {
   recordContext = { subjectId: subjectId, skillId: skillId };
-  const subject = state.subjects.find((s) => s.id === subjectId);
-  const skill = subject.skills.find((k) => k.id === skillId);
-  currentScenarioId = (skill.lastRecord && skill.lastRecord.scenarioId) || scenarios[0].id;
   go("screenB");
-}
-
-// MCP로 들어온 학습 이벤트(시나리오)의 stateUpdates를 스킬에 반영한다.
-// - Evidence를 통해 갱신된 State만 건드리고, 언급되지 않은 State는 "변화 없음"으로 그대로 둔다(AGENTS.md 2-5).
-// - 값을 합산해 점수를 만들지 않고 방향(up/down/neutral)만 갱신한다.
-function applyScenarioToSkill(scenarioId) {
-  if (!recordContext) return;
-  const sc = scenarios.find((s) => s.id === scenarioId);
-  const subject = state.subjects.find((s) => s.id === recordContext.subjectId);
-  if (!subject) return;
-  const skill = subject.skills.find((k) => k.id === recordContext.skillId);
-  if (!skill) return;
-
-  Object.keys(sc.stateUpdates).forEach((id) => {
-    if (SKILL_STATE_IDS.indexOf(id) !== -1) skill[id] = directionOf(sc.stateUpdates[id]);
-  });
-  skill.unattempted = false;
-  skill.lastRecord = { scenarioId: scenarioId, at: toISODate(TODAY), source: state.connection ? state.connection.client : "manual" };
-
-  if (sc.stateUpdates.calibration) {
-    subject.calibrationText = sc.stateUpdates.calibration.indexOf("Overconfidence") !== -1
-      ? "예상보다 실제 결과가 낮았던 적이 있어요. 확신 정도를 같이 살펴볼게요"
-      : "예상과 실제를 비교할 기록이 하나 더 쌓였어요";
-  }
-  save();
-}
-
-function renderScenarioGrid() {
-  const grid = document.getElementById("scenarioGrid");
-  grid.innerHTML = "";
-  scenarios.forEach((sc) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "scenario-btn" + (sc.id === currentScenarioId ? " is-active" : "");
-    btn.textContent = sc.title;
-    btn.addEventListener("click", () => {
-      currentScenarioId = sc.id;
-      applyScenarioToSkill(sc.id);
-      renderScreenB();
-    });
-    grid.appendChild(btn);
-  });
 }
 
 function relativeDayLabel(dateStr) {
@@ -1635,11 +1500,11 @@ function relativeDayLabel(dateStr) {
 }
 
 function renderScreenB() {
-  renderScenarioGrid();
-  const sc = scenarios.find((s) => s.id === currentScenarioId);
-
   const subject = recordContext ? state.subjects.find((s) => s.id === recordContext.subjectId) : null;
   const skill = subject ? subject.skills.find((k) => k.id === recordContext.skillId) : null;
+  // MCP로 들어온 이 기록의 원본 학습 이벤트(9개 시나리오 중 하나)를 조회한다.
+  // 여기서 새로 만들지 않는다 — 어떤 이벤트였는지는 이미 skill.lastRecord에 저장돼 있다.
+  const sc = skill && skill.lastRecord ? scenarios.find((s) => s.id === skill.lastRecord.scenarioId) : null;
 
   document.getElementById("screenBSub").textContent = skill
     ? subject.name + " · " + skill.name + " 기록이에요."
@@ -1648,7 +1513,7 @@ function renderScreenB() {
   const srcBox = document.getElementById("recordSource");
   if (skill && skill.lastRecord) {
     srcBox.hidden = false;
-    srcBox.innerHTML = `🔗 <strong>${escapeHtml(sourceLabel(skill.lastRecord.source))}</strong>에서 온 기록 · ${relativeDayLabel(skill.lastRecord.at)}`;
+    srcBox.innerHTML = `<strong>${escapeHtml(sourceLabel(skill.lastRecord.source))}</strong>에서 온 기록 · ${relativeDayLabel(skill.lastRecord.at)}`;
   } else {
     srcBox.hidden = true;
   }
@@ -1658,14 +1523,26 @@ function renderScreenB() {
     : "";
 
   const banner = document.getElementById("resultBanner");
+  const changeCards = document.getElementById("changeCards");
+  const chipsWrap = document.getElementById("evidenceChips");
+  const fullList = document.getElementById("fullStateList");
+
+  if (!sc) {
+    banner.className = "result-banner";
+    document.getElementById("resultTitle").textContent = "아직 기록이 없어요";
+    document.getElementById("resultSub").textContent = "연결된 앱에서 공부를 시작하면 여기에 기록이 표시돼요.";
+    changeCards.innerHTML = "";
+    chipsWrap.innerHTML = "";
+    fullList.innerHTML = "";
+    return;
+  }
+
   banner.className = "result-banner " + (sc.resultCorrect ? "correct" : "incorrect");
-  document.getElementById("resultIcon").textContent = sc.resultCorrect ? "✅" : "✏️";
   document.getElementById("resultTitle").textContent = sc.resultCorrect ? "정답이에요!" : "이번엔 아쉬웠어요";
   document.getElementById("resultSub").textContent = sc.title;
 
-  // ② 상태 변화 카드: 학생이 체감할 수 있는 항목 우선, 최대 3장
+  // ② 상태 변화 카드: 학습자가 체감할 수 있는 항목 우선, 최대 3장
   const cardOrder = ["misconception","conceptual_mastery","procedural_mastery","retrievability","help_need"];
-  const changeCards = document.getElementById("changeCards");
   changeCards.innerHTML = "";
   let shown = 0;
   cardOrder.forEach((id) => {
@@ -1675,19 +1552,18 @@ function renderScreenB() {
     const meta = stateMeta[id];
     const div = document.createElement("div");
     div.className = "change-card";
-    div.innerHTML = `<span class="change-icon" aria-hidden="true">${meta.icon}</span><span class="change-text">${escapeHtml(meta[directionOf(raw)])}</span>`;
+    div.innerHTML = `<span class="change-text">${escapeHtml(meta[directionOf(raw)])}</span>`;
     changeCards.appendChild(div);
     shown++;
   });
   if (!shown) {
-    changeCards.innerHTML = `<div class="change-card"><span class="change-icon" aria-hidden="true">🗒️</span>
+    changeCards.innerHTML = `<div class="change-card">
       <span class="change-text">이번엔 숙련도 자체가 달라지진 않았어요. 기록만 하나 더 쌓였어요.</span></div>`;
   }
 
   document.getElementById("decisionText").textContent = sc.decision;
 
   // ④ 자세히 보기: 감지된 Evidence 칩 + 전체 State (내부 id는 노출하지 않음)
-  const chipsWrap = document.getElementById("evidenceChips");
   chipsWrap.innerHTML = "";
   allEvidenceIds.forEach((id) => {
     if (sc.evidence.indexOf(id) === -1) return;
@@ -1697,17 +1573,16 @@ function renderScreenB() {
     chipsWrap.appendChild(span);
   });
 
-  const fullList = document.getElementById("fullStateList");
   fullList.innerHTML = "";
   allStateIds.forEach((id) => {
-    if (id === "intervention_response") return; // 학생 비노출(내부 튜닝 전용)
+    if (id === "intervention_response") return; // 학습자 비노출(내부 튜닝 전용)
     const raw = sc.stateUpdates[id];
     const meta = stateMeta[id];
     const active = Boolean(raw);
     const text = active ? meta[directionOf(raw)] : "— 변화 없음";
     const div = document.createElement("div");
     div.className = "full-state-item" + (active ? " is-active" : "");
-    div.innerHTML = `<span>${meta.icon} ${escapeHtml(meta.label)}</span><span>${escapeHtml(text)}</span>`;
+    div.innerHTML = `<span>${escapeHtml(meta.label)}</span><span>${escapeHtml(text)}</span>`;
     fullList.appendChild(div);
   });
 }
