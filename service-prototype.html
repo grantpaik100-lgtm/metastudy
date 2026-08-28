@@ -1,0 +1,1873 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>StudyMeta 전체 서비스 프로토타입 (가입 → 온보딩 → 화면 A/B/C)</title>
+<style>
+  :root {
+    --page: #f7f9fc;
+    --surface: #ffffff;
+    --surface-soft: #f9fafb;
+    --line: #e4e8ef;
+    --line-strong: #d5dbe5;
+    --text: #18212f;
+    --muted: #687386;
+    --muted-light: #929bad;
+    --blue: #2563eb;
+    --blue-dark: #1746a2;
+    --blue-soft: #eff6ff;
+    --blue-line: #93c5fd;
+    --green: #15803d;
+    --green-soft: #f0fdf4;
+    --green-line: #86efac;
+    --amber: #a16207;
+    --amber-soft: #fffbeb;
+    --amber-line: #fcd34d;
+    --red: #b42318;
+    --red-soft: #fff4f2;
+    --red-line: #fca5a5;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.04);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-width: 320px;
+    color: var(--text);
+    background: var(--page);
+    font-family: Inter, Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.55;
+  }
+  button { font: inherit; cursor: pointer; }
+  input, select { font: inherit; color: inherit; }
+  h1, h2, h3, p { margin: 0; }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  .shell { width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 18px 0 90px; }
+  .screen { display: none; }
+  .screen.is-visible { display: block; }
+
+  .page-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; letter-spacing: -.02em; }
+  .page-sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 18px;
+  }
+
+  /* ---- 공통 버튼/폼 ---- */
+  .btn {
+    padding: 11px 16px; border-radius: 10px; border: 1px solid var(--line-strong);
+    background: var(--surface); color: var(--text); font-size: 14px; font-weight: 750;
+  }
+  .btn:hover { background: var(--surface-soft); }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.primary:hover { background: var(--blue-dark); }
+  .btn.ghost { border-style: dashed; color: var(--muted); }
+  .btn.small { padding: 7px 12px; font-size: 13px; border-radius: 9px; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn-row.end { justify-content: flex-end; }
+
+  .field { display: block; margin-bottom: 12px; }
+  .field-label { display: block; font-size: 12.5px; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
+  .field-label .optional { font-weight: 600; color: var(--muted-light); }
+  .input {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line-strong);
+    border-radius: 10px; background: var(--surface);
+  }
+  .input::placeholder { color: var(--muted-light); }
+  .field-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .field-row .field { flex: 1 1 160px; margin-bottom: 12px; }
+  .form-error { font-size: 13px; font-weight: 700; color: var(--red); margin-top: 8px; }
+  .form-hint { font-size: 12.5px; color: var(--muted-light); margin-top: 6px; }
+
+  /* ---- 리뷰 전용 스위처 ---- */
+  .note { width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 10px 0 0; color: var(--muted); font-size: 12px; }
+  .proto-switch {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 10px;
+    background: rgba(247,249,252,.94); backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--line);
+  }
+  .proto-switch button {
+    padding: 7px 12px; border: 1px solid var(--line-strong); border-radius: 999px;
+    background: var(--surface); color: var(--muted); font-size: 12.5px; font-weight: 700;
+  }
+  .proto-switch button.is-active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .proto-switch .spacer { flex: 1 1 auto; }
+  .proto-switch .reset { border-color: var(--red-line); color: var(--red); background: var(--red-soft); }
+
+  /* ---- 온보딩 스텝 표시 ---- */
+  .steps { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  .step-pill {
+    padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 750;
+    background: var(--surface); border: 1px solid var(--line); color: var(--muted-light);
+  }
+  .step-pill.is-current { background: var(--blue-soft); border-color: var(--blue-line); color: var(--blue-dark); }
+  .step-pill.is-done { background: var(--green-soft); border-color: var(--green-line); color: var(--green); }
+
+  /* ---- 가입/로그인 ---- */
+  .auth-wrap { max-width: 420px; margin: 40px auto 0; }
+  .brand { text-align: center; margin-bottom: 22px; }
+  .brand-mark { font-size: 32px; }
+  .brand-name { font-size: 24px; font-weight: 850; letter-spacing: -.02em; margin-top: 6px; }
+  .brand-copy { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .auth-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .auth-tabs button {
+    flex: 1; padding: 9px; border: 1px solid var(--line-strong); border-radius: 10px;
+    background: var(--surface); color: var(--muted); font-size: 13.5px; font-weight: 750;
+  }
+  .auth-tabs button.is-active { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-dark); }
+  .social-row { display: grid; gap: 8px; margin-top: 12px; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--muted-light); font-size: 12px; }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .auth-footnote { margin-top: 14px; font-size: 12px; color: var(--muted-light); text-align: center; }
+
+  /* ---- 온보딩: 과목 등록 ---- */
+  .subject-chip-list { display: grid; gap: 8px; margin-bottom: 14px; }
+  .subject-chip {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface);
+  }
+  .subject-chip-name { font-size: 14.5px; font-weight: 800; }
+  .subject-chip-meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .exam-rows { display: grid; gap: 8px; margin-bottom: 8px; }
+  .exam-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .exam-row .input { flex: 1 1 130px; width: auto; }
+  .file-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .file-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+    background: var(--surface-soft); border: 1px solid var(--line); font-size: 12px; color: var(--muted);
+  }
+  .file-input { display: none; }
+
+  /* ---- 온보딩: 분석 중 ---- */
+  .analyze-item { display: grid; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .analyze-item:last-child { border-bottom: none; }
+  .analyze-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; font-weight: 750; }
+  .analyze-state { font-size: 12.5px; font-weight: 750; color: var(--muted); }
+  .analyze-state.is-done { color: var(--green); }
+  .bar { height: 7px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--line); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .35s ease; }
+  .analyze-skills { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* ---- 앱 내비게이션 ---- */
+  .app-nav { display: none; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .app-nav.is-visible { display: flex; }
+  .app-nav button {
+    padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line-strong);
+    background: var(--surface); color: var(--muted); font-size: 13.5px; font-weight: 750;
+  }
+  .app-nav button.is-active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .app-nav .who { margin-left: auto; font-size: 12.5px; color: var(--muted-light); }
+
+  /* ==================== 화면 A ==================== */
+  .subject-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .subject-tab {
+    padding: 10px 16px; border: 1px solid var(--line-strong); border-radius: 999px;
+    background: var(--surface); font-size: 14px; font-weight: 700; color: var(--muted);
+  }
+  .subject-tab.is-active { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-dark); }
+  .subject-tab.add { border-style: dashed; color: var(--muted-light); }
+
+  .subject-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    margin-bottom: 12px; padding: 14px 16px;
+    background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius-md);
+  }
+  .subject-banner p { font-size: 14px; font-weight: 650; color: #254f91; }
+  .planner-link { flex: none; padding: 8px 14px; border: none; border-radius: 9px; background: var(--blue); color: #fff; font-size: 13px; font-weight: 800; }
+
+  .subject-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .toolbar-title { font-size: 13px; font-weight: 800; color: var(--muted); }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px;
+    border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface);
+    font-size: 13px; font-weight: 700; color: var(--muted);
+  }
+  .toggle[aria-pressed="true"] { border-color: var(--blue); color: var(--blue-dark); }
+  .toggle .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line-strong); }
+  .toggle[aria-pressed="true"] .dot { background: var(--blue); }
+
+  .skill-grid { display: grid; gap: 10px; }
+  .skill-card { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
+  .skill-card-head {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; background: none; border: none; text-align: left;
+  }
+  .skill-card-head:hover { background: var(--surface-soft); }
+  .skill-name { font-size: 15px; font-weight: 800; margin-bottom: 3px; }
+  .skill-status { font-size: 13px; color: var(--muted); }
+  .badge-row { display: flex; gap: 6px; flex: none; align-items: center; }
+  .badge { padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; border: 1px solid transparent; }
+  .badge.review { background: var(--amber-soft); color: var(--amber); border-color: var(--amber-line); }
+  .badge.check { background: var(--red-soft); color: var(--red); border-color: var(--red-line); }
+  .badge.help { background: var(--blue-soft); color: var(--blue-dark); border-color: var(--blue-line); }
+  .badge.good { background: var(--green-soft); color: var(--green); border-color: var(--green-line); }
+  .badge.new { background: var(--surface-soft); color: var(--muted); border-color: var(--line-strong); }
+  .chevron { color: var(--muted-light); font-size: 13px; transition: transform .15s ease; }
+  .skill-card.is-open .chevron { transform: rotate(180deg); }
+
+  .skill-detail { display: none; padding: 0 16px 16px; border-top: 1px solid var(--line); }
+  .skill-card.is-open .skill-detail { display: block; padding-top: 14px; }
+  .detail-state-list { display: grid; gap: 6px; margin-bottom: 14px; }
+  .detail-state-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 10px; border-radius: 8px; background: var(--surface-soft); border: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted);
+  }
+  .detail-state-item.is-notable { background: var(--blue-soft); border-color: var(--blue-line); color: var(--blue-dark); }
+
+  .empty-subject {
+    padding: 28px 16px; text-align: center; border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-md); color: var(--muted);
+  }
+
+  /* ==================== 문제 풀이 ==================== */
+  .question-card { margin-bottom: 14px; }
+  .question-meta { font-size: 12px; font-weight: 800; color: var(--muted-light); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+  .question-text { font-size: 17px; font-weight: 750; line-height: 1.5; }
+  .answer-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .answer-row .input { flex: 1 1 200px; width: auto; }
+  .action-list { display: grid; gap: 8px; margin-top: 12px; }
+  .action-btn {
+    display: flex; align-items: center; gap: 10px; text-align: left; width: 100%;
+    padding: 13px 15px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface);
+  }
+  .action-btn:hover { border-color: var(--blue); background: var(--blue-soft); }
+  .action-btn .emoji { font-size: 18px; flex: none; }
+  .action-btn .txt { font-size: 14px; font-weight: 750; }
+  .action-btn .sub { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+  /* ==================== 화면 B ==================== */
+  .scenario-picker { margin-bottom: 20px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); }
+  .scenario-picker-label { font-size: 11px; font-weight: 800; color: var(--muted-light); letter-spacing: .06em; margin-bottom: 8px; text-transform: uppercase; }
+  .scenario-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+  .scenario-btn {
+    padding: 8px 10px; font-size: 12px; font-weight: 700; text-align: left;
+    border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--muted);
+  }
+  .scenario-btn.is-active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  .result-banner { display: flex; align-items: center; gap: 14px; padding: 20px; margin-bottom: 14px; border-radius: var(--radius-lg); border: 1px solid var(--line); }
+  .result-banner.correct { background: var(--green-soft); border-color: var(--green-line); }
+  .result-banner.incorrect { background: var(--red-soft); border-color: var(--red-line); }
+  .result-icon { font-size: 30px; }
+  .result-title { font-size: 18px; font-weight: 800; }
+  .result-banner.correct .result-title { color: var(--green); }
+  .result-banner.incorrect .result-title { color: var(--red); }
+  .result-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .change-cards { display: grid; gap: 8px; margin-bottom: 14px; }
+  .change-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+  .change-icon { font-size: 20px; flex: none; }
+  .change-text { font-size: 14px; font-weight: 650; }
+
+  .decision-card { padding: 18px; margin-bottom: 14px; background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius-lg); }
+  .decision-label { font-size: 11px; font-weight: 800; color: var(--blue-dark); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+  .decision-text { font-size: 16px; font-weight: 700; color: #17305c; line-height: 1.5; }
+  .decision-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+  .details-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md);
+    background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 700;
+  }
+  .details-panel { display: none; margin-top: 12px; }
+  .details-panel.is-open { display: block; }
+  .details-block { margin-bottom: 14px; }
+  .details-block-title { font-size: 11px; font-weight: 800; color: var(--muted-light); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid var(--line); background: var(--surface-soft); color: var(--muted); }
+  .chip.is-active { background: var(--blue-soft); border-color: var(--blue-line); color: var(--blue-dark); }
+  .full-state-list { display: grid; gap: 6px; }
+  .full-state-item {
+    display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px;
+    border-radius: 8px; border: 1px solid var(--line); background: var(--surface-soft); font-size: 12.5px; color: var(--muted);
+  }
+  .full-state-item.is-active { background: var(--blue-soft); border-color: var(--blue-line); color: var(--blue-dark); }
+
+  /* ==================== 화면 C ==================== */
+  .exam-list { display: grid; gap: 8px; margin-bottom: 18px; }
+  .exam-item {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px; width: 100%; text-align: left;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface);
+  }
+  .exam-item.is-active { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); background: var(--blue-soft); }
+  .dday {
+    flex: none; min-width: 54px; padding: 5px 8px; border-radius: 7px; text-align: center;
+    font-size: 12px; font-weight: 800; background: var(--surface-soft); border: 1px solid var(--line); color: var(--muted);
+  }
+  .exam-item.is-active .dday { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .exam-name { font-size: 14px; font-weight: 750; }
+  .exam-sub { font-size: 12px; color: var(--muted-light); }
+
+  .planner-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; }
+  .day-col { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); padding: 10px; min-height: 140px; }
+  .day-col.is-dragover { border-color: var(--blue); background: var(--blue-soft); }
+  .day-col.is-locked { background: repeating-linear-gradient(135deg, var(--surface-soft), var(--surface-soft) 8px, #eef1f6 8px, #eef1f6 16px); color: var(--muted-light); }
+  .day-label { font-size: 12px; font-weight: 800; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; gap: 6px; }
+  .day-label .date { font-weight: 650; color: var(--muted-light); }
+  .plan-card {
+    display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px; margin-bottom: 8px;
+    border-radius: 9px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; cursor: grab;
+  }
+  .plan-card.is-dragging { opacity: .4; }
+  .plan-card input[type="checkbox"] { margin-top: 2px; }
+  .plan-card .badge { font-size: 10px; padding: 2px 7px; }
+  .plan-card-title { font-weight: 700; margin-bottom: 3px; }
+  .plan-card-sub { color: var(--muted-light); font-size: 11px; margin-bottom: 4px; }
+  .plan-card.is-done .plan-card-title { text-decoration: line-through; color: var(--muted-light); }
+  .plan-card-body { flex: 1; min-width: 0; }
+  .move-row { display: flex; gap: 4px; margin-top: 6px; }
+  .move-btn {
+    padding: 2px 8px; font-size: 11px; font-weight: 800; line-height: 1.6;
+    border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); color: var(--muted);
+  }
+  .empty-plan-note { padding: 20px; text-align: center; color: var(--muted-light); font-size: 12.5px; }
+  .planner-msg { margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--amber); min-height: 19px; }
+
+  @media (max-width: 640px) {
+    .scenario-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .subject-banner { flex-direction: column; align-items: stretch; }
+    .planner-link { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <p class="note">
+    ⚠ <code>design.md</code>(v0.4) + <code>AGENTS.md</code> 기준 <strong>전체 서비스 프로토타입</strong>입니다.
+    가입 → 온보딩(기본 정보 / 과목·자료·시험 등록 / 자료 분석 / 플래너 초안) → 화면 A·B·C 흐름 전체를 담았습니다.
+    아래 스위처와 "데모 초기화"는 검토 편의를 위한 프로토타입 전용 UI이며 실제 앱의 내비게이션이 아닙니다.
+    입력값은 이 브라우저의 localStorage에만 저장되며 서버로 전송되지 않습니다.
+  </p>
+
+  <nav class="proto-switch" id="protoSwitch" aria-label="프로토타입 화면 이동(리뷰 전용)">
+    <button type="button" data-target="auth">가입/로그인</button>
+    <button type="button" data-target="onbInfo">온보딩 1 · 기본 정보</button>
+    <button type="button" data-target="onbSubjects">온보딩 2 · 과목 등록</button>
+    <button type="button" data-target="onbAnalyze">온보딩 3 · 자료 분석</button>
+    <button type="button" data-target="onbPlan">온보딩 4 · 플래너 초안</button>
+    <button type="button" data-target="screenA">A · 학습 현황</button>
+    <button type="button" data-target="screenB">B · 즉시 피드백</button>
+    <button type="button" data-target="screenC">C · 학습 플래너</button>
+    <span class="spacer"></span>
+    <button type="button" class="reset" id="resetBtn">데모 초기화</button>
+  </nav>
+
+  <main class="shell">
+
+    <nav class="app-nav" id="appNav" aria-label="앱 내비게이션">
+      <button type="button" data-nav="screenA">학습 현황</button>
+      <button type="button" data-nav="screenC">학습 플래너</button>
+      <span class="who" id="navWho"></span>
+    </nav>
+
+    <!-- ==================== 가입 / 로그인 ==================== -->
+    <section class="screen" id="auth">
+      <div class="auth-wrap">
+        <div class="brand">
+          <div class="brand-mark">📚</div>
+          <div class="brand-name">StudyMeta</div>
+          <p class="brand-copy">전공 공부에 붙는 개인 과외 선생님.<br>자료를 올리면 시험까지의 계획을 짜드려요.</p>
+        </div>
+
+        <div class="card">
+          <div class="auth-tabs" id="authTabs">
+            <button type="button" data-mode="signup" class="is-active">회원가입</button>
+            <button type="button" data-mode="login">로그인</button>
+          </div>
+
+          <label class="field">
+            <span class="field-label">이메일</span>
+            <input class="input" type="email" id="authEmail" placeholder="hong@univ.ac.kr" autocomplete="email">
+          </label>
+          <label class="field">
+            <span class="field-label">비밀번호</span>
+            <input class="input" type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+          </label>
+
+          <button type="button" class="btn primary" id="authSubmit" style="width:100%">이메일로 시작하기</button>
+          <p class="form-error" id="authError" hidden></p>
+
+          <div class="divider">또는</div>
+          <div class="social-row">
+            <button type="button" class="btn" data-social="구글">Google로 계속하기</button>
+            <button type="button" class="btn" data-social="카카오">카카오로 계속하기</button>
+          </div>
+
+          <p class="auth-footnote">
+            인증 수단 자체의 상세 설계는 design.md 13번에서 이번 범위 밖으로 두었습니다.
+            이 화면은 흐름 확인용 목업이라 실제 인증은 하지 않습니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 온보딩 1 · 기본 정보 ==================== -->
+    <section class="screen" id="onbInfo">
+      <div class="steps" id="steps1"></div>
+      <h1 class="page-title">먼저 간단히 알려주세요</h1>
+      <p class="page-sub">전부 선택 항목이에요. 나중에 언제든 바꿀 수 있어요.</p>
+
+      <div class="card">
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">학교 <span class="optional">(선택)</span></span>
+            <input class="input" id="infoSchool" placeholder="예: 한국대학교">
+          </label>
+          <label class="field">
+            <span class="field-label">학년 <span class="optional">(선택)</span></span>
+            <select class="input" id="infoYear">
+              <option value="">선택 안 함</option>
+              <option>1학년</option><option>2학년</option><option>3학년</option><option>4학년</option><option>기타</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">
+          <span class="field-label">전공 <span class="optional">(선택)</span></span>
+          <input class="input" id="infoMajor" placeholder="예: 기계공학과">
+        </label>
+
+        <div class="btn-row end" style="margin-top:8px">
+          <button type="button" class="btn ghost" id="infoSkip">건너뛰기</button>
+          <button type="button" class="btn primary" id="infoNext">다음</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 온보딩 2 · 과목 등록 ==================== -->
+    <section class="screen" id="onbSubjects">
+      <div class="steps" id="steps2"></div>
+      <h1 class="page-title">듣고 있는 과목을 등록해주세요</h1>
+      <p class="page-sub">과목명을 직접 입력하면 돼요. 자료와 시험 일정은 지금 넣어도 되고, 나중에 추가해도 괜찮아요.</p>
+
+      <div class="subject-chip-list" id="onbSubjectList" aria-live="polite"></div>
+
+      <div class="card" id="onbSubjectFormWrap"></div>
+
+      <p class="form-error" id="onbSubjectsError" hidden></p>
+
+      <div class="btn-row end" style="margin-top:14px">
+        <button type="button" class="btn ghost" id="onbSeedDemo">데모 데이터로 빠르게 채우기</button>
+        <button type="button" class="btn primary" id="onbSubjectsNext">등록 완료</button>
+      </div>
+    </section>
+
+    <!-- ==================== 온보딩 3 · 자료 분석 ==================== -->
+    <section class="screen" id="onbAnalyze">
+      <div class="steps" id="steps3"></div>
+      <h1 class="page-title">올려주신 자료를 읽는 중이에요</h1>
+      <p class="page-sub">자료에서 다룰 개념을 뽑아 스킬 목록을 만들어요. 따로 진단 테스트는 보지 않아요 — 실제로 문제를 풀면서 상태가 채워집니다.</p>
+
+      <div class="card">
+        <div id="analyzeList" aria-live="polite"></div>
+        <div class="btn-row end" style="margin-top:14px">
+          <button type="button" class="btn ghost" id="analyzeSkip">건너뛰기</button>
+          <button type="button" class="btn primary" id="analyzeNext" disabled>다음</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 온보딩 4 · 플래너 초안 ==================== -->
+    <section class="screen" id="onbPlan">
+      <div class="steps" id="steps4"></div>
+      <h1 class="page-title">시험까지의 계획 초안을 만들었어요</h1>
+      <p class="page-sub">계획은 언제든 드래그해서 옮길 수 있어요. 계획을 옮겨도 숙련도 판단은 바뀌지 않아요.</p>
+
+      <div class="card">
+        <div id="planSummary" aria-live="polite"></div>
+        <div class="btn-row end" style="margin-top:14px">
+          <button type="button" class="btn primary" id="planStart">StudyMeta 시작하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 화면 A ==================== -->
+    <section class="screen" id="screenA">
+      <h1 class="page-title">전체 학습 현황</h1>
+      <p class="page-sub">과목별로 지금 상태를 확인하고, 약한 스킬부터 챙겨보세요.</p>
+
+      <div class="subject-tabs" id="subjectTabs"></div>
+
+      <div class="subject-banner">
+        <p id="subjectBannerText"></p>
+        <button type="button" class="planner-link" id="plannerLinkBtn">플래너 보기 →</button>
+      </div>
+
+      <div class="subject-actions">
+        <button type="button" class="btn small" id="addMaterialBtn">＋ 자료 추가</button>
+        <button type="button" class="btn small" id="addExamBtn">＋ 시험 일정 추가</button>
+        <input type="file" class="file-input" id="subjectFileInput" multiple>
+      </div>
+
+      <div id="subjectInlineForm"></div>
+
+      <div class="toolbar">
+        <span class="toolbar-title">스킬</span>
+        <button type="button" class="toggle" id="weakFirstToggle" aria-pressed="false">
+          <span class="dot"></span> 약한 스킬 먼저 보기
+        </button>
+      </div>
+
+      <div class="skill-grid" id="skillGrid" aria-live="polite"></div>
+    </section>
+
+    <!-- ==================== 문제 풀이 ==================== -->
+    <section class="screen" id="screenPractice">
+      <h1 class="page-title" id="practiceTitle">연습 문제</h1>
+      <p class="page-sub" id="practiceSub"></p>
+
+      <div class="card question-card">
+        <div class="question-meta">문제</div>
+        <p class="question-text" id="practiceQuestion"></p>
+        <div class="answer-row">
+          <input class="input" id="practiceAnswer" placeholder="답을 적어보세요 (프로토타입에서는 채점하지 않아요)">
+        </div>
+        <div class="action-list" id="practiceActions"></div>
+        <p class="form-hint">
+          시연용 프로토타입이라 실제 채점은 하지 않고, 위 선택이 index.html의 9개 시나리오 중 하나로 이어집니다.
+        </p>
+      </div>
+
+      <div class="btn-row" style="margin-top:12px">
+        <button type="button" class="btn" id="practiceBack">← 현황으로 돌아가기</button>
+      </div>
+    </section>
+
+    <!-- ==================== 화면 B ==================== -->
+    <section class="screen" id="screenB">
+      <h1 class="page-title">방금 이렇게 달라졌어요</h1>
+      <p class="page-sub" id="screenBSub">문제를 풀고 나면 뜨는 즉시 피드백 화면입니다.</p>
+
+      <div class="scenario-picker">
+        <div class="scenario-picker-label">시연용 · 어떤 상황을 볼까요</div>
+        <div class="scenario-grid" id="scenarioGrid"></div>
+      </div>
+
+      <div class="result-banner" id="resultBanner">
+        <div class="result-icon" id="resultIcon"></div>
+        <div>
+          <div class="result-title" id="resultTitle"></div>
+          <div class="result-sub" id="resultSub"></div>
+        </div>
+      </div>
+
+      <div class="change-cards" id="changeCards"></div>
+
+      <div class="decision-card">
+        <div class="decision-label">다음엔 이렇게 해볼까요</div>
+        <div class="decision-text" id="decisionText"></div>
+        <div class="decision-actions">
+          <button type="button" class="btn primary small" id="nextQuestionBtn">이어서 한 문제 더 풀기</button>
+          <button type="button" class="btn small" id="backToABtn">현황으로 돌아가기</button>
+        </div>
+      </div>
+
+      <button type="button" class="details-toggle" id="detailsToggle" aria-expanded="false" aria-controls="detailsPanel">▾ 자세히 보기</button>
+      <div class="details-panel" id="detailsPanel">
+        <div class="details-block">
+          <div class="details-block-title">이번에 감지된 것</div>
+          <div class="chip-row" id="evidenceChips"></div>
+        </div>
+        <div class="details-block">
+          <div class="details-block-title">전체 상태</div>
+          <div class="full-state-list" id="fullStateList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 화면 C ==================== -->
+    <section class="screen" id="screenC">
+      <h1 class="page-title">학습 플래너</h1>
+      <p class="page-sub">시험일까지 남은 시간에 맞춰 무엇을 언제 볼지 정리했어요. 카드를 다른 날로 옮길 수 있어요.</p>
+
+      <div class="exam-list" id="examList" aria-live="polite"></div>
+
+      <div class="planner-board" id="plannerBoard"></div>
+      <p class="planner-msg" id="plannerMsg" role="status"></p>
+    </section>
+
+  </main>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   0. 러너 모델 원본 데이터
+      index.html의 evidenceTypes / stateTypes / scenarios를 id 그대로 복사해서 쓴다.
+      (AGENTS.md 2번: 값·키·순서를 바꾸지 않고, 화면에는 한국어 라벨로 변환해 노출)
+   ========================================================================= */
+
+const evidenceLabels = {
+  correct: "정답", incorrect: "오답", partial_success: "부분적으로 맞음",
+  independent_success: "혼자 힘으로 해결", hint_requested: "힌트 요청",
+  success_after_hint: "힌트 받고 해결", success_after_explanation: "설명 듣고 해결",
+  first_error: "첫 실수", repeated_error: "반복되는 실수",
+  misconception_candidate: "헷갈리는 개념 후보", self_correction: "스스로 수정함",
+  immediate_retrieval_success: "바로 기억해 냄", delayed_retrieval_success: "시간이 지나도 기억함",
+  delayed_retrieval_failure: "시간이 지나 잊어버림", relearning: "다시 배우는 중",
+  novel_application_success: "새로운 문제에 응용 성공", novel_application_failure: "새로운 문제에 응용 실패",
+  confidence_report: "확신 정도 응답", perceived_understanding: "“이해했다”는 응답",
+  perceived_difficulty: "체감 난이도 응답", error_awareness: "실수를 스스로 알아챔",
+  response_time: "풀이 소요 시간", stuck_duration: "막힌 시간", attempt_count: "시도 횟수"
+};
+
+// design.md 8-2 표
+const stateMeta = {
+  conceptual_mastery: { label: "개념 이해", icon: "🧠", onCard: true,
+    up: "개념 이해가 좋아지고 있어요", down: "개념 이해를 다시 점검해볼 시간이에요", neutral: "개념 이해를 다시 확인해볼게요" },
+  procedural_mastery: { label: "풀이 능숙도", icon: "🛠️", onCard: true,
+    up: "풀이 과정이 능숙해지고 있어요", down: "풀이 과정을 다시 점검해볼 시간이에요", neutral: "풀이 과정을 다시 확인해볼게요" },
+  retrievability: { label: "기억 유지", icon: "⏳", onCard: true,
+    up: "이 내용을 잘 기억하고 있어요", down: "이 내용을 까먹기 시작했어요", neutral: "기억 상태를 다시 확인 중이에요" },
+  transferability: { label: "응용력", icon: "🔀", onCard: false,
+    up: "다른 문제에도 잘 적용하고 있어요", down: "다른 문제에 적용하기 어려워하고 있어요", neutral: "응용력을 지켜보는 중이에요" },
+  help_need: { label: "필요한 도움", icon: "🤝", onCard: true,
+    up: "도움이 좀 더 필요해요", down: "필요한 도움이 줄고 있어요", neutral: "도움이 필요한 정도를 다시 보는 중이에요" },
+  misconception: { label: "헷갈리는 부분", icon: "❓", onCard: true,
+    up: "헷갈리는 부분이 있는 것 같아요", down: "헷갈리던 부분이 줄고 있어요", neutral: "헷갈리는 부분을 계속 지켜볼게요" },
+  state_confidence: { label: "확신도(내부 지표)", icon: "📊", onCard: false,
+    up: "판단 근거가 쌓이고 있어요", down: "판단 근거가 아직 부족해요", neutral: "판단 근거를 모으는 중이에요" },
+  calibration: { label: "예측-실제 비교", icon: "🎯", onCard: false,
+    up: "예상과 실제 결과를 비교해볼게요", down: "예상과 실제 결과를 비교해볼게요", neutral: "예상과 실제 결과를 비교해볼게요" },
+  intervention_response: { label: "힌트 반응(내부 지표)", icon: "🔧", onCard: false,
+    up: "", down: "", neutral: "" } // 학생 비노출
+};
+
+const SKILL_STATE_IDS = ["conceptual_mastery","procedural_mastery","retrievability","transferability","help_need","misconception","state_confidence"];
+const allStateIds = SKILL_STATE_IDS.concat(["calibration","intervention_response"]);
+const allEvidenceIds = Object.keys(evidenceLabels);
+
+function directionOf(changeText) {
+  if (!changeText) return "neutral";
+  if (changeText.indexOf("↑") !== -1) return "up";
+  if (changeText.indexOf("↓") !== -1) return "down";
+  return "neutral";
+}
+
+// 배지 우선순위: 확인 필요(misconception) > 도움이 필요해요(help_need) > 복습 추천(retrievability)
+const BADGE_PRIORITY = ["misconception", "help_need", "retrievability"];
+function badgeFor(id, direction) {
+  if (id === "misconception" && direction === "up") return { id: id, cls: "check", text: "확인 필요" };
+  if (id === "help_need" && direction === "up") return { id: id, cls: "help", text: "도움이 필요해요" };
+  if (id === "retrievability" && direction === "down") return { id: id, cls: "review", text: "복습 추천" };
+  return null;
+}
+
+const scenarios = [
+  { id: "independent-correct", title: "힌트 없이 정답",
+    resultCorrect: true,
+    evidence: ["correct", "independent_success"],
+    stateUpdates: { conceptual_mastery: "↑ 상승", procedural_mastery: "소폭 ↑", retrievability: "소폭 ↑", help_need: "↓ 감소", state_confidence: "↑ 상승" },
+    decision: "다음엔 힌트 없이 한 단계 더 어려운 문제에 도전해볼까요?" },
+  { id: "perceived-understanding", title: "“완전히 이해했어”",
+    resultCorrect: true,
+    evidence: ["perceived_understanding"],
+    stateUpdates: { calibration: "관찰값 추가", state_confidence: "소폭 ↑" },
+    decision: "이해했다고 느꼈다면, 힌트 없이 짧은 문제로 한번 확인해볼까요?" },
+  { id: "hint-success", title: "힌트 요청 후 성공",
+    resultCorrect: true,
+    evidence: ["hint_requested", "success_after_hint"],
+    stateUpdates: { procedural_mastery: "↑ 상승", help_need: "수준 조정", intervention_response: "Hint 효과 ↑", state_confidence: "↑ 상승" },
+    decision: "이번엔 힌트 덕분에 풀었어요. 다음엔 힌트 없이 먼저 시도해볼까요?" },
+  { id: "hint-self-correction", title: "힌트 후 스스로 수정",
+    resultCorrect: true,
+    evidence: ["hint_requested", "success_after_hint", "self_correction", "error_awareness"],
+    stateUpdates: { procedural_mastery: "↑ 상승", help_need: "↓ / 조정", calibration: "관찰값 추가", intervention_response: "Hint 효과 ↑", state_confidence: "↑ 상승" },
+    decision: "스스로 오류를 찾아 고쳤어요! 다음엔 어디가 헷갈렸는지 먼저 말해볼까요?" },
+  { id: "repeated-error", title: "같은 오류 3회 반복",
+    resultCorrect: false,
+    evidence: ["incorrect", "repeated_error", "misconception_candidate"],
+    stateUpdates: { procedural_mastery: "↓ 하락", misconception: "↑ 상승", state_confidence: "↑ 상승" },
+    decision: "같은 실수가 반복되고 있어요. 비슷한 예제를 비교하면서 원인을 짚어볼까요?" },
+  { id: "delayed-success", title: "5일 후 독립 성공",
+    resultCorrect: true,
+    evidence: ["correct", "independent_success", "delayed_retrieval_success"],
+    stateUpdates: { procedural_mastery: "↑ 상승", retrievability: "큰 폭 ↑", help_need: "↓ 감소", state_confidence: "↑ 상승" },
+    decision: "시간이 지나도 잘 기억하고 있어요. 복습 간격을 늘리고 새로운 문제로 넘어가볼까요?" },
+  { id: "delayed-failure", title: "5일 후 기억 못함",
+    resultCorrect: false,
+    evidence: ["delayed_retrieval_failure"],
+    stateUpdates: { retrievability: "큰 폭 ↓", state_confidence: "↑ 상승" },
+    decision: "이 내용을 잊어버린 것 같아요. 전체를 다시 보기 전에 힌트와 함께 떠올려볼까요?" },
+  { id: "novel-application", title: "처음 보는 적용문제 성공",
+    resultCorrect: true,
+    evidence: ["correct", "independent_success", "novel_application_success"],
+    stateUpdates: { conceptual_mastery: "↑ 상승", procedural_mastery: "↑ 상승", transferability: "큰 폭 ↑", help_need: "↓ 감소", state_confidence: "↑ 상승" },
+    decision: "새로운 문제에도 잘 적용했어요! 더 복합적인 문제로 도전해볼까요?" },
+  { id: "overconfident-incorrect", title: "“90% 확실해” 후 오답",
+    resultCorrect: false,
+    evidence: ["confidence_report", "incorrect"],
+    stateUpdates: { conceptual_mastery: "↓ 조정", procedural_mastery: "↓ 조정", calibration: "Overconfidence ↑", state_confidence: "↑ 상승" },
+    decision: "확신했던 것과 다른 결과가 나왔어요. 어디서 착각했는지 같이 짚어볼까요?" }
+];
+
+/* =========================================================================
+   1. 저장소 (localStorage) + 데모 프리셋
+   ========================================================================= */
+
+const STORE_KEY = "studymeta.service-prototype.v1";
+const TODAY = startOfDay(new Date());
+
+function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function addDays(base, n) { const d = new Date(base); d.setDate(d.getDate() + n); return d; }
+function toISODate(d) {
+  const x = startOfDay(d);
+  return x.getFullYear() + "-" + String(x.getMonth()+1).padStart(2,"0") + "-" + String(x.getDate()).padStart(2,"0");
+}
+function ddayLabel(dateStr) {
+  const diff = Math.round((startOfDay(new Date(dateStr)) - TODAY) / 86400000);
+  if (diff < 0) return "지남";
+  return diff === 0 ? "D-DAY" : ("D-" + diff);
+}
+function daysUntil(dateStr) {
+  return Math.round((startOfDay(new Date(dateStr)) - TODAY) / 86400000);
+}
+function uid(prefix) { return prefix + "-" + Math.random().toString(36).slice(2, 8); }
+
+function emptyState() {
+  return {
+    user: null,          // { email, provider, school, year, major }
+    onboarded: false,
+    subjects: [],        // { id, name, materials[], analyzed, calibrationText, skills[], exams[] }
+    planOverrides: {},   // planCardId -> { dayIndex, done }
+    currentSubjectId: null
+  };
+}
+
+let state = emptyState();
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch (e) { /* 사생활 보호 모드 등에서 저장 실패해도 화면은 계속 동작 */ }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return false;
+    state = Object.assign(emptyState(), parsed);
+    return true;
+  } catch (e) { return false; }
+}
+
+function newSkill(name, overrides) {
+  const base = {
+    id: uid("skill"), name: name, unattempted: true,
+    conceptual_mastery: "neutral", procedural_mastery: "neutral", retrievability: "neutral",
+    transferability: "neutral", help_need: "neutral", misconception: "neutral", state_confidence: "neutral"
+  };
+  return Object.assign(base, overrides || {});
+}
+
+// 데모 프리셋: 화면 A/C를 바로 시연할 수 있도록 State가 이미 쌓인 과목들
+function demoSubjects() {
+  return [
+    {
+      id: "calc", name: "미적분학", analyzed: true,
+      materials: [{ name: "미적분학_강의노트.pdf", analyzed: true }, { name: "연습문제_3주차.pdf", analyzed: true }],
+      calibrationText: "예상과 실제가 꽤 잘 맞고 있어요",
+      exams: [{ id: "calc-final", name: "기말고사", date: toISODate(addDays(TODAY, 45)) }],
+      skills: [
+        newSkill("Chain Rule", { id: "chain-rule", unattempted: false, conceptual_mastery: "up", procedural_mastery: "up", retrievability: "up", help_need: "down", misconception: "down", state_confidence: "up" }),
+        newSkill("극한의 정의", { id: "limit-def", unattempted: false, retrievability: "down", misconception: "down", state_confidence: "up" }),
+        newSkill("테일러 급수", { id: "taylor", unattempted: false, conceptual_mastery: "down", procedural_mastery: "down", retrievability: "down", help_need: "up", misconception: "up", state_confidence: "up" })
+      ]
+    },
+    {
+      id: "chem", name: "화학", analyzed: true,
+      materials: [{ name: "일반화학_2단원.pdf", analyzed: true }],
+      calibrationText: "실제보다 스스로를 조금 과소평가하고 있어요",
+      exams: [
+        { id: "chem-mid", name: "중간고사", date: toISODate(addDays(TODAY, 12)) },
+        { id: "chem-final", name: "기말고사", date: toISODate(addDays(TODAY, 60)) }
+      ],
+      skills: [
+        newSkill("이온 결합", { id: "ionic-bond", unattempted: false, conceptual_mastery: "up", procedural_mastery: "up", retrievability: "up", help_need: "down", misconception: "down", state_confidence: "up" }),
+        newSkill("몰농도 계산", { id: "molarity", unattempted: false, conceptual_mastery: "down", retrievability: "down", misconception: "up", state_confidence: "up" })
+      ]
+    },
+    {
+      id: "econ", name: "경제학원론", analyzed: false,
+      materials: [],
+      calibrationText: "아직 예상과 실제를 비교할 기록이 없어요",
+      exams: [{ id: "econ-final", name: "기말고사", date: toISODate(addDays(TODAY, 20)) }],
+      skills: []
+    }
+  ];
+}
+
+/* =========================================================================
+   2. 라우팅
+   ========================================================================= */
+
+const APP_SCREENS = ["screenA", "screenPractice", "screenB", "screenC"];
+let currentScreen = "auth";
+
+function go(id) {
+  currentScreen = id;
+  document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("is-visible", s.id === id));
+  document.querySelectorAll("#protoSwitch button[data-target]").forEach((b) => b.classList.toggle("is-active", b.dataset.target === id));
+
+  const nav = document.getElementById("appNav");
+  nav.classList.toggle("is-visible", APP_SCREENS.indexOf(id) !== -1);
+  document.querySelectorAll("#appNav button[data-nav]").forEach((b) => b.classList.toggle("is-active", b.dataset.nav === id));
+  document.getElementById("navWho").textContent = state.user ? state.user.email : "";
+
+  if (id === "onbInfo") renderSteps(1);
+  if (id === "onbSubjects") { renderSteps(2); renderOnbSubjects(); }
+  if (id === "onbAnalyze") { renderSteps(3); startAnalyze(); }
+  if (id === "onbPlan") { renderSteps(4); renderPlanSummary(); }
+  if (id === "screenA") renderScreenA();
+  if (id === "screenB") renderScreenB();
+  if (id === "screenC") renderScreenC();
+
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+// 리뷰 전용 스위처: 데이터가 없는 상태로 앱 화면에 바로 뛰어들면 데모 데이터를 채워준다
+document.getElementById("protoSwitch").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-target]");
+  if (!btn) return;
+  const target = btn.dataset.target;
+  if (APP_SCREENS.indexOf(target) !== -1 && !state.subjects.length) {
+    seedDemo();
+    if (!state.user) state.user = { email: "demo@univ.ac.kr", provider: "demo", school: "", year: "", major: "" };
+    state.onboarded = true;
+    save();
+  }
+  go(target);
+});
+
+document.getElementById("appNav").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-nav]");
+  if (btn) go(btn.dataset.nav);
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (!confirm("저장된 가입/온보딩 데이터를 지우고 처음 화면부터 다시 볼까요?")) return;
+  try { localStorage.removeItem(STORE_KEY); } catch (e) { /* noop */ }
+  state = emptyState();
+  planMsg("");
+  go("auth");
+});
+
+const STEP_LABELS = ["기본 정보", "과목 등록", "자료 분석", "플래너 초안"];
+function renderSteps(current) {
+  [1,2,3,4].forEach((n) => {
+    const wrap = document.getElementById("steps" + n);
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    STEP_LABELS.forEach((label, i) => {
+      const span = document.createElement("span");
+      const idx = i + 1;
+      span.className = "step-pill" + (idx === current ? " is-current" : (idx < current ? " is-done" : ""));
+      span.textContent = idx + ". " + label;
+      wrap.appendChild(span);
+    });
+  });
+}
+
+/* =========================================================================
+   3. 가입 / 로그인
+   ========================================================================= */
+
+let authMode = "signup";
+
+document.getElementById("authTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-mode]");
+  if (!btn) return;
+  authMode = btn.dataset.mode;
+  document.querySelectorAll("#authTabs button").forEach((b) => b.classList.toggle("is-active", b.dataset.mode === authMode));
+  document.getElementById("authSubmit").textContent = authMode === "signup" ? "이메일로 시작하기" : "로그인";
+  hideAuthError();
+});
+
+function showAuthError(msg) {
+  const el = document.getElementById("authError");
+  el.textContent = msg;
+  el.hidden = false;
+}
+function hideAuthError() { document.getElementById("authError").hidden = true; }
+
+function enterAfterAuth(user) {
+  state.user = Object.assign({ school: "", year: "", major: "" }, state.user || {}, user);
+  save();
+  // design.md 온보딩 엣지 케이스: 기존 사용자는 온보딩을 건너뛰고 화면 A로 바로 진입
+  if (state.onboarded && state.subjects.length) go("screenA");
+  else if (state.subjects.length) go("onbSubjects");
+  else go("onbInfo");
+}
+
+document.getElementById("authSubmit").addEventListener("click", () => {
+  const email = document.getElementById("authEmail").value.trim();
+  const pw = document.getElementById("authPassword").value;
+  if (!email || email.indexOf("@") === -1) { showAuthError("이메일 형식을 확인해주세요."); return; }
+  if (pw.length < 4) { showAuthError("비밀번호를 4자 이상 입력해주세요. (프로토타입이라 실제 인증은 하지 않아요)"); return; }
+  hideAuthError();
+  enterAfterAuth({ email: email, provider: "email" });
+});
+
+document.querySelectorAll("[data-social]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    hideAuthError();
+    enterAfterAuth({ email: "student@" + (btn.dataset.social === "구글" ? "gmail.com" : "kakao.com"), provider: btn.dataset.social });
+  });
+});
+
+/* =========================================================================
+   4. 온보딩 1 · 기본 정보
+   ========================================================================= */
+
+function saveInfo() {
+  state.user = Object.assign({ email: "guest@example.com", provider: "demo" }, state.user || {}, {
+    school: document.getElementById("infoSchool").value.trim(),
+    year: document.getElementById("infoYear").value,
+    major: document.getElementById("infoMajor").value.trim()
+  });
+  save();
+}
+document.getElementById("infoNext").addEventListener("click", () => { saveInfo(); go("onbSubjects"); });
+document.getElementById("infoSkip").addEventListener("click", () => { saveInfo(); go("onbSubjects"); });
+
+/* =========================================================================
+   5. 온보딩 2 · 과목 등록 (화면 A에서도 재사용하는 폼)
+   ========================================================================= */
+
+// 과목 등록 폼을 만들어 반환한다. onSaved(subject) 콜백으로 결과를 넘긴다.
+function buildSubjectForm(options) {
+  const opts = options || {};
+  const wrap = document.createElement("div");
+  const draft = { files: [], exams: [] };
+
+  wrap.innerHTML = `
+    <label class="field">
+      <span class="field-label">과목명</span>
+      <input class="input" data-role="name" placeholder="예: 미적분학 1 (직접 입력)">
+    </label>
+
+    <div class="field">
+      <span class="field-label">학습 자료 <span class="optional">(선택 · 나중에 추가해도 돼요)</span></span>
+      <button type="button" class="btn small" data-role="pick">＋ 파일 선택</button>
+      <input type="file" class="file-input" data-role="file" multiple>
+      <div class="file-list" data-role="files"></div>
+      <p class="form-hint">프로토타입이라 파일은 업로드되지 않고 이름만 기록합니다. 자료 이름에서 스킬 목록을 만들어요.</p>
+    </div>
+
+    <div class="field">
+      <span class="field-label">시험 일정 <span class="optional">(선택 · 여러 개 등록 가능)</span></span>
+      <div class="exam-rows" data-role="examRows"></div>
+      <div class="exam-row">
+        <input class="input" data-role="examName" placeholder="시험 이름 (예: 중간고사)">
+        <input class="input" type="date" data-role="examDate">
+        <button type="button" class="btn small" data-role="addExam">＋ 추가</button>
+      </div>
+      <p class="form-hint">시험 일정을 넣지 않으면 학습 플래너에는 나오지 않아요. 나중에 추가하면 자동으로 반영됩니다.</p>
+    </div>
+
+    <p class="form-error" data-role="error" hidden></p>
+    <div class="btn-row end">
+      ${opts.cancelLabel ? `<button type="button" class="btn" data-role="cancel">${opts.cancelLabel}</button>` : ""}
+      <button type="button" class="btn primary" data-role="submit">${opts.submitLabel || "이 과목 등록"}</button>
+    </div>
+  `;
+
+  const q = (role) => wrap.querySelector('[data-role="' + role + '"]');
+  const errorEl = q("error");
+  const showError = (msg) => { errorEl.textContent = msg; errorEl.hidden = false; };
+  const clearError = () => { errorEl.hidden = true; };
+
+  function renderFiles() {
+    const box = q("files");
+    box.innerHTML = "";
+    draft.files.forEach((f, i) => {
+      const pill = document.createElement("span");
+      pill.className = "file-pill";
+      pill.innerHTML = `📄 ${escapeHtml(f.name)}`;
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "move-btn";
+      rm.textContent = "×";
+      rm.setAttribute("aria-label", f.name + " 제거");
+      rm.addEventListener("click", () => { draft.files.splice(i, 1); renderFiles(); });
+      pill.appendChild(rm);
+      box.appendChild(pill);
+    });
+  }
+
+  function renderExams() {
+    const box = q("examRows");
+    box.innerHTML = "";
+    draft.exams.forEach((ex, i) => {
+      const row = document.createElement("div");
+      row.className = "subject-chip";
+      row.innerHTML = `<span><span class="subject-chip-name">${escapeHtml(ex.name)}</span>
+        <span class="subject-chip-meta">${ex.date} · ${ddayLabel(ex.date)}</span></span>`;
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "btn small";
+      rm.textContent = "삭제";
+      rm.addEventListener("click", () => { draft.exams.splice(i, 1); renderExams(); });
+      row.appendChild(rm);
+      box.appendChild(row);
+    });
+  }
+
+  q("pick").addEventListener("click", () => q("file").click());
+  q("file").addEventListener("change", (e) => {
+    Array.prototype.forEach.call(e.target.files, (f) => draft.files.push({ name: f.name }));
+    e.target.value = "";
+    renderFiles();
+  });
+
+  q("addExam").addEventListener("click", () => {
+    const name = q("examName").value.trim();
+    const date = q("examDate").value;
+    if (!name || !date) { showError("시험 이름과 날짜를 모두 입력해주세요."); return; }
+    if (daysUntil(date) < 0) { showError("지난 날짜는 등록할 수 없어요."); return; }
+    clearError();
+    draft.exams.push({ id: uid("exam"), name: name, date: date });
+    q("examName").value = "";
+    q("examDate").value = "";
+    renderExams();
+  });
+
+  q("submit").addEventListener("click", () => {
+    const name = q("name").value.trim();
+    if (!name) { showError("과목명을 입력해주세요."); return; }
+    if (state.subjects.some((s) => s.name === name)) { showError("이미 등록한 과목이에요."); return; }
+    clearError();
+
+    const subject = {
+      id: uid("subj"), name: name,
+      materials: draft.files.slice(),
+      analyzed: false,
+      calibrationText: "아직 예상과 실제를 비교할 기록이 없어요",
+      skills: [],
+      exams: draft.exams.slice()
+    };
+    state.subjects.push(subject);
+    save();
+
+    q("name").value = "";
+    draft.files = [];
+    draft.exams = [];
+    renderFiles();
+    renderExams();
+    if (opts.onSaved) opts.onSaved(subject);
+  });
+
+  if (opts.cancelLabel) q("cancel").addEventListener("click", () => { if (opts.onCancel) opts.onCancel(); });
+
+  return wrap;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+function renderOnbSubjects() {
+  const list = document.getElementById("onbSubjectList");
+  list.innerHTML = "";
+  state.subjects.forEach((s) => {
+    const row = document.createElement("div");
+    row.className = "subject-chip";
+    const examText = s.exams.length ? s.exams.map((e) => e.name + " " + ddayLabel(e.date)).join(" · ") : "시험 일정 없음";
+    const matText = s.materials.length ? s.materials.length + "개 자료" : "자료 없음";
+    row.innerHTML = `<span>
+        <span class="subject-chip-name">${escapeHtml(s.name)}</span>
+        <span class="subject-chip-meta">${matText} · ${escapeHtml(examText)}</span>
+      </span>`;
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "btn small";
+    rm.textContent = "삭제";
+    rm.addEventListener("click", () => {
+      state.subjects = state.subjects.filter((x) => x.id !== s.id);
+      save();
+      renderOnbSubjects();
+    });
+    row.appendChild(rm);
+    list.appendChild(row);
+  });
+
+  const formWrap = document.getElementById("onbSubjectFormWrap");
+  formWrap.innerHTML = "";
+  formWrap.appendChild(buildSubjectForm({
+    submitLabel: "＋ 과목 추가",
+    onSaved: () => { document.getElementById("onbSubjectsError").hidden = true; renderOnbSubjects(); }
+  }));
+}
+
+function seedDemo() {
+  demoSubjects().forEach((d) => {
+    if (!state.subjects.some((s) => s.name === d.name)) state.subjects.push(d);
+  });
+  state.currentSubjectId = state.subjects[0] ? state.subjects[0].id : null;
+  save();
+}
+
+document.getElementById("onbSeedDemo").addEventListener("click", () => {
+  seedDemo();
+  document.getElementById("onbSubjectsError").hidden = true;
+  renderOnbSubjects();
+});
+
+document.getElementById("onbSubjectsNext").addEventListener("click", () => {
+  const err = document.getElementById("onbSubjectsError");
+  if (!state.subjects.length) {
+    err.textContent = "최소 1개 과목을 등록해주세요.";
+    err.hidden = false;
+    return;
+  }
+  err.hidden = true;
+  go("onbAnalyze");
+});
+
+/* =========================================================================
+   6. 온보딩 3 · 자료 분석 (진단 테스트 없음 — design.md 4번)
+   ========================================================================= */
+
+let analyzeTimers = [];
+
+function pendingMaterials(subject) {
+  return subject.materials.filter((m) => !m.analyzed);
+}
+
+// 아직 분석하지 않은 자료의 이름에서 개념 후보를 만든다.
+// 실제 서비스에서는 프론티어 모델이 자료 내용을 읽고 추출한다.
+function newSkillNamesFor(subject) {
+  const existing = subject.skills.map((k) => k.name);
+  const names = [];
+  pendingMaterials(subject).forEach((m) => {
+    const name = m.name.replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " ").trim();
+    if (name && existing.indexOf(name) === -1 && names.indexOf(name) === -1) names.push(name);
+  });
+  return names;
+}
+
+function startAnalyze() {
+  analyzeTimers.forEach(clearTimeout);
+  analyzeTimers = [];
+
+  const targets = state.subjects.filter((s) => !s.analyzed && pendingMaterials(s).length);
+  const list = document.getElementById("analyzeList");
+  const nextBtn = document.getElementById("analyzeNext");
+  list.innerHTML = "";
+
+  if (!targets.length) {
+    list.innerHTML = `<p class="empty-plan-note">분석할 자료가 없어요. 자료 없이 등록한 과목은 스킬 목록이 빈 상태로 시작하고,
+      나중에 자료를 올리면 그때 분석해드릴게요.</p>`;
+    nextBtn.disabled = false;
+    return;
+  }
+
+  nextBtn.disabled = true;
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  targets.forEach((subject, idx) => {
+    const item = document.createElement("div");
+    item.className = "analyze-item";
+    item.innerHTML = `
+      <div class="analyze-head"><span>${escapeHtml(subject.name)}</span><span class="analyze-state">분석 중… (${pendingMaterials(subject).length}개 자료)</span></div>
+      <div class="bar"><i></i></div>
+      <div class="analyze-skills"></div>`;
+    list.appendChild(item);
+
+    const finish = () => {
+      // 이미 쌓인 스킬은 그대로 두고 새 자료에서 찾은 개념만 더한다.
+      // (기존 스킬을 갈아끼우면 그동안 쌓인 State가 사라진다)
+      const names = newSkillNamesFor(subject);
+      names.forEach((n) => subject.skills.push(newSkill(n)));
+      subject.materials.forEach((m) => { m.analyzed = true; });
+      subject.analyzed = true;
+      save();
+      item.querySelector(".bar > i").style.width = "100%";
+      const stateEl = item.querySelector(".analyze-state");
+      stateEl.textContent = names.length ? "스킬 " + names.length + "개를 새로 찾았어요" : "새로 추가할 개념은 없었어요";
+      stateEl.classList.add("is-done");
+      const skillBox = item.querySelector(".analyze-skills");
+      skillBox.innerHTML = names.map((n) => `<span class="chip">${escapeHtml(n)}</span>`).join("");
+      if (state.subjects.filter((s) => !s.analyzed && pendingMaterials(s).length).length === 0) nextBtn.disabled = false;
+    };
+
+    if (reduceMotion) { finish(); return; }
+    analyzeTimers.push(setTimeout(() => { item.querySelector(".bar > i").style.width = "60%"; }, 200 + idx * 250));
+    analyzeTimers.push(setTimeout(finish, 900 + idx * 450));
+  });
+}
+
+document.getElementById("analyzeSkip").addEventListener("click", () => {
+  analyzeTimers.forEach(clearTimeout);
+  analyzeTimers = [];
+  go("onbPlan");
+});
+document.getElementById("analyzeNext").addEventListener("click", () => go("onbPlan"));
+
+/* =========================================================================
+   7. 온보딩 4 · 플래너 초안
+   ========================================================================= */
+
+function renderPlanSummary() {
+  const box = document.getElementById("planSummary");
+  const exams = allExams();
+  const cards = generatePlanCards();
+
+  if (!exams.length) {
+    box.innerHTML = `<p class="empty-plan-note">아직 등록된 시험 일정이 없어요.<br>
+      시험을 추가하면 그 날짜에 맞춰 계획을 만들어드릴게요. 그 전까지는 학습 현황 화면에서 스킬별로 연습할 수 있어요.</p>`;
+    return;
+  }
+
+  const rows = exams.map((ex) => {
+    const n = cards.filter((c) => c.examId === ex.id).length;
+    return `<div class="exam-item">
+        <span class="dday">${ddayLabel(ex.date)}</span>
+        <span>
+          <div class="exam-name">${escapeHtml(ex.subjectName)} · ${escapeHtml(ex.name)}</div>
+          <div class="exam-sub">${ex.date} · 계획 카드 ${n}장</div>
+        </span>
+      </div>`;
+  }).join("");
+
+  box.innerHTML = `<div class="exam-list">${rows}</div>
+    <p class="form-hint">임박한 시험(D-day가 작은 쪽)의 스킬을 먼저 배치했어요.
+      계획 카드는 스킬별로 따로 놓여 있고, 합쳐서 하나의 점수로 만들지 않습니다.</p>`;
+}
+
+document.getElementById("planStart").addEventListener("click", () => {
+  state.onboarded = true;
+  if (!state.currentSubjectId && state.subjects.length) state.currentSubjectId = state.subjects[0].id;
+  save();
+  go("screenA");
+});
+
+/* =========================================================================
+   8. 화면 A · 전체 학습 현황
+   ========================================================================= */
+
+let weakFirst = false;
+let openSkillId = null;
+
+function currentSubject() {
+  if (!state.subjects.length) return null;
+  return state.subjects.find((s) => s.id === state.currentSubjectId) || state.subjects[0];
+}
+
+function skillBadges(skill) {
+  if (skill.unattempted) return [];
+  const badges = [];
+  BADGE_PRIORITY.forEach((id) => {
+    const b = badgeFor(id, skill[id]);
+    if (b && badges.length < 2) badges.push(b);
+  });
+  return badges;
+}
+
+// "약한 스킬 먼저 보기" 정렬용 심각도. 값을 합산해 점수를 만드는 게 아니라 표시 순서만 정한다 —
+// 가장 심각한 배지의 등급이 먼저고, 같으면 배지 개수로 가른다.
+function skillSeverity(skill) {
+  const badges = skillBadges(skill);
+  return {
+    top: badges.length ? BADGE_PRIORITY.indexOf(badges[0].id) : BADGE_PRIORITY.length,
+    count: badges.length
+  };
+}
+
+function skillHeadline(skill) {
+  if (skill.unattempted) return "아직 시작 전이에요";
+  if (skill.misconception === "up") return stateMeta.misconception.up;
+  if (skill.conceptual_mastery === "up" || skill.procedural_mastery === "up") return "능숙해지고 있어요";
+  if (skill.conceptual_mastery === "down" || skill.procedural_mastery === "down") return "다시 점검해볼 시간이에요";
+  return "꾸준히 진행 중이에요";
+}
+
+function renderSubjectTabs() {
+  const wrap = document.getElementById("subjectTabs");
+  wrap.innerHTML = "";
+  const cur = currentSubject();
+  state.subjects.forEach((s) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "subject-tab" + (cur && s.id === cur.id ? " is-active" : "");
+    btn.textContent = s.name;
+    btn.addEventListener("click", () => {
+      state.currentSubjectId = s.id;
+      openSkillId = null;
+      inlineFormMode = null;
+      save();
+      renderScreenA();
+    });
+    wrap.appendChild(btn);
+  });
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "subject-tab add" + (inlineFormMode === "subject" ? " is-active" : "");
+  addBtn.textContent = "+ 과목 추가";
+  addBtn.addEventListener("click", () => {
+    inlineFormMode = inlineFormMode === "subject" ? null : "subject";
+    renderScreenA();
+  });
+  wrap.appendChild(addBtn);
+}
+
+let inlineFormMode = null; // null | "subject" | "exam"
+
+function renderInlineForm() {
+  const box = document.getElementById("subjectInlineForm");
+  box.innerHTML = "";
+  if (!inlineFormMode) return;
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.style.marginBottom = "16px";
+
+  if (inlineFormMode === "subject") {
+    const title = document.createElement("h2");
+    title.className = "toolbar-title";
+    title.style.marginBottom = "10px";
+    title.textContent = "새 과목 등록";
+    card.appendChild(title);
+    card.appendChild(buildSubjectForm({
+      submitLabel: "등록하고 열기",
+      cancelLabel: "취소",
+      onCancel: () => { inlineFormMode = null; renderScreenA(); },
+      onSaved: (subject) => {
+        state.currentSubjectId = subject.id;
+        inlineFormMode = null;
+        save();
+        if (subject.materials.length) go("onbAnalyze");
+        else renderScreenA();
+      }
+    }));
+  } else if (inlineFormMode === "exam") {
+    const subject = currentSubject();
+    card.innerHTML = `
+      <span class="field-label">${escapeHtml(subject.name)} 시험 일정 추가</span>
+      <div class="exam-row">
+        <input class="input" id="inlineExamName" placeholder="시험 이름 (예: 퀴즈 2)">
+        <input class="input" type="date" id="inlineExamDate">
+        <button type="button" class="btn primary small" id="inlineExamAdd">추가</button>
+        <button type="button" class="btn small" id="inlineExamCancel">취소</button>
+      </div>
+      <p class="form-error" id="inlineExamError" hidden></p>`;
+    setTimeout(() => {
+      document.getElementById("inlineExamAdd").addEventListener("click", () => {
+        const name = document.getElementById("inlineExamName").value.trim();
+        const date = document.getElementById("inlineExamDate").value;
+        const err = document.getElementById("inlineExamError");
+        if (!name || !date) { err.textContent = "시험 이름과 날짜를 모두 입력해주세요."; err.hidden = false; return; }
+        if (daysUntil(date) < 0) { err.textContent = "지난 날짜는 등록할 수 없어요."; err.hidden = false; return; }
+        subject.exams.push({ id: uid("exam"), name: name, date: date });
+        save();
+        inlineFormMode = null;
+        renderScreenA();
+      });
+      document.getElementById("inlineExamCancel").addEventListener("click", () => { inlineFormMode = null; renderScreenA(); });
+    }, 0);
+  }
+
+  box.appendChild(card);
+}
+
+function renderSkillGrid() {
+  const subject = currentSubject();
+  const grid = document.getElementById("skillGrid");
+  grid.innerHTML = "";
+  if (!subject) return;
+
+  if (!subject.skills.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-subject";
+    const waiting = pendingMaterials(subject).length > 0;
+    empty.innerHTML = waiting
+      ? `자료는 있는데 아직 분석 전이에요.<br>분석을 마치면 스킬별 현황이 여기 나타나요.`
+      : `아직 이 과목엔 학습 자료가 없어요.<br>자료를 올리면 스킬별 현황이 여기 나타나요.`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn small";
+    btn.style.marginTop = "10px";
+    btn.textContent = waiting ? "자료 분석하기" : "자료 올리기";
+    btn.addEventListener("click", () => {
+      if (waiting) go("onbAnalyze");
+      else document.getElementById("subjectFileInput").click();
+    });
+    empty.appendChild(btn);
+    grid.appendChild(empty);
+    return;
+  }
+
+  let skills = subject.skills.slice();
+  if (weakFirst) {
+    skills.sort((a, b) => {
+      const sa = skillSeverity(a);
+      const sb = skillSeverity(b);
+      if (sa.top !== sb.top) return sa.top - sb.top; // 더 심각한 배지를 가진 스킬이 위로
+      return sb.count - sa.count;                    // 같은 등급이면 배지가 많은 쪽이 위로
+    });
+  }
+
+  skills.forEach((skill) => {
+    const badges = skillBadges(skill);
+    const card = document.createElement("div");
+    card.className = "skill-card" + (openSkillId === skill.id ? " is-open" : "");
+
+    const badgeHtml = badges.length
+      ? badges.map((b) => `<span class="badge ${b.cls}">${b.text}</span>`).join("")
+      : (skill.unattempted ? `<span class="badge new">아직 시작 전</span>` : `<span class="badge good">잘하고 있어요</span>`);
+
+    const stateRows = skill.unattempted
+      ? `<div class="detail-state-item"><span>🕘 아직 기록 없음</span><span>문제를 풀면 여기에 상태가 쌓여요</span></div>`
+      : SKILL_STATE_IDS.map((id) => {
+          const meta = stateMeta[id];
+          const dir = skill[id] || "neutral";
+          const notable = dir !== "neutral" ? " is-notable" : "";
+          return `<div class="detail-state-item${notable}"><span>${meta.icon} ${escapeHtml(meta.label)}</span><span>${escapeHtml(meta[dir])}</span></div>`;
+        }).join("");
+
+    card.innerHTML = `
+      <button type="button" class="skill-card-head" aria-expanded="${openSkillId === skill.id}">
+        <span>
+          <div class="skill-name">${escapeHtml(skill.name)}</div>
+          <div class="skill-status">${escapeHtml(skillHeadline(skill))}</div>
+        </span>
+        <span class="badge-row">${badgeHtml}<span class="chevron" aria-hidden="true">▾</span></span>
+      </button>
+      <div class="skill-detail">
+        <div class="detail-state-list">${stateRows}</div>
+        <button type="button" class="btn primary small practice-btn">${skill.unattempted ? "첫 문제 풀어보기 →" : "이 스킬 연습하기 →"}</button>
+      </div>`;
+
+    card.querySelector(".skill-card-head").addEventListener("click", () => {
+      openSkillId = openSkillId === skill.id ? null : skill.id;
+      renderSkillGrid();
+    });
+    card.querySelector(".practice-btn").addEventListener("click", () => startPractice(subject.id, skill.id));
+
+    grid.appendChild(card);
+  });
+}
+
+function renderScreenA() {
+  if (!state.subjects.length) { go(state.user ? "onbSubjects" : "auth"); return; }
+  const subject = currentSubject();
+  state.currentSubjectId = subject.id;
+
+  renderSubjectTabs();
+  renderInlineForm();
+  document.getElementById("subjectBannerText").textContent = subject.calibrationText;
+  renderSkillGrid();
+}
+
+document.getElementById("weakFirstToggle").addEventListener("click", (e) => {
+  weakFirst = !weakFirst;
+  e.currentTarget.setAttribute("aria-pressed", String(weakFirst));
+  renderSkillGrid();
+});
+
+document.getElementById("plannerLinkBtn").addEventListener("click", () => {
+  const subject = currentSubject();
+  const match = allExams().find((e) => e.subjectId === subject.id);
+  if (match) currentExamId = match.id;
+  go("screenC");
+});
+
+document.getElementById("addExamBtn").addEventListener("click", () => {
+  inlineFormMode = inlineFormMode === "exam" ? null : "exam";
+  renderScreenA();
+});
+
+document.getElementById("addMaterialBtn").addEventListener("click", () => document.getElementById("subjectFileInput").click());
+document.getElementById("subjectFileInput").addEventListener("change", (e) => {
+  const subject = currentSubject();
+  Array.prototype.forEach.call(e.target.files, (f) => subject.materials.push({ name: f.name }));
+  e.target.value = "";
+  subject.analyzed = false;
+  save();
+  go("onbAnalyze");
+});
+
+/* =========================================================================
+   9. 문제 풀이 → 화면 B · 즉시 피드백
+   ========================================================================= */
+
+let practiceContext = null;   // { subjectId, skillId }
+let currentScenarioId = scenarios[0].id;
+let detailsOpen = false;
+
+// 학생의 행동을 index.html의 9개 시나리오 중 하나로 연결한다(새 시나리오를 만들지 않는다).
+const PRACTICE_ACTIONS = [
+  { emoji: "✍️", label: "혼자 풀어서 제출할게요", sub: "힌트 없이 답을 냈을 때", scenarioId: "independent-correct" },
+  { emoji: "💡", label: "힌트를 받고 풀래요", sub: "힌트를 요청한 뒤 해결했을 때", scenarioId: "hint-success" },
+  { emoji: "🤔", label: "이번엔 잘 안 풀려요", sub: "같은 실수가 반복될 때", scenarioId: "repeated-error" },
+  { emoji: "🗓️", label: "예전에 배운 건데 기억이 안 나요", sub: "시간이 지나 떠올리지 못할 때", scenarioId: "delayed-failure" }
+];
+
+function startPractice(subjectId, skillId) {
+  practiceContext = { subjectId: subjectId, skillId: skillId };
+  const subject = state.subjects.find((s) => s.id === subjectId);
+  const skill = subject.skills.find((k) => k.id === skillId);
+
+  document.getElementById("practiceTitle").textContent = skill.name + " 연습";
+  document.getElementById("practiceSub").textContent = subject.name + " · 한 문제씩 풀고 바로 피드백을 받아요.";
+  document.getElementById("practiceQuestion").textContent = "“" + skill.name + "” 개념을 쓰는 문제입니다. 풀이 과정을 떠올리면서 답을 적어보세요.";
+  document.getElementById("practiceAnswer").value = "";
+
+  const list = document.getElementById("practiceActions");
+  list.innerHTML = "";
+  PRACTICE_ACTIONS.forEach((a) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "action-btn";
+    btn.innerHTML = `<span class="emoji" aria-hidden="true">${a.emoji}</span>
+      <span><span class="txt">${a.label}</span><br><span class="sub">${a.sub}</span></span>`;
+    btn.addEventListener("click", () => submitPractice(a.scenarioId));
+    list.appendChild(btn);
+  });
+
+  go("screenPractice");
+}
+
+document.getElementById("practiceBack").addEventListener("click", () => go("screenA"));
+
+function submitPractice(scenarioId) {
+  currentScenarioId = scenarioId;
+  applyScenarioToSkill(scenarioId);
+  go("screenB");
+}
+
+// 시나리오의 stateUpdates를 연습한 스킬에 반영한다.
+// - Evidence를 통해 갱신된 State만 건드리고, 언급되지 않은 State는 "변화 없음"으로 그대로 둔다(AGENTS.md 2-5).
+// - 값을 합산해 점수를 만들지 않고 방향(up/down/neutral)만 갱신한다.
+function applyScenarioToSkill(scenarioId) {
+  if (!practiceContext) return;
+  const sc = scenarios.find((s) => s.id === scenarioId);
+  const subject = state.subjects.find((s) => s.id === practiceContext.subjectId);
+  if (!subject) return;
+  const skill = subject.skills.find((k) => k.id === practiceContext.skillId);
+  if (!skill) return;
+
+  Object.keys(sc.stateUpdates).forEach((id) => {
+    if (SKILL_STATE_IDS.indexOf(id) !== -1) skill[id] = directionOf(sc.stateUpdates[id]);
+  });
+  skill.unattempted = false;
+
+  if (sc.stateUpdates.calibration) {
+    subject.calibrationText = sc.stateUpdates.calibration.indexOf("Overconfidence") !== -1
+      ? "예상보다 실제 결과가 낮았던 적이 있어요. 확신 정도를 같이 살펴볼게요"
+      : "예상과 실제를 비교할 기록이 하나 더 쌓였어요";
+  }
+  save();
+}
+
+function renderScenarioGrid() {
+  const grid = document.getElementById("scenarioGrid");
+  grid.innerHTML = "";
+  scenarios.forEach((sc) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "scenario-btn" + (sc.id === currentScenarioId ? " is-active" : "");
+    btn.textContent = sc.title;
+    btn.addEventListener("click", () => {
+      currentScenarioId = sc.id;
+      applyScenarioToSkill(sc.id);
+      renderScreenB();
+    });
+    grid.appendChild(btn);
+  });
+}
+
+function renderScreenB() {
+  renderScenarioGrid();
+  const sc = scenarios.find((s) => s.id === currentScenarioId);
+
+  const subLabel = practiceContext
+    ? (state.subjects.find((s) => s.id === practiceContext.subjectId) || {}).name
+    : null;
+  const skillLabel = practiceContext
+    ? ((state.subjects.find((s) => s.id === practiceContext.subjectId) || { skills: [] }).skills.find((k) => k.id === practiceContext.skillId) || {}).name
+    : null;
+  document.getElementById("screenBSub").textContent = skillLabel
+    ? subLabel + " · " + skillLabel + " 문제를 풀고 난 직후 화면이에요."
+    : "문제를 풀고 나면 뜨는 즉시 피드백 화면입니다.";
+
+  const banner = document.getElementById("resultBanner");
+  banner.className = "result-banner " + (sc.resultCorrect ? "correct" : "incorrect");
+  document.getElementById("resultIcon").textContent = sc.resultCorrect ? "✅" : "✏️";
+  document.getElementById("resultTitle").textContent = sc.resultCorrect ? "정답이에요!" : "이번엔 아쉬웠어요";
+  document.getElementById("resultSub").textContent = sc.title;
+
+  // ② 상태 변화 카드: 학생이 체감할 수 있는 항목 우선, 최대 3장
+  const cardOrder = ["misconception","conceptual_mastery","procedural_mastery","retrievability","help_need"];
+  const changeCards = document.getElementById("changeCards");
+  changeCards.innerHTML = "";
+  let shown = 0;
+  cardOrder.forEach((id) => {
+    if (shown >= 3) return;
+    const raw = sc.stateUpdates[id];
+    if (!raw) return;
+    const meta = stateMeta[id];
+    const div = document.createElement("div");
+    div.className = "change-card";
+    div.innerHTML = `<span class="change-icon" aria-hidden="true">${meta.icon}</span><span class="change-text">${escapeHtml(meta[directionOf(raw)])}</span>`;
+    changeCards.appendChild(div);
+    shown++;
+  });
+  if (!shown) {
+    changeCards.innerHTML = `<div class="change-card"><span class="change-icon" aria-hidden="true">🗒️</span>
+      <span class="change-text">이번엔 숙련도 자체가 달라지진 않았어요. 기록만 하나 더 쌓였어요.</span></div>`;
+  }
+
+  document.getElementById("decisionText").textContent = sc.decision;
+
+  // ④ 자세히 보기: 감지된 Evidence 칩 + 전체 State (내부 id는 노출하지 않음)
+  const chipsWrap = document.getElementById("evidenceChips");
+  chipsWrap.innerHTML = "";
+  allEvidenceIds.forEach((id) => {
+    if (sc.evidence.indexOf(id) === -1) return;
+    const span = document.createElement("span");
+    span.className = "chip is-active";
+    span.textContent = evidenceLabels[id];
+    chipsWrap.appendChild(span);
+  });
+
+  const fullList = document.getElementById("fullStateList");
+  fullList.innerHTML = "";
+  allStateIds.forEach((id) => {
+    if (id === "intervention_response") return; // 학생 비노출(내부 튜닝 전용)
+    const raw = sc.stateUpdates[id];
+    const meta = stateMeta[id];
+    const active = Boolean(raw);
+    const text = active ? meta[directionOf(raw)] : "— 변화 없음";
+    const div = document.createElement("div");
+    div.className = "full-state-item" + (active ? " is-active" : "");
+    div.innerHTML = `<span>${meta.icon} ${escapeHtml(meta.label)}</span><span>${escapeHtml(text)}</span>`;
+    fullList.appendChild(div);
+  });
+}
+
+document.getElementById("detailsToggle").addEventListener("click", (e) => {
+  detailsOpen = !detailsOpen;
+  document.getElementById("detailsPanel").classList.toggle("is-open", detailsOpen);
+  e.currentTarget.setAttribute("aria-expanded", String(detailsOpen));
+  e.currentTarget.textContent = (detailsOpen ? "▴" : "▾") + " 자세히 보기";
+});
+
+document.getElementById("nextQuestionBtn").addEventListener("click", () => {
+  if (practiceContext) startPractice(practiceContext.subjectId, practiceContext.skillId);
+  else go("screenA");
+});
+document.getElementById("backToABtn").addEventListener("click", () => go("screenA"));
+
+/* =========================================================================
+   10. 화면 C · 학습 플래너
+   ========================================================================= */
+
+const DAY_COUNT = 4; // 데모용: 오늘부터 4일치 칸
+let currentExamId = null;
+
+function allExams() {
+  const list = [];
+  state.subjects.forEach((s) => {
+    s.exams.forEach((e) => list.push({
+      id: e.id, name: e.name, date: e.date, subjectId: s.id, subjectName: s.name
+    }));
+  });
+  list.sort((a, b) => new Date(a.date) - new Date(b.date));
+  return list;
+}
+
+// 계획 카드는 (시험 × 스킬 × 배지) 단위로 만든다. 여러 스킬을 합쳐 "오늘의 점수"를 만들지 않는다.
+function generatePlanCards() {
+  const cards = [];
+  allExams().forEach((exam) => {
+    const subject = state.subjects.find((s) => s.id === exam.subjectId);
+    if (!subject || !subject.skills.length) return;
+    const room = Math.max(1, Math.min(DAY_COUNT, daysUntil(exam.date) + 1));
+
+    const items = [];
+    subject.skills.forEach((skill) => {
+      const badges = skillBadges(skill);
+      if (badges.length) {
+        badges.forEach((b) => items.push({ skill: skill, badge: b, rank: BADGE_PRIORITY.indexOf(b.id) }));
+      } else {
+        items.push({ skill: skill, badge: null, rank: BADGE_PRIORITY.length + (skill.unattempted ? 1 : 0) });
+      }
+    });
+    items.sort((a, b) => a.rank - b.rank);
+
+    items.forEach((it, i) => {
+      const id = exam.id + "::" + it.skill.id + "::" + (it.badge ? it.badge.id : "plain");
+      const ov = state.planOverrides[id] || {};
+      const dayIndex = typeof ov.dayIndex === "number" ? Math.min(ov.dayIndex, room - 1) : (i % room);
+      cards.push({
+        id: id, examId: exam.id, subjectId: subject.id,
+        skillId: it.skill.id, skillName: it.skill.name,
+        badge: it.badge, unattempted: it.skill.unattempted,
+        dayIndex: dayIndex, done: Boolean(ov.done)
+      });
+    });
+  });
+  return cards;
+}
+
+function setOverride(cardId, patch) {
+  state.planOverrides[cardId] = Object.assign({}, state.planOverrides[cardId], patch);
+  save();
+}
+
+function planMsg(text) {
+  const el = document.getElementById("plannerMsg");
+  if (el) el.textContent = text || "";
+}
+
+function renderExamList() {
+  const wrap = document.getElementById("examList");
+  wrap.innerHTML = "";
+  const exams = allExams();
+
+  if (!exams.length) {
+    wrap.innerHTML = `<div class="empty-plan-note">등록된 시험 일정이 없어요.<br>
+      학습 현황 화면의 "＋ 시험 일정 추가"로 시험을 넣으면 여기에 계획이 만들어져요.</div>`;
+    return;
+  }
+  if (!exams.some((e) => e.id === currentExamId)) currentExamId = exams[0].id;
+
+  exams.forEach((ex) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "exam-item" + (ex.id === currentExamId ? " is-active" : "");
+    btn.setAttribute("aria-pressed", String(ex.id === currentExamId));
+    btn.innerHTML = `
+      <span class="dday">${ddayLabel(ex.date)}</span>
+      <span>
+        <div class="exam-name">${escapeHtml(ex.subjectName)} · ${escapeHtml(ex.name)}</div>
+        <div class="exam-sub">${ex.date}</div>
+      </span>`;
+    btn.addEventListener("click", () => { currentExamId = ex.id; planMsg(""); renderScreenC(); });
+    wrap.appendChild(btn);
+  });
+}
+
+function dayLabel(i) { return i === 0 ? "오늘" : i === 1 ? "내일" : i === 2 ? "모레" : (i + "일 후"); }
+
+function moveCard(card, targetDay, examDate) {
+  if (targetDay < 0 || targetDay >= DAY_COUNT) return false;
+  if (addDays(TODAY, targetDay) > startOfDay(new Date(examDate))) {
+    planMsg("시험일 이후로는 옮길 수 없어요.");
+    return false;
+  }
+  setOverride(card.id, { dayIndex: targetDay });
+  planMsg("");
+  return true;
+}
+
+function renderPlannerBoard() {
+  const board = document.getElementById("plannerBoard");
+  board.innerHTML = "";
+  const exams = allExams();
+  const exam = exams.find((e) => e.id === currentExamId);
+  if (!exam) return;
+
+  const cards = generatePlanCards().filter((c) => c.examId === currentExamId);
+  if (!cards.length) {
+    board.innerHTML = `<div class="empty-plan-note">이 시험에 대한 계획은 아직 없어요.
+      자료를 올려 스킬이 만들어지면 맞춤 계획을 세워드릴게요.</div>`;
+    return;
+  }
+
+  for (let i = 0; i < DAY_COUNT; i++) {
+    const date = addDays(TODAY, i);
+    const locked = date > startOfDay(new Date(exam.date));
+
+    const col = document.createElement("div");
+    col.className = "day-col" + (locked ? " is-locked" : "");
+    col.dataset.dayIndex = String(i);
+    col.innerHTML = `<div class="day-label"><span>${dayLabel(i)}${locked ? " · 시험 이후" : ""}</span><span class="date">${toISODate(date).slice(5)}</span></div>`;
+
+    cards.filter((c) => c.dayIndex === i).forEach((c) => {
+      const card = document.createElement("div");
+      card.className = "plan-card" + (c.done ? " is-done" : "");
+      card.draggable = true;
+      card.dataset.cardId = c.id;
+      card.innerHTML = `
+        <input type="checkbox" ${c.done ? "checked" : ""} aria-label="${escapeHtml(c.skillName)} 완료">
+        <span class="plan-card-body">
+          <span class="plan-card-title">${escapeHtml(c.skillName)}</span>
+          <span class="plan-card-sub">${escapeHtml(exam.subjectName)}</span>
+          ${c.badge ? `<span class="badge ${c.badge.cls}">${c.badge.text}</span>`
+                    : (c.unattempted ? `<span class="badge new">아직 시작 전</span>` : `<span class="badge good">가볍게 확인</span>`)}
+          <span class="move-row">
+            <button type="button" class="move-btn" data-move="-1" aria-label="하루 앞으로 옮기기">◀</button>
+            <button type="button" class="move-btn" data-move="1" aria-label="하루 뒤로 옮기기">▶</button>
+          </span>
+        </span>`;
+
+      card.addEventListener("dragstart", () => card.classList.add("is-dragging"));
+      card.addEventListener("dragend", () => card.classList.remove("is-dragging"));
+      card.querySelector("input").addEventListener("change", (e) => {
+        setOverride(c.id, { done: e.target.checked });
+        renderPlannerBoard();
+      });
+      // 터치 환경에서도 옮길 수 있는 대체 조작
+      card.querySelectorAll("[data-move]").forEach((b) => {
+        b.addEventListener("click", () => {
+          if (moveCard(c, c.dayIndex + Number(b.dataset.move), exam.date)) renderPlannerBoard();
+        });
+      });
+
+      col.appendChild(card);
+    });
+
+    col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("is-dragover"); });
+    col.addEventListener("dragleave", () => col.classList.remove("is-dragover"));
+    col.addEventListener("drop", (e) => {
+      e.preventDefault();
+      col.classList.remove("is-dragover");
+      const dragging = document.querySelector(".plan-card.is-dragging");
+      if (!dragging) return;
+      const card = cards.find((c) => c.id === dragging.dataset.cardId);
+      if (!card) return;
+      if (moveCard(card, i, exam.date)) renderPlannerBoard();
+    });
+
+    board.appendChild(col);
+  }
+}
+
+function renderScreenC() {
+  renderExamList();
+  renderPlannerBoard();
+}
+
+/* =========================================================================
+   11. 초기 진입
+   ========================================================================= */
+
+function boot() {
+  const restored = load();
+  if (restored && state.user && state.onboarded && state.subjects.length) {
+    // 재방문(기존 사용자): 온보딩을 건너뛰고 화면 A로
+    go("screenA");
+  } else if (restored && state.subjects.length) {
+    go("onbSubjects");
+  } else {
+    go("auth");
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
