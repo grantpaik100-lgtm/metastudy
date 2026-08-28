@@ -228,23 +228,32 @@
     border-radius: var(--radius-md); color: var(--muted);
   }
 
-  /* ==================== 문제 풀이 ==================== */
-  .question-card { margin-bottom: 14px; }
-  .question-meta { font-size: 12px; font-weight: 800; color: var(--muted-light); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
-  .question-text { font-size: 17px; font-weight: 750; line-height: 1.5; }
-  .answer-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-  .answer-row .input { flex: 1 1 200px; width: auto; }
-  .action-list { display: grid; gap: 8px; margin-top: 12px; }
-  .action-btn {
-    display: flex; align-items: center; gap: 10px; text-align: left; width: 100%;
-    padding: 13px 15px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface);
+  /* ==================== 온보딩 · 학습 연결(MCP) ==================== */
+  .connect-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); margin-bottom: 14px; }
+  .connect-card {
+    display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 14px 16px;
+    border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface);
   }
-  .action-btn:hover { border-color: var(--blue); background: var(--blue-soft); }
-  .action-btn .emoji { font-size: 18px; flex: none; }
-  .action-btn .txt { font-size: 14px; font-weight: 750; }
-  .action-btn .sub { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .connect-card:hover { border-color: var(--blue); }
+  .connect-card.is-on { border-color: var(--green-line); background: var(--green-soft); }
+  .connect-name { font-size: 15px; font-weight: 800; }
+  .connect-desc { font-size: 12.5px; color: var(--muted); }
+  .connect-cta { margin-top: 6px; font-size: 12.5px; font-weight: 800; color: var(--blue-dark); }
+  .connect-card.is-on .connect-cta { color: var(--green); }
+  .connect-status {
+    padding: 10px 12px; border-radius: var(--radius-md); font-size: 13px; font-weight: 650;
+    background: var(--surface-soft); border: 1px solid var(--line); color: var(--muted); margin-bottom: 14px;
+  }
+  .connect-status.is-on { background: var(--green-soft); border-color: var(--green-line); color: var(--green); }
+  .connect-note { padding: 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); }
+  .plain-list { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
 
   /* ==================== 화면 B ==================== */
+  .record-source {
+    display: inline-block; padding: 7px 12px; margin-bottom: 12px; border-radius: 999px;
+    background: var(--surface-soft); border: 1px solid var(--line); font-size: 12.5px; font-weight: 700; color: var(--muted);
+  }
+  .record-source[hidden] { display: none; }
   .scenario-picker { margin-bottom: 20px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); }
   .scenario-picker-label { font-size: 11px; font-weight: 800; color: var(--muted-light); letter-spacing: .06em; margin-bottom: 8px; text-transform: uppercase; }
   .scenario-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
@@ -345,8 +354,10 @@
 <body>
 
   <p class="note">
-    ⚠ <code>design.md</code>(v0.4) + <code>AGENTS.md</code> 기준 <strong>전체 서비스 프로토타입</strong>입니다.
-    가입 → 온보딩(기본 정보 / 과목·자료·시험 등록 / 자료 분석 / 플래너 초안) → 화면 A·B·C 흐름 전체를 담았습니다.
+    ⚠ <code>design.md</code>(v0.5) + <code>AGENTS.md</code> 기준 <strong>전체 서비스 프로토타입</strong>입니다.
+    가입 → 온보딩(기본 정보 / 과목·자료·시험 등록 / 자료 분석 / 학습 연결 / 플래너 초안) → 화면 A·B·C 흐름 전체를 담았습니다.
+    <strong>학습(문제 풀이)은 홈이 아니라 MCP로 연결된 Claude·ChatGPT 같은 프론티어 모델 앱에서 일어납니다.</strong>
+    홈은 그 결과인 학습 현황(화면 A)·최근 기록(화면 B)·플래너(화면 C)만 보여줍니다.
     아래 스위처와 "데모 초기화"는 검토 편의를 위한 프로토타입 전용 UI이며 실제 앱의 내비게이션이 아닙니다.
     입력값은 이 브라우저의 localStorage에만 저장되며 서버로 전송되지 않습니다.
   </p>
@@ -356,9 +367,10 @@
     <button type="button" data-target="onbInfo">온보딩 1 · 기본 정보</button>
     <button type="button" data-target="onbSubjects">온보딩 2 · 과목 등록</button>
     <button type="button" data-target="onbAnalyze">온보딩 3 · 자료 분석</button>
-    <button type="button" data-target="onbPlan">온보딩 4 · 플래너 초안</button>
+    <button type="button" data-target="onbConnect">온보딩 4 · 학습 연결</button>
+    <button type="button" data-target="onbPlan">온보딩 5 · 플래너 초안</button>
     <button type="button" data-target="screenA">A · 학습 현황</button>
-    <button type="button" data-target="screenB">B · 즉시 피드백</button>
+    <button type="button" data-target="screenB">B · 최근 학습 기록</button>
     <button type="button" data-target="screenC">C · 학습 플래너</button>
     <span class="spacer"></span>
     <button type="button" class="reset" id="resetBtn">데모 초기화</button>
@@ -478,9 +490,37 @@
       </div>
     </section>
 
-    <!-- ==================== 온보딩 4 · 플래너 초안 ==================== -->
-    <section class="screen" id="onbPlan">
+    <!-- ==================== 온보딩 4 · 학습 연결 ==================== -->
+    <section class="screen" id="onbConnect">
       <div class="steps" id="steps4"></div>
+      <h1 class="page-title">공부는 쓰던 AI 앱에서 그대로 하세요</h1>
+      <p class="page-sub">StudyMeta는 여기서 문제를 내지 않아요. Claude나 ChatGPT에 연결해두면 거기서 공부한 내용이
+        이 홈의 학습 현황과 플래너에 쌓입니다.</p>
+
+      <div class="card">
+        <div class="connect-grid" id="connectGrid"></div>
+
+        <div class="connect-status" id="connectStatus" aria-live="polite"></div>
+
+        <div class="connect-note">
+          <div class="details-block-title">연결하면 이런 일이 일어나요</div>
+          <ul class="plain-list">
+            <li>공부를 시작하면 연결된 앱이 <strong>지금까지의 학습 상태</strong>를 먼저 읽어요.</li>
+            <li>풀이·힌트·오류 같은 관찰이 <strong>학습 이벤트로 기록</strong>되어 이 홈에 반영돼요.</li>
+            <li>홈에서는 그 결과인 <strong>학습 현황과 플래너만</strong> 봅니다. 홈이 상태를 직접 고치지는 않아요.</li>
+          </ul>
+        </div>
+
+        <div class="btn-row end" style="margin-top:14px">
+          <button type="button" class="btn ghost" id="connectSkip">나중에 연결할게요</button>
+          <button type="button" class="btn primary" id="connectNext">다음</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 온보딩 5 · 플래너 초안 ==================== -->
+    <section class="screen" id="onbPlan">
+      <div class="steps" id="steps5"></div>
       <h1 class="page-title">시험까지의 계획 초안을 만들었어요</h1>
       <p class="page-sub">계획은 언제든 드래그해서 옮길 수 있어요. 계획을 옮겨도 숙련도 판단은 바뀌지 않아요.</p>
 
@@ -522,35 +562,15 @@
       <div class="skill-grid" id="skillGrid" aria-live="polite"></div>
     </section>
 
-    <!-- ==================== 문제 풀이 ==================== -->
-    <section class="screen" id="screenPractice">
-      <h1 class="page-title" id="practiceTitle">연습 문제</h1>
-      <p class="page-sub" id="practiceSub"></p>
-
-      <div class="card question-card">
-        <div class="question-meta">문제</div>
-        <p class="question-text" id="practiceQuestion"></p>
-        <div class="answer-row">
-          <input class="input" id="practiceAnswer" placeholder="답을 적어보세요 (프로토타입에서는 채점하지 않아요)">
-        </div>
-        <div class="action-list" id="practiceActions"></div>
-        <p class="form-hint">
-          시연용 프로토타입이라 실제 채점은 하지 않고, 위 선택이 index.html의 9개 시나리오 중 하나로 이어집니다.
-        </p>
-      </div>
-
-      <div class="btn-row" style="margin-top:12px">
-        <button type="button" class="btn" id="practiceBack">← 현황으로 돌아가기</button>
-      </div>
-    </section>
-
     <!-- ==================== 화면 B ==================== -->
     <section class="screen" id="screenB">
-      <h1 class="page-title">방금 이렇게 달라졌어요</h1>
-      <p class="page-sub" id="screenBSub">문제를 풀고 나면 뜨는 즉시 피드백 화면입니다.</p>
+      <h1 class="page-title">최근 학습 기록</h1>
+      <p class="page-sub" id="screenBSub">연결된 앱에서 공부한 내용이 여기에 기록으로 내려옵니다.</p>
+
+      <div class="record-source" id="recordSource"></div>
 
       <div class="scenario-picker">
-        <div class="scenario-picker-label">시연용 · 어떤 상황을 볼까요</div>
+        <div class="scenario-picker-label">시연용 · MCP로 이런 기록이 들어왔다면</div>
         <div class="scenario-grid" id="scenarioGrid"></div>
       </div>
 
@@ -568,9 +588,9 @@
         <div class="decision-label">다음엔 이렇게 해볼까요</div>
         <div class="decision-text" id="decisionText"></div>
         <div class="decision-actions">
-          <button type="button" class="btn primary small" id="nextQuestionBtn">이어서 한 문제 더 풀기</button>
-          <button type="button" class="btn small" id="backToABtn">현황으로 돌아가기</button>
+          <button type="button" class="btn small" id="backToABtn">← 현황으로 돌아가기</button>
         </div>
+        <p class="form-hint" id="continueHint"></p>
       </div>
 
       <button type="button" class="details-toggle" id="detailsToggle" aria-expanded="false" aria-controls="detailsPanel">▾ 자세히 보기</button>
@@ -738,6 +758,7 @@ function uid(prefix) { return prefix + "-" + Math.random().toString(36).slice(2,
 function emptyState() {
   return {
     user: null,          // { email, provider, school, year, major }
+    connection: null,    // { client, connectedAt } — 학습이 실제로 일어나는 프론티어 모델 앱
     onboarded: false,
     subjects: [],        // { id, name, materials[], analyzed, calibrationText, skills[], exams[] }
     planOverrides: {},   // planCardId -> { dayIndex, done }
@@ -766,53 +787,49 @@ function newSkill(name, overrides) {
   const base = {
     id: uid("skill"), name: name, unattempted: true,
     conceptual_mastery: "neutral", procedural_mastery: "neutral", retrievability: "neutral",
-    transferability: "neutral", help_need: "neutral", misconception: "neutral", state_confidence: "neutral"
+    transferability: "neutral", help_need: "neutral", misconception: "neutral", state_confidence: "neutral",
+    lastRecord: null   // { scenarioId, at, source } — MCP로 들어온 가장 최근 학습 기록
   };
   return Object.assign(base, overrides || {});
 }
 
-// 데모 프리셋: 화면 A/C를 바로 시연할 수 있도록 State가 이미 쌓인 과목들
+// 데모 프리셋: 화면 A/C를 바로 시연할 수 있도록 State가 이미 쌓인 과목
+// (State는 연결된 프론티어 모델이 MCP로 보낸 학습 이벤트로 쌓인 것이라는 설정)
 function demoSubjects() {
+  const ago = (n) => toISODate(addDays(TODAY, -n));
   return [
     {
       id: "calc", name: "미적분학", analyzed: true,
       materials: [{ name: "미적분학_강의노트.pdf", analyzed: true }, { name: "연습문제_3주차.pdf", analyzed: true }],
       calibrationText: "예상과 실제가 꽤 잘 맞고 있어요",
-      exams: [{ id: "calc-final", name: "기말고사", date: toISODate(addDays(TODAY, 45)) }],
-      skills: [
-        newSkill("Chain Rule", { id: "chain-rule", unattempted: false, conceptual_mastery: "up", procedural_mastery: "up", retrievability: "up", help_need: "down", misconception: "down", state_confidence: "up" }),
-        newSkill("극한의 정의", { id: "limit-def", unattempted: false, retrievability: "down", misconception: "down", state_confidence: "up" }),
-        newSkill("테일러 급수", { id: "taylor", unattempted: false, conceptual_mastery: "down", procedural_mastery: "down", retrievability: "down", help_need: "up", misconception: "up", state_confidence: "up" })
-      ]
-    },
-    {
-      id: "chem", name: "화학", analyzed: true,
-      materials: [{ name: "일반화학_2단원.pdf", analyzed: true }],
-      calibrationText: "실제보다 스스로를 조금 과소평가하고 있어요",
       exams: [
-        { id: "chem-mid", name: "중간고사", date: toISODate(addDays(TODAY, 12)) },
-        { id: "chem-final", name: "기말고사", date: toISODate(addDays(TODAY, 60)) }
+        { id: "calc-mid", name: "중간고사", date: toISODate(addDays(TODAY, 12)) },
+        { id: "calc-final", name: "기말고사", date: toISODate(addDays(TODAY, 45)) }
       ],
       skills: [
-        newSkill("이온 결합", { id: "ionic-bond", unattempted: false, conceptual_mastery: "up", procedural_mastery: "up", retrievability: "up", help_need: "down", misconception: "down", state_confidence: "up" }),
-        newSkill("몰농도 계산", { id: "molarity", unattempted: false, conceptual_mastery: "down", retrievability: "down", misconception: "up", state_confidence: "up" })
+        newSkill("Chain Rule", { id: "chain-rule", unattempted: false,
+          conceptual_mastery: "up", procedural_mastery: "up", retrievability: "up", help_need: "down", misconception: "down", state_confidence: "up",
+          lastRecord: { scenarioId: "independent-correct", at: ago(1), source: "claude" } }),
+        newSkill("극한의 정의", { id: "limit-def", unattempted: false,
+          retrievability: "down", misconception: "down", state_confidence: "up",
+          lastRecord: { scenarioId: "delayed-failure", at: ago(3), source: "claude" } }),
+        newSkill("테일러 급수", { id: "taylor", unattempted: false,
+          conceptual_mastery: "down", procedural_mastery: "down", retrievability: "down", help_need: "up", misconception: "up", state_confidence: "up",
+          lastRecord: { scenarioId: "repeated-error", at: ago(2), source: "chatgpt" } })
       ]
-    },
-    {
-      id: "econ", name: "경제학원론", analyzed: false,
-      materials: [],
-      calibrationText: "아직 예상과 실제를 비교할 기록이 없어요",
-      exams: [{ id: "econ-final", name: "기말고사", date: toISODate(addDays(TODAY, 20)) }],
-      skills: []
     }
   ];
 }
+
+// MCP record_learning_event의 source 값에 대응하는 표시 라벨
+const SOURCE_LABELS = { claude: "Claude", chatgpt: "ChatGPT", camera: "카메라", quiz: "퀴즈", manual: "직접 입력" };
+function sourceLabel(src) { return SOURCE_LABELS[src] || "연결된 앱"; }
 
 /* =========================================================================
    2. 라우팅
    ========================================================================= */
 
-const APP_SCREENS = ["screenA", "screenPractice", "screenB", "screenC"];
+const APP_SCREENS = ["screenA", "screenB", "screenC"];
 let currentScreen = "auth";
 
 function go(id) {
@@ -828,7 +845,8 @@ function go(id) {
   if (id === "onbInfo") renderSteps(1);
   if (id === "onbSubjects") { renderSteps(2); renderOnbSubjects(); }
   if (id === "onbAnalyze") { renderSteps(3); startAnalyze(); }
-  if (id === "onbPlan") { renderSteps(4); renderPlanSummary(); }
+  if (id === "onbConnect") { renderSteps(4); renderConnect(); }
+  if (id === "onbPlan") { renderSteps(5); renderPlanSummary(); }
   if (id === "screenA") renderScreenA();
   if (id === "screenB") renderScreenB();
   if (id === "screenC") renderScreenC();
@@ -863,9 +881,9 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   go("auth");
 });
 
-const STEP_LABELS = ["기본 정보", "과목 등록", "자료 분석", "플래너 초안"];
+const STEP_LABELS = ["기본 정보", "과목 등록", "자료 분석", "학습 연결", "플래너 초안"];
 function renderSteps(current) {
-  [1,2,3,4].forEach((n) => {
+  [1,2,3,4,5].forEach((n) => {
     const wrap = document.getElementById("steps" + n);
     if (!wrap) return;
     wrap.innerHTML = "";
@@ -1211,9 +1229,53 @@ function startAnalyze() {
 document.getElementById("analyzeSkip").addEventListener("click", () => {
   analyzeTimers.forEach(clearTimeout);
   analyzeTimers = [];
-  go("onbPlan");
+  go("onbConnect");
 });
-document.getElementById("analyzeNext").addEventListener("click", () => go("onbPlan"));
+document.getElementById("analyzeNext").addEventListener("click", () => go("onbConnect"));
+
+/* =========================================================================
+   6-2. 온보딩 4 · 학습 연결 (MCP)
+      학습은 이 홈이 아니라 연결된 프론티어 모델 앱에서 일어난다.
+      홈은 그 결과(학습 현황 / 플래너)만 보여준다.
+   ========================================================================= */
+
+const CONNECT_CLIENTS = [
+  { id: "claude", name: "Claude", desc: "설정 → 커넥터에서 StudyMeta 추가" },
+  { id: "chatgpt", name: "ChatGPT", desc: "설정 → 커넥터에서 StudyMeta 추가" }
+];
+
+function renderConnect() {
+  const grid = document.getElementById("connectGrid");
+  grid.innerHTML = "";
+  CONNECT_CLIENTS.forEach((c) => {
+    const btn = document.createElement("button");
+    const on = state.connection && state.connection.client === c.id;
+    btn.type = "button";
+    btn.className = "connect-card" + (on ? " is-on" : "");
+    btn.setAttribute("aria-pressed", String(on));
+    btn.innerHTML = `<span class="connect-name">${c.name}</span>
+      <span class="connect-desc">${c.desc}</span>
+      <span class="connect-cta">${on ? "연결됨 ✓" : "연결하기"}</span>`;
+    btn.addEventListener("click", () => {
+      state.connection = on ? null : { client: c.id, connectedAt: toISODate(TODAY) };
+      save();
+      renderConnect();
+    });
+    grid.appendChild(btn);
+  });
+
+  const status = document.getElementById("connectStatus");
+  if (state.connection) {
+    status.className = "connect-status is-on";
+    status.textContent = sourceLabel(state.connection.client) + "에 연결됐어요. 이제 거기서 공부하면 이 홈에 기록이 쌓입니다.";
+  } else {
+    status.className = "connect-status";
+    status.textContent = "아직 연결된 앱이 없어요. 연결 전에는 학습 기록이 쌓이지 않지만, 과목과 시험 일정은 그대로 저장돼요.";
+  }
+}
+
+document.getElementById("connectSkip").addEventListener("click", () => go("onbPlan"));
+document.getElementById("connectNext").addEventListener("click", () => go("onbPlan"));
 
 /* =========================================================================
    7. 온보딩 4 · 플래너 초안
@@ -1428,13 +1490,17 @@ function renderSkillGrid() {
       : (skill.unattempted ? `<span class="badge new">아직 시작 전</span>` : `<span class="badge good">잘하고 있어요</span>`);
 
     const stateRows = skill.unattempted
-      ? `<div class="detail-state-item"><span>🕘 아직 기록 없음</span><span>문제를 풀면 여기에 상태가 쌓여요</span></div>`
+      ? `<div class="detail-state-item"><span>🕘 아직 기록 없음</span><span>연결된 앱에서 공부하면 여기에 상태가 쌓여요</span></div>`
       : SKILL_STATE_IDS.map((id) => {
           const meta = stateMeta[id];
           const dir = skill[id] || "neutral";
           const notable = dir !== "neutral" ? " is-notable" : "";
           return `<div class="detail-state-item${notable}"><span>${meta.icon} ${escapeHtml(meta.label)}</span><span>${escapeHtml(meta[dir])}</span></div>`;
         }).join("");
+
+    const recordBtnHtml = skill.unattempted
+      ? `<p class="form-hint">아직 이 스킬로 공부한 기록이 없어요. 연결된 앱(${state.connection ? escapeHtml(sourceLabel(state.connection.client)) : "Claude / ChatGPT"})에서 공부를 시작해보세요.</p>`
+      : `<button type="button" class="btn primary small record-btn">최근 학습 기록 보기 →</button>`;
 
     card.innerHTML = `
       <button type="button" class="skill-card-head" aria-expanded="${openSkillId === skill.id}">
@@ -1446,14 +1512,15 @@ function renderSkillGrid() {
       </button>
       <div class="skill-detail">
         <div class="detail-state-list">${stateRows}</div>
-        <button type="button" class="btn primary small practice-btn">${skill.unattempted ? "첫 문제 풀어보기 →" : "이 스킬 연습하기 →"}</button>
+        ${recordBtnHtml}
       </div>`;
 
     card.querySelector(".skill-card-head").addEventListener("click", () => {
       openSkillId = openSkillId === skill.id ? null : skill.id;
       renderSkillGrid();
     });
-    card.querySelector(".practice-btn").addEventListener("click", () => startPractice(subject.id, skill.id));
+    const recordBtn = card.querySelector(".record-btn");
+    if (recordBtn) recordBtn.addEventListener("click", () => viewRecord(subject.id, skill.id));
 
     grid.appendChild(card);
   });
@@ -1499,69 +1566,41 @@ document.getElementById("subjectFileInput").addEventListener("change", (e) => {
 });
 
 /* =========================================================================
-   9. 문제 풀이 → 화면 B · 즉시 피드백
+   9. 화면 B · 최근 학습 기록
+      실제 학습은 이 홈이 아니라 MCP로 연결된 프론티어 모델 앱(Claude, ChatGPT 등)에서
+      일어난다. 홈은 그 결과로 들어온 학습 이벤트를 "기록"으로만 보여준다.
+      아래 시나리오 선택 UI는 실제 문제 풀이 화면이 아니라, MCP로 어떤 기록이
+      들어왔을 때 홈에 어떻게 반영되는지 보여주는 시연용 도구다.
    ========================================================================= */
 
-let practiceContext = null;   // { subjectId, skillId }
+let recordContext = null;   // { subjectId, skillId } — 어느 스킬의 기록을 보고 있는지
 let currentScenarioId = scenarios[0].id;
 let detailsOpen = false;
 
-// 학생의 행동을 index.html의 9개 시나리오 중 하나로 연결한다(새 시나리오를 만들지 않는다).
-const PRACTICE_ACTIONS = [
-  { emoji: "✍️", label: "혼자 풀어서 제출할게요", sub: "힌트 없이 답을 냈을 때", scenarioId: "independent-correct" },
-  { emoji: "💡", label: "힌트를 받고 풀래요", sub: "힌트를 요청한 뒤 해결했을 때", scenarioId: "hint-success" },
-  { emoji: "🤔", label: "이번엔 잘 안 풀려요", sub: "같은 실수가 반복될 때", scenarioId: "repeated-error" },
-  { emoji: "🗓️", label: "예전에 배운 건데 기억이 안 나요", sub: "시간이 지나 떠올리지 못할 때", scenarioId: "delayed-failure" }
-];
-
-function startPractice(subjectId, skillId) {
-  practiceContext = { subjectId: subjectId, skillId: skillId };
+function viewRecord(subjectId, skillId) {
+  recordContext = { subjectId: subjectId, skillId: skillId };
   const subject = state.subjects.find((s) => s.id === subjectId);
   const skill = subject.skills.find((k) => k.id === skillId);
-
-  document.getElementById("practiceTitle").textContent = skill.name + " 연습";
-  document.getElementById("practiceSub").textContent = subject.name + " · 한 문제씩 풀고 바로 피드백을 받아요.";
-  document.getElementById("practiceQuestion").textContent = "“" + skill.name + "” 개념을 쓰는 문제입니다. 풀이 과정을 떠올리면서 답을 적어보세요.";
-  document.getElementById("practiceAnswer").value = "";
-
-  const list = document.getElementById("practiceActions");
-  list.innerHTML = "";
-  PRACTICE_ACTIONS.forEach((a) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "action-btn";
-    btn.innerHTML = `<span class="emoji" aria-hidden="true">${a.emoji}</span>
-      <span><span class="txt">${a.label}</span><br><span class="sub">${a.sub}</span></span>`;
-    btn.addEventListener("click", () => submitPractice(a.scenarioId));
-    list.appendChild(btn);
-  });
-
-  go("screenPractice");
-}
-
-document.getElementById("practiceBack").addEventListener("click", () => go("screenA"));
-
-function submitPractice(scenarioId) {
-  currentScenarioId = scenarioId;
-  applyScenarioToSkill(scenarioId);
+  currentScenarioId = (skill.lastRecord && skill.lastRecord.scenarioId) || scenarios[0].id;
   go("screenB");
 }
 
-// 시나리오의 stateUpdates를 연습한 스킬에 반영한다.
+// MCP로 들어온 학습 이벤트(시나리오)의 stateUpdates를 스킬에 반영한다.
 // - Evidence를 통해 갱신된 State만 건드리고, 언급되지 않은 State는 "변화 없음"으로 그대로 둔다(AGENTS.md 2-5).
 // - 값을 합산해 점수를 만들지 않고 방향(up/down/neutral)만 갱신한다.
 function applyScenarioToSkill(scenarioId) {
-  if (!practiceContext) return;
+  if (!recordContext) return;
   const sc = scenarios.find((s) => s.id === scenarioId);
-  const subject = state.subjects.find((s) => s.id === practiceContext.subjectId);
+  const subject = state.subjects.find((s) => s.id === recordContext.subjectId);
   if (!subject) return;
-  const skill = subject.skills.find((k) => k.id === practiceContext.skillId);
+  const skill = subject.skills.find((k) => k.id === recordContext.skillId);
   if (!skill) return;
 
   Object.keys(sc.stateUpdates).forEach((id) => {
     if (SKILL_STATE_IDS.indexOf(id) !== -1) skill[id] = directionOf(sc.stateUpdates[id]);
   });
   skill.unattempted = false;
+  skill.lastRecord = { scenarioId: scenarioId, at: toISODate(TODAY), source: state.connection ? state.connection.client : "manual" };
 
   if (sc.stateUpdates.calibration) {
     subject.calibrationText = sc.stateUpdates.calibration.indexOf("Overconfidence") !== -1
@@ -1588,19 +1627,35 @@ function renderScenarioGrid() {
   });
 }
 
+function relativeDayLabel(dateStr) {
+  const diff = Math.round((TODAY - startOfDay(new Date(dateStr))) / 86400000);
+  if (diff <= 0) return "오늘";
+  if (diff === 1) return "어제";
+  return diff + "일 전";
+}
+
 function renderScreenB() {
   renderScenarioGrid();
   const sc = scenarios.find((s) => s.id === currentScenarioId);
 
-  const subLabel = practiceContext
-    ? (state.subjects.find((s) => s.id === practiceContext.subjectId) || {}).name
-    : null;
-  const skillLabel = practiceContext
-    ? ((state.subjects.find((s) => s.id === practiceContext.subjectId) || { skills: [] }).skills.find((k) => k.id === practiceContext.skillId) || {}).name
-    : null;
-  document.getElementById("screenBSub").textContent = skillLabel
-    ? subLabel + " · " + skillLabel + " 문제를 풀고 난 직후 화면이에요."
-    : "문제를 풀고 나면 뜨는 즉시 피드백 화면입니다.";
+  const subject = recordContext ? state.subjects.find((s) => s.id === recordContext.subjectId) : null;
+  const skill = subject ? subject.skills.find((k) => k.id === recordContext.skillId) : null;
+
+  document.getElementById("screenBSub").textContent = skill
+    ? subject.name + " · " + skill.name + " 기록이에요."
+    : "연결된 앱에서 공부한 내용이 여기에 기록으로 내려옵니다.";
+
+  const srcBox = document.getElementById("recordSource");
+  if (skill && skill.lastRecord) {
+    srcBox.hidden = false;
+    srcBox.innerHTML = `🔗 <strong>${escapeHtml(sourceLabel(skill.lastRecord.source))}</strong>에서 온 기록 · ${relativeDayLabel(skill.lastRecord.at)}`;
+  } else {
+    srcBox.hidden = true;
+  }
+
+  document.getElementById("continueHint").textContent = skill
+    ? "이어서 공부하려면 " + (state.connection ? sourceLabel(state.connection.client) : "연결된 앱") + "로 돌아가세요. 홈에서는 이어 풀 수 없어요."
+    : "";
 
   const banner = document.getElementById("resultBanner");
   banner.className = "result-banner " + (sc.resultCorrect ? "correct" : "incorrect");
@@ -1664,10 +1719,6 @@ document.getElementById("detailsToggle").addEventListener("click", (e) => {
   e.currentTarget.textContent = (detailsOpen ? "▴" : "▾") + " 자세히 보기";
 });
 
-document.getElementById("nextQuestionBtn").addEventListener("click", () => {
-  if (practiceContext) startPractice(practiceContext.subjectId, practiceContext.skillId);
-  else go("screenA");
-});
 document.getElementById("backToABtn").addEventListener("click", () => go("screenA"));
 
 /* =========================================================================
