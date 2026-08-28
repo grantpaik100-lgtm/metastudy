@@ -2,7 +2,7 @@
   "outputDirectory": "public",
   "env": {
     "STUDYMETA_DEMO_MODE": "true",
-    "STUDYMETA_LEARNER_PROFILE_TYPE": "synthetic"
+    "STUDYMETA_LEARNER_PROFILE_TYPE": "synthetic_demo"
   },
   "functions": {
     "api/mcp.ts": {

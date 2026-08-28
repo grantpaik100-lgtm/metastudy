@@ -1,7 +1,7 @@
 import type { LearnerProfile, SkillState } from "../domain/contracts.js";
 
 export const SYNTHETIC_LEARNER_PROFILE: LearnerProfile = {
-  preferred_explanation_depth: "step_by_step",
+  preferred_explanation_depth: "concise",
   preferred_pace: "step_by_step",
   preferred_interaction_style: "socratic",
   example_preference: "example_first",

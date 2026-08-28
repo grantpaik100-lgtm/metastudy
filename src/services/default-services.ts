@@ -14,6 +14,7 @@ export function getDefaultServices(): StudyMetaServices {
     services = createStudyMetaServices(repository, undefined, {
       demoMode: environment.STUDYMETA_DEMO_MODE === "true",
       learnerProfileType: environment.STUDYMETA_LEARNER_PROFILE_TYPE,
+      demoStudentId: environment.DEMO_STUDENT_ID,
     });
   }
   return services;
@@ -29,5 +30,6 @@ export function createAuthenticatedServices(accessToken: string): StudyMetaServi
   return createStudyMetaServices(repository, undefined, {
     demoMode: environment.STUDYMETA_DEMO_MODE === "true",
     learnerProfileType: environment.STUDYMETA_LEARNER_PROFILE_TYPE,
+    demoStudentId: environment.DEMO_STUDENT_ID,
   });
 }

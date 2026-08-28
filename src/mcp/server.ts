@@ -28,7 +28,7 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
     {
       title: "Get my learner context",
       description:
-        "Start or resume a personalized StudyMeta session for the authenticated learner. Resolve the student from OAuth automatically, choose the most recent domain when omitted, and return executable teaching and interaction policy derived from learner state. Apply executable_instructions in the answer itself, present only one learning step, and wait for the learner response. demo_mode only changes visible presentation; when omitted it uses server configuration, whose code default is false. Never ask the user for a student_id.",
+        "Start or resume a personalized StudyMeta session for the authenticated learner. Resolve the student from OAuth automatically and return real learner state plus executable policy. For a Chain Rule learning request, pass domain=calculus and skill_id=chain_rule. If demo_scenario=chain_rule_ir and first_turn_contract is returned, output its exact_response_template as the complete first tutoring response, stop after closing_instruction, and wait. Never add a lecture, answer, hint, STEP 2, or an unavailable-context disclaimer after a successful read. demo_mode uses server configuration when omitted; the code default is false. Never ask for a student_id.",
       inputSchema: GetMyLearnerContextInputSchema,
       outputSchema: GetMyLearnerContextOutputSchema,
       annotations: {
@@ -56,7 +56,7 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
     {
       title: "Get learner context",
       description:
-        "Read learner state and return an executable adaptive teaching plan. Apply the teaching context in the answer itself rather than explaining it: one step at a time, wait for the learner response, reduce scaffolding after success, and increase it after failure. demo_mode only changes visible presentation; omitted options use server configuration with production/stored code defaults. learner_profile_type=synthetic is explicitly illustrative. This tool does not calculate or mutate Student Model state.",
+        "Read real learner state and return learner_state, pedagogical_policy, teaching_context, and profile_type. For demo_scenario=chain_rule_ir, output first_turn_contract.exact_response_template as the entire first tutoring response and stop at closing_instruction. Synthetic state is allowed only for the configured Demo Student with demo_mode=true and calculus/chain_rule; all other requests use stored data. This tool does not calculate or mutate Student Model state.",
       inputSchema: GetLearnerContextInputSchema,
       outputSchema: GetLearnerContextOutputSchema,
       annotations: {
@@ -84,7 +84,7 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
     {
       title: "Record learning event",
       description:
-        "Validate and append a raw learning event with separate structured evidence. The current updater hook is a no-op and does not mutate Student Model state.",
+        "Validate and append a real raw learning event with separate structured evidence. Evidence value is the observed value; extractor_confidence is only confidence in that extraction. When correct, hint_used, and retry_count are supplied, independent_success is normalized to true only for a correct first attempt without hints. The current updater hook is a no-op and does not mutate Student Model state.",
       inputSchema: RecordLearningEventInputSchema,
       outputSchema: RecordLearningEventOutputSchema,
       annotations: {

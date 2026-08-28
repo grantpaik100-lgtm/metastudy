@@ -14,6 +14,11 @@ import {
   SYNTHETIC_LEARNER_PROFILE,
   buildSyntheticSkillState,
 } from "./synthetic-learner.js";
+import {
+  CHAIN_RULE_IR_FIRST_TURN,
+  DEFAULT_DEMO_STUDENT_ID,
+  isChainRuleIrDemo,
+} from "./demo-scenarios.js";
 import { buildTeachingPlan } from "./teaching-context.js";
 
 export class LearnerStateService {
@@ -21,8 +26,13 @@ export class LearnerStateService {
     private readonly repository: StudyMetaRepository,
     private readonly defaults: {
       demoMode: boolean;
-      learnerProfileType: "stored" | "synthetic";
-    } = { demoMode: false, learnerProfileType: "stored" },
+      learnerProfileType: "stored" | "synthetic" | "synthetic_demo";
+      demoStudentId?: string;
+    } = {
+      demoMode: false,
+      learnerProfileType: "stored",
+      demoStudentId: DEFAULT_DEMO_STUDENT_ID,
+    },
   ) {}
 
   async getMyContext(
@@ -49,17 +59,15 @@ export class LearnerStateService {
         throw new NotFoundError(`Student not found: ${studentId}`);
       }
       const storedLearnerProfile = await this.repository.getLearnerProfile(studentId);
-      const learnerProfile =
-        learnerProfileType === "synthetic"
-          ? SYNTHETIC_LEARNER_PROFILE
-          : storedLearnerProfile;
+      const learnerProfile = storedLearnerProfile;
       const teachingPlan = buildTeachingPlan({
         learnerProfile,
         domainState: null,
         skillState: null,
         skillStates: [],
         demoMode,
-        profileType: learnerProfileType,
+        profileType: "stored",
+        firstTurnContract: null,
       });
       return GetMyLearnerContextOutputSchema.parse({
         student_id: studentId,
@@ -70,6 +78,11 @@ export class LearnerStateService {
         skill_state: null,
         skill_states: [],
         recent_evidence: [],
+        profile_type: "stored",
+        learner_state: null,
+        pedagogical_policy: teachingPlan.interaction_policy,
+        demo_scenario: null,
+        first_turn_contract: null,
         ...teachingPlan,
       });
     }
@@ -92,6 +105,16 @@ export class LearnerStateService {
     const demoMode = input.demo_mode ?? this.defaults.demoMode;
     const learnerProfileType =
       input.learner_profile_type ?? this.defaults.learnerProfileType;
+    const syntheticDemo = isChainRuleIrDemo({
+      demoMode,
+      studentId: input.student_id,
+      demoStudentId: this.defaults.demoStudentId ?? DEFAULT_DEMO_STUDENT_ID,
+      domain: input.domain,
+      ...(input.skill_id ? { skillId: input.skill_id } : {}),
+      requestedProfileType: learnerProfileType,
+    });
+    const effectiveProfileType = syntheticDemo ? "synthetic_demo" : "stored";
+    const firstTurnContract = syntheticDemo ? CHAIN_RULE_IR_FIRST_TURN : null;
     const student = await this.repository.getStudent(input.student_id);
 
     if (!student) {
@@ -121,26 +144,23 @@ export class LearnerStateService {
       : await this.repository.listSkillStates(input.student_id, input.domain, 10);
 
     const learnerProfile =
-      learnerProfileType === "synthetic"
+      syntheticDemo
         ? SYNTHETIC_LEARNER_PROFILE
         : storedLearnerProfile;
     const skillState =
-      learnerProfileType === "synthetic" && input.skill_id
+      syntheticDemo && input.skill_id
         ? buildSyntheticSkillState(input.domain, input.skill_id, storedSkillState)
         : storedSkillState;
     const skillStates =
-      learnerProfileType === "synthetic" && !input.skill_id
-        ? storedSkillStates.map((state) =>
-            buildSyntheticSkillState(input.domain, state.skill_id, state),
-          )
-        : storedSkillStates;
+      storedSkillStates;
     const teachingPlan = buildTeachingPlan({
       learnerProfile,
       domainState,
       skillState,
       skillStates,
       demoMode,
-      profileType: learnerProfileType,
+      profileType: effectiveProfileType,
+      firstTurnContract,
     });
 
     return GetLearnerContextOutputSchema.parse({
@@ -151,6 +171,11 @@ export class LearnerStateService {
       skill_state: skillState,
       skill_states: skillStates,
       recent_evidence: recentEvidence,
+      profile_type: effectiveProfileType,
+      learner_state: skillState,
+      pedagogical_policy: teachingPlan.interaction_policy,
+      demo_scenario: firstTurnContract?.scenario ?? null,
+      first_turn_contract: firstTurnContract,
       ...teachingPlan,
     });
   }
