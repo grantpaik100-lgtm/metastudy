@@ -1,0 +1,33 @@
+{
+  "outputDirectory": "public",
+  "env": {
+    "STUDYMETA_DEMO_MODE": "true",
+    "STUDYMETA_LEARNER_PROFILE_TYPE": "synthetic"
+  },
+  "functions": {
+    "api/mcp.ts": {
+      "maxDuration": 30
+    },
+    "api/learner-context.ts": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/oauth/consent",
+      "destination": "/api/oauth-consent"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource",
+      "destination": "/api/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/api/mcp",
+      "destination": "/api/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/openai-apps-challenge",
+      "destination": "/api/openai-apps-challenge"
+    }
+  ]
+}

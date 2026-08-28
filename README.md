@@ -1,25 +1,269 @@
-# StudyMeta Learner Model
+# StudyMeta MCP Skeleton
 
-StudyMeta Learner Model v0.1의 Evidence → Student State 업데이트 구조를 살펴보는 단일 페이지 인터랙티브 데모입니다.
+외부 AI가 StudyMeta의 3계층 Learner Context를 읽고 학습 Event/Evidence를 다시 기록할 수 있게 하는 최소 End-to-End MCP 서버입니다.
 
-## 실행
-
-별도 설치 없이 `index.html`을 브라우저에서 열면 됩니다.
-
-## 수정 후 배포
-
-```bash
-git add index.html
-git commit -m "Update learner model demo"
-git push
+```text
+External AI
+  → StudyMeta MCP
+    → Application services
+      → Supabase
 ```
 
-Vercel에서 이 GitHub 저장소의 `main` 브랜치를 연결하면, 이후 `git push`마다 자동으로 새 버전이 배포됩니다.
+MCP는 Student Model 계산 엔진이 아닙니다. 현재 구현은 저장된 State를 읽고 Event를 기록할 뿐, State를 자동으로 변경하지 않습니다.
 
-## 구조
+## 프로젝트 구조
 
-- `index.html`: HTML, CSS, Vanilla JavaScript가 모두 포함된 배포 파일 (Learner Model 파이프라인 데모)
-- `AGENTS.md`: **작업 지침** — 러너 모델 보존 규칙, 확정된 설계 결정, 코딩 규칙. 이 저장소에서 작업하기 전에 먼저 읽으세요
-- `design.md`: 학생용 UI 설계 문서 (과목 대시보드/즉시 피드백/학습 플래너)
-- `service-prototype.html`: 전체 서비스 프로토타입. 가입 → 온보딩(기본 정보 / 과목·자료·시험 등록 / 자료 분석 / 플래너 초안) → 화면 A·B·C까지 흐름 전체를 담은 단일 파일. 입력값은 브라우저 localStorage에만 저장됨
-- `md/`: 로컬 연구 노트이며 공개 저장소에는 업로드하지 않음
+```text
+api/
+  mcp.ts                         Vercel Streamable HTTP MCP endpoint
+  learner-context.ts             Viewer 전용 read endpoint
+src/
+  domain/                         Zod 입출력 계약과 오류
+  mcp/                            MCP tool 및 HTTP handler
+  repositories/                  Supabase repository
+  services/                      Context/Event service와 no-op updater hook
+  http.ts                        로컬 Streamable HTTP 서버
+  stdio.ts                       로컬 stdio 서버
+supabase/
+  migrations/                    5개 테이블 schema
+  seed.sql                       Demo Student seed
+tests/
+  mcp.integration.test.ts        실제 MCP client 호출 테스트
+index.html                       기존 Learner Model 연구 데모
+service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
+viewer.html                      Supabase Learner Context 검증 Viewer
+design.md                        학생용 UI 설계 문서
+AGENTS.md                        저장소 작업 및 Learner Model 보존 지침
+md/                              공개 저장소에서 제외되는 로컬 연구 노트
+```
+
+## Student Model 데이터 계층
+
+```text
+Global Learner Profile → student_profiles
+Domain State           → domain_states
+Skill State            → learner_states
+Learning Event         → learning_events
+Student identity       → students
+```
+
+Preference는 측정된 Intervention Effectiveness와 동일하게 취급하지 않습니다. 전자는 `student_profiles`, 후자는 `domain_states.intervention_response`에 저장합니다.
+
+## Supabase 설정
+
+1. Supabase 프로젝트를 생성합니다.
+2. `supabase/migrations/202608260001_init_studymeta_mcp.sql`을 SQL Editor에서 실행합니다.
+3. `supabase/seed.sql`을 실행합니다.
+4. `.env.example`을 `.env`로 복사하고 값을 입력합니다.
+
+```dotenv
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
+SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+OAUTH_ALLOWED_EMAILS=you@example.com
+PORT=3000
+```
+
+`SUPABASE_SERVICE_ROLE_KEY`는 브라우저 코드에 넣으면 안 됩니다. Viewer는 서버의 `/api/learner-context`를 통해서만 데이터를 읽습니다. 모든 테이블은 RLS가 활성화되어 있으며 MVP에는 공개 anon policy가 없습니다.
+
+Demo Student ID:
+
+```text
+00000000-0000-4000-8000-000000000001
+```
+
+## 설치와 실행
+
+```bash
+npm install
+npm run dev:http
+```
+
+원격 MCP endpoint:
+
+```text
+http://127.0.0.1:3000/mcp
+```
+
+Health check:
+
+```text
+http://127.0.0.1:3000/health
+```
+
+stdio transport가 필요한 로컬 host에서는 다음을 사용합니다.
+
+```bash
+npm run dev:stdio
+```
+
+## MCP 도구
+
+### `get_my_learner_context`
+
+OAuth로 로그인한 사용자의 `student_auth_links`를 통해 학생을 자동 식별합니다. `student_id`를 입력하지 않습니다. `domain`을 생략하면 가장 최근에 업데이트된 학습 과목을 선택합니다.
+
+입력 예시:
+
+```json
+{}
+```
+
+과목이나 Skill이 명시된 경우에만 전달합니다.
+
+```json
+{
+  "domain": "calculus",
+  "skill_id": "chain_rule",
+  "demo_mode": false,
+  "learner_profile_type": "stored"
+}
+```
+
+`demo_mode`의 기본값은 `false`입니다. `true`여도 교육 정책은 바뀌지 않고,
+StudyMeta 배너·주요 State·선택된 Strategy·Step 라벨을 표시하라는 display 지침만
+활성화됩니다. `learner_profile_type`은 별도 옵션이며 `synthetic`을 선택하면 반환 데이터가
+`Demo Learner · Synthetic Profile · Illustrative State`로 명시됩니다.
+
+현재 IR 배포는 `vercel.json`에서 `STUDYMETA_DEMO_MODE=true`와
+`STUDYMETA_LEARNER_PROFILE_TYPE=synthetic`을 명시적으로 설정합니다. 라이브 MCP에서
+옵션을 생략하면 Demo/Synthetic이 적용되지만, 코드와 다른 환경의 기본값은 여전히
+Production/Stored입니다. 요청에 `demo_mode: false`, `learner_profile_type: "stored"`를
+전달하면 배포 환경에서도 Production 동작을 직접 확인할 수 있습니다.
+
+### `get_learner_context`
+
+입력:
+
+```json
+{
+  "student_id": "00000000-0000-4000-8000-000000000001",
+  "domain": "calculus",
+  "skill_id": "chain_rule",
+  "demo_mode": true,
+  "learner_profile_type": "synthetic"
+}
+```
+
+출력에는 다음이 함께 포함됩니다.
+
+- `learner_profile`
+- `domain_state`
+- `skill_state` 또는 domain의 `skill_states`
+- `recent_evidence`
+- 바로 실행 가능한 `teaching_context.executable_instructions`
+- State에서 생성된 `interaction_policy` (success/failure scaffold 경로 포함)
+- 표현만 제어하는 `display`
+- stored/synthetic을 구분하는 `learner_profile_metadata`
+- `state_signals` (`retrievability`/`transferability`는 experimental로 표시)
+- 자동 State 갱신 여부를 명시하는 `evidence_writeback`
+
+`skill_id`를 생략하면 특정 Skill 하나 대신 해당 Domain의 Skill State 목록을 반환합니다.
+
+### `record_learning_event`
+
+입력:
+
+```json
+{
+  "student_id": "00000000-0000-4000-8000-000000000001",
+  "domain": "calculus",
+  "skill_id": "chain_rule",
+  "source": "claude",
+  "event_type": "problem_attempt",
+  "raw_event": {
+    "description": "Student solved a Chain Rule problem without a hint."
+  },
+  "evidence": [
+    {
+      "type": "correct",
+      "value": true,
+      "extractor_confidence": 1.0
+    },
+    {
+      "type": "independent_success",
+      "value": true,
+      "extractor_confidence": 0.95
+    }
+  ]
+}
+```
+
+`event_type`을 생략하면 `observation`을 사용합니다. `occurred_at`도 선택적으로 전달할 수 있으며 생략 시 서버 시간이 적용됩니다.
+
+출력:
+
+```json
+{
+  "success": true,
+  "event_id": "...",
+  "recorded_at": "..."
+}
+```
+
+## 테스트
+
+```bash
+npm test
+npm run build
+```
+
+통합 테스트는 공식 MCP client로 다음을 검증합니다.
+
+1. 두 Tool이 등록되는지
+2. Demo Student의 3계층 Context가 반환되는지
+3. Event가 기록되는지
+4. 재조회 시 최근 Evidence에 나타나는지
+5. Event 기록 후에도 no-op updater가 Skill State를 변경하지 않는지
+6. 동일한 계약이 Streamable HTTP에서 호출되는지
+7. Production/Demo가 같은 adaptive policy를 공유하고 display만 다른지
+8. Synthetic profile 표시와 성공/실패 scaffold 경로가 정확한지
+
+실제 Supabase 저장 검증에는 유효한 `.env`가 필요합니다.
+
+## Viewer
+
+Vercel 배포 후 다음 경로에서 개발/검증용 Viewer를 열 수 있습니다.
+
+```text
+/viewer.html
+```
+
+Viewer는 Global Profile, Domain State, Skill State와 최근 Raw Event/Evidence를 표시합니다. 제품용 인증, 그래프, 채팅, Camera UI는 포함하지 않습니다.
+
+## Vercel 배포
+
+현재 저장소를 Vercel 프로젝트에 연결하고 다음 환경변수를 Project Settings에 추가합니다.
+
+```text
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+배포된 MCP URL은 다음 형태입니다.
+
+```text
+https://YOUR_SITE.vercel.app/api/mcp
+```
+
+ChatGPT/Codex OAuth connection also requires Supabase Authentication > OAuth Server
+to be enabled with dynamic client registration. Set the Supabase Site URL to the
+production site and the authorization path to `/oauth/consent`, then run
+`supabase/migrations/202608270002_oauth_student_access.sql`.
+
+The MCP endpoint returns an RFC 9728 protected-resource challenge when no bearer
+token is provided. Supabase Auth performs OAuth 2.1 authorization-code + PKCE,
+and authenticated MCP database calls use the user's token so RLS limits access
+to the linked learner. `OAUTH_ALLOWED_EMAILS` controls which accounts may claim
+the seeded Demo Student during this MVP flow.
+
+현재 skeleton에는 사용자 인증/OAuth가 없습니다. 공개 배포 전에 MCP endpoint 인증과 학생별 접근 제어를 추가해야 합니다.
+
+## Placeholder와 다음 연결점
+
+- `src/services/learner-state-updater.ts`의 `NoOpLearnerStateUpdater`는 의도적인 placeholder입니다.
+- Student Model 팀은 `LearnerStateUpdater.process(event)` 구현체를 제공하고 service container에 주입하면 됩니다.
+- MCP tool, Supabase repository, Viewer 안에는 Evidence → State 계산 규칙을 넣지 않습니다.
+- State → Pedagogical Policy는 `src/services/teaching-context.ts`의 `buildTeachingPlan`에서 생성합니다.
+- Production/Demo는 이 함수를 공유하며, `display`와 실행 지침의 노출 방식만 달라집니다.
+- Synthetic fixture는 `src/services/synthetic-learner.ts`에 분리되어 있고 tutoring 문구를 포함하지 않습니다.
