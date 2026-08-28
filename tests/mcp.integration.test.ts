@@ -365,7 +365,7 @@ test("synthetic demo learner returns a deterministic chain_rule_ir first-turn co
   assert.equal(context.profile_type, "synthetic_demo");
   assert.equal(context.learner_profile_metadata.profile_type, "synthetic_demo");
   assert.equal(context.learner_profile_metadata.is_real_user_data, false);
-  assert.match(context.learner_profile_metadata.label, /Synthetic Profile/);
+  assert.match(context.learner_profile_metadata.label, /Synthetic Demo Learner/);
   assert.equal(context.skill_state?.conceptual_mastery, 0.85);
   assert.equal(context.skill_state?.procedural_mastery, 0.35);
   assert.equal(context.skill_state?.retrievability, 0.3);
