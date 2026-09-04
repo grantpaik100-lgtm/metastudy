@@ -19,6 +19,8 @@ interface TeachingContextInput {
   demoMode: boolean;
   profileType: "stored" | "synthetic_demo";
   firstTurnContract: FirstTurnContract | null;
+  stateUpdateAutomated: boolean;
+  includeExperimentalStates: boolean;
 }
 
 export interface TeachingPlan {
@@ -36,7 +38,10 @@ function level(value: number): "low" | "moderate" | "high" {
   return "moderate";
 }
 
-function stateSignals(skill: SkillState | null): StateSignal[] {
+function stateSignals(
+  skill: SkillState | null,
+  includeExperimentalStates: boolean,
+): StateSignal[] {
   if (!skill) return [];
 
   const signals: StateSignal[] = [];
@@ -55,12 +60,14 @@ function stateSignals(skill: SkillState | null): StateSignal[] {
     }
   };
 
-  add("conceptual_mastery", skill.conceptual_mastery, "validated_focus");
   add("procedural_mastery", skill.procedural_mastery, "validated_focus");
   add("help_need", skill.help_need, "validated_focus");
   add("state_confidence", skill.state_confidence, "validated_focus");
-  add("retrievability", skill.retrievability, "experimental");
-  add("transferability", skill.transferability, "experimental");
+  if (includeExperimentalStates) {
+    add("conceptual_mastery", skill.conceptual_mastery, "experimental");
+    add("retrievability", skill.retrievability, "experimental");
+    add("transferability", skill.transferability, "experimental");
+  }
   return signals;
 }
 
@@ -148,7 +155,9 @@ export function buildTeachingPlan(input: TeachingContextInput): TeachingPlan {
     "Never include the current question, its hints, its answer, and the next problem in the same response.",
     "On success, reduce scaffolding by one level. On failure, preserve the learning goal and increase scaffolding by one level without immediately revealing the answer.",
     "Infer success or failure from the learner's latest response; use the success_path or failure_path for the next turn.",
-    "Do not invent learner-state updates. Evidence may be written separately, but the current state updater is not automated.",
+    input.stateUpdateAutomated
+      ? "Never alter Learner State yourself. Record observed Evidence through record_my_learning_event; the server applies only its versioned, confidence-gated baseline updater and reports whether the update was verified, insufficient, or withheld."
+      : "Do not invent learner-state updates. Evidence may be written separately, but the current state updater is not automated.",
   );
   if (input.firstTurnContract) {
     executableInstructions.unshift(
@@ -180,7 +189,7 @@ export function buildTeachingPlan(input: TeachingContextInput): TeachingPlan {
           : "Stored Learner Profile",
       is_real_user_data: input.profileType === "stored",
     },
-    state_signals: stateSignals(primarySkill),
+    state_signals: stateSignals(primarySkill, input.includeExperimentalStates),
     teaching_context: {
       summary:
         summaryParts.join(" ") ||
@@ -247,7 +256,7 @@ export function buildTeachingPlan(input: TeachingContextInput): TeachingPlan {
       show_step_labels: input.demoMode,
     },
     evidence_writeback: {
-      tool: "record_learning_event",
+      tool: "record_my_learning_event",
       event_type: "problem_attempt",
       evidence_fields: [
         "correct",
@@ -255,9 +264,14 @@ export function buildTeachingPlan(input: TeachingContextInput): TeachingPlan {
         "independent_success",
         "retry_count",
       ],
-      state_update_automated: false,
+      state_update_automated: input.stateUpdateAutomated,
+      update_policy: input.stateUpdateAutomated
+        ? "Only Procedural Mastery and Help Need can be updated. Low-confidence camera Evidence, unsupported signals, and insufficient histories are preserved but withheld."
+        : "Evidence is append-only and Learner State is unchanged.",
       instruction:
-        "When the learner asks to record the completed interaction, write observed outcomes through record_learning_event. Do not claim that Learner State was automatically updated.",
+        input.stateUpdateAutomated
+          ? "After a completed interaction, write observed outcomes through record_my_learning_event with an idempotency_key. Report the returned state_update status without overstating certainty."
+          : "When the learner asks to record the completed interaction, write observed outcomes through record_my_learning_event. Do not claim that Learner State was automatically updated.",
     },
   };
 }

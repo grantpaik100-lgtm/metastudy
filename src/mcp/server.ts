@@ -4,6 +4,7 @@ import {
   GetLearnerContextOutputSchema,
   GetMyLearnerContextInputSchema,
   GetMyLearnerContextOutputSchema,
+  RecordMyLearningEventInputSchema,
   RecordLearningEventInputSchema,
   RecordLearningEventOutputSchema,
 } from "../domain/contracts.js";
@@ -56,7 +57,7 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
     {
       title: "Get learner context",
       description:
-        "Read real learner state and return learner_state, pedagogical_policy, teaching_context, and profile_type. For demo_scenario=chain_rule_ir, output first_turn_contract.exact_response_template as the entire first tutoring response and stop at closing_instruction. Synthetic state is allowed only for the configured Demo Student with demo_mode=true and calculus/chain_rule; all other requests use stored data. This tool does not calculate or mutate Student Model state.",
+        "Read real learner state and return learner_state, versioned state_estimates, pedagogical_policy, teaching_context, and profile_type. Verified MVP states are returned by default; experimental fields require include_experimental_states=true, except the explicitly labeled synthetic IR demo. For demo_scenario=chain_rule_ir, output first_turn_contract.exact_response_template as the entire first tutoring response and stop at closing_instruction. This read does not mutate Learner State.",
       inputSchema: GetLearnerContextInputSchema,
       outputSchema: GetLearnerContextOutputSchema,
       annotations: {
@@ -80,11 +81,39 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
   );
 
   server.registerTool(
+    "record_my_learning_event",
+    {
+      title: "Record my learning event",
+      description:
+        "Record an append-only raw learning event for the authenticated learner without asking for a student ID. Keep raw_event separate from structured Evidence, include source and extraction provenance, and provide an idempotency_key for safe retries. The server derives independent_success when possible, preserves low-confidence observations, and updates only verified MVP states (Procedural Mastery and Help Need) when evidence gates are met. Always report the returned state_update status; withheld or insufficient evidence is not a decline.",
+      inputSchema: RecordMyLearningEventInputSchema,
+      outputSchema: RecordLearningEventOutputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const output = await services.learningEventService.recordMy(input);
+        return {
+          content: [{ type: "text", text: JSON.stringify(output) }],
+          structuredContent: output,
+        };
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
     "record_learning_event",
     {
       title: "Record learning event",
       description:
-        "Validate and append a real raw learning event with separate structured evidence. Evidence value is the observed value; extractor_confidence is only confidence in that extraction. When correct, hint_used, and retry_count are supplied, independent_success is normalized to true only for a correct first attempt without hints. The current updater hook is a no-op and does not mutate Student Model state.",
+        "Legacy scoped write for a known learner ID. Prefer record_my_learning_event for authenticated tutoring. Validate and append a raw event with separate structured Evidence, derive independent_success when possible, and run the same confidence-gated MVP State updater. Low-confidence camera Evidence is preserved but withheld from State updates.",
       inputSchema: RecordLearningEventInputSchema,
       outputSchema: RecordLearningEventOutputSchema,
       annotations: {

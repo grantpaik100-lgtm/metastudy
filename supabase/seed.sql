@@ -88,24 +88,36 @@ insert into public.learning_events (
   student_id,
   domain,
   skill_id,
+  skill_name,
   source,
+  source_provider,
   event_type,
+  problem_id,
   raw_event,
   evidence,
-  occurred_at
+  occurred_at,
+  idempotency_key
 )
 values (
   '00000000-0000-4000-8000-000000000101',
   '00000000-0000-4000-8000-000000000001',
   'calculus',
   'chain_rule',
+  'Chain Rule',
   'manual',
+  'StudyMeta seed',
   'problem_attempt',
+  'chain-rule-seed-1',
   '{"description":"Student solved a Chain Rule problem without a hint."}'::jsonb,
-  '[{"type":"correct","value":true,"extractor_confidence":1.0},{"type":"independent_success","value":true,"extractor_confidence":0.95}]'::jsonb,
-  now() - interval '1 day'
+  '[{"type":"correct","value":true,"extractor_confidence":1.0,"extractor":"seed","extractor_version":"1","definition_version":"studymeta-evidence-v1","missing_reason":null},{"type":"independent_success","value":true,"extractor_confidence":0.95,"extractor":"seed","extractor_version":"1","definition_version":"studymeta-evidence-v1","missing_reason":null}]'::jsonb,
+  now() - interval '1 day',
+  'seed-chain-rule-attempt-1'
 )
 on conflict (id) do update set
+  skill_name = excluded.skill_name,
+  source_provider = excluded.source_provider,
+  problem_id = excluded.problem_id,
   raw_event = excluded.raw_event,
   evidence = excluded.evidence,
-  occurred_at = excluded.occurred_at;
+  occurred_at = excluded.occurred_at,
+  idempotency_key = excluded.idempotency_key;

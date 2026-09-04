@@ -1,6 +1,6 @@
-# StudyMeta MCP Skeleton
+# StudyMeta MCP
 
-외부 AI가 StudyMeta의 3계층 Learner Context를 읽고 학습 Event/Evidence를 다시 기록할 수 있게 하는 최소 End-to-End MCP 서버입니다.
+외부 AI가 StudyMeta의 3계층 Learner Context를 읽고 학습 Event/Evidence를 다시 기록하며, 검증된 MVP State를 보수적으로 갱신할 수 있게 하는 End-to-End MCP 서버입니다.
 
 ```text
 External AI
@@ -9,7 +9,7 @@ External AI
       → Supabase
 ```
 
-MCP는 Student Model 계산 엔진이 아닙니다. 현재 구현은 저장된 State를 읽고 Event를 기록할 뿐, State를 자동으로 변경하지 않습니다.
+MCP transport와 Learner Model 계산은 서비스 계층에서 분리되어 있습니다. 현재 기준선 updater는 `procedural_mastery`와 `help_need`만 갱신하며, 최소 3개 관찰·유효 표본 2 이상·출처별 신뢰도 기준을 통과하지 못한 Evidence는 Raw Event로 보존하되 State에는 반영하지 않습니다. 이 기준선은 제품 학습효과를 증명하는 모델이 아니라 파일럿에서 보정할 버전된 출발점입니다.
 
 ## 프로젝트 구조
 
@@ -17,15 +17,18 @@ MCP는 Student Model 계산 엔진이 아닙니다. 현재 구현은 저장된 S
 api/
   mcp.ts                         Vercel Streamable HTTP MCP endpoint
   learner-context.ts             Viewer 전용 read endpoint
+docs/
+  openai-plugin-submission.md    OpenAI Plugin 제출·검수 기준
+  tutor-mcp-comparison.md        Tutor MCP 기능 비교와 StudyMeta 범위 결정
 src/
   domain/                         Zod 입출력 계약과 오류
   mcp/                            MCP tool 및 HTTP handler
   repositories/                  Supabase repository
-  services/                      Context/Event service와 no-op updater hook
+  services/                      Context/Event service와 confidence-gated State updater
   http.ts                        로컬 Streamable HTTP 서버
   stdio.ts                       로컬 stdio 서버
 supabase/
-  migrations/                    5개 테이블 schema
+  migrations/                    Raw Event, Derived Evidence, State Estimate schema
   seed.sql                       Demo Student seed
 tests/
   mcp.integration.test.ts        실제 MCP client 호출 테스트
@@ -174,10 +177,27 @@ Production tutoring에는 적용되지 않습니다.
 - 자동 State 갱신 여부를 명시하는 `evidence_writeback`
 - 명시적 `profile_type`, `learner_state`, `pedagogical_policy`
 - IR 전용 `demo_scenario`, `first_turn_contract`
+- State별 값·신뢰도·근거량·상태·모델 버전인 `state_estimates`
 
 `skill_id`를 생략하면 특정 Skill 하나 대신 해당 Domain의 Skill State 목록을 반환합니다.
+Production 기본 응답에서는 MVP State의 검증 상태와 검증된 값만 노출합니다. `include_experimental_states=true`를 명시해야 Retrievability·Transferability 등 실험 필드가 포함됩니다. Synthetic IR Demo는 예외적으로 illustrative 표기와 함께 실험 필드를 보여줍니다. Event는 사용자 OAuth 권한으로 기록하지만, State 추정 결과는 서버 전용 키로만 저장됩니다.
+
+### `record_my_learning_event`
+
+OAuth로 연결된 학습자를 자동 식별해 `student_id` 없이 학습 Event를 기록하는 기본 write-back 도구입니다. `idempotency_key`를 함께 보내면 전송 재시도 중 같은 이벤트가 중복 저장되거나 State에 두 번 반영되는 것을 막습니다.
+
+Evidence에는 다음 provenance를 함께 저장할 수 있습니다.
+
+- `extractor`, `extractor_version`
+- `extractor_confidence`
+- `definition_version`
+- `missing_reason`
+
+`source`는 ChatGPT·Claude뿐 아니라 `external_ai`, `ai_tutor`, `learning_app`, `lms`, `camera`, `quiz`, `manual`을 지원하며 실제 공급자명은 `source_provider`에 기록합니다. 문제 식별자와 시작·종료 시각도 선택적으로 저장할 수 있습니다.
 
 ### `record_learning_event`
+
+명시적인 `student_id`를 받는 legacy/scoped write입니다. 인증된 일반 학습 흐름에서는 `record_my_learning_event`를 우선 사용합니다.
 
 입력:
 
@@ -219,9 +239,28 @@ Evidence의 `value`와 `extractor_confidence`는 서로 다른 의미입니다. 
 {
   "success": true,
   "event_id": "...",
-  "recorded_at": "..."
+  "recorded_at": "...",
+  "duplicate": false,
+  "state_update": {
+    "status": "updated | insufficient_evidence | withheld | disabled",
+    "updated_states": [],
+    "excluded_evidence": [],
+    "message": "..."
+  }
 }
 ```
+
+## 안전한 State 업데이트 기준선
+
+- Procedural Mastery: 독립 성공을 우선 사용하는 confidence-weighted BKT 기준선
+- Help Need: 관찰된 힌트 사용을 사용하는 empirical-Bayes 기준선
+- 최소 관찰 3개 및 effective sample size 2 이상에서만 `verified`
+- 구조화 입력은 Evidence confidence 0.70 이상, Camera 입력은 0.90 이상만 자동 반영
+- 낮은 신뢰도, `missing_reason`, 지원하지 않는 값 형식은 Raw Event/Derived Evidence에는 남지만 State에서는 `withheld`
+- Retrievability, Transferability, Calibration, Misconception은 자동 갱신하지 않음
+- State마다 confidence, evidence_count, effective_sample_size, model_version, supporting_event_ids, limitation을 별도 저장
+
+Supabase에서는 `learning_events`를 불변 Raw Event로 유지하고, trigger가 `derived_evidence`에 버전된 Evidence를 분리합니다. `learner_state_estimates`가 State별 근거와 상태를 보관하며, `learner_states`는 호환성을 위한 최신 verified 값만 materialize합니다.
 
 ## 테스트
 
@@ -236,10 +275,13 @@ npm run build
 2. Demo Student의 3계층 Context가 반환되는지
 3. Event가 기록되는지
 4. 재조회 시 최근 Evidence에 나타나는지
-5. Event 기록 후에도 no-op updater가 Skill State를 변경하지 않는지
+5. 관찰이 부족할 때 Skill State가 변경되지 않는지
 6. 동일한 계약이 Streamable HTTP에서 호출되는지
 7. Production/Demo가 같은 adaptive policy를 공유하고 display만 다른지
 8. Synthetic profile 표시와 성공/실패 scaffold 경로가 정확한지
+9. 충분한 신뢰 Evidence에서 두 MVP State만 갱신되는지
+10. 낮은 신뢰 Camera Evidence가 보존되지만 State에서는 보류되는지
+11. idempotency key 재시도가 중복 Event와 중복 State update를 만들지 않는지
 
 실제 Supabase 저장 검증에는 유효한 `.env`가 필요합니다.
 
@@ -279,12 +321,12 @@ and authenticated MCP database calls use the user's token so RLS limits access
 to the linked learner. `OAUTH_ALLOWED_EMAILS` controls which accounts may claim
 the seeded Demo Student during this MVP flow.
 
-현재 skeleton에는 사용자 인증/OAuth가 없습니다. 공개 배포 전에 MCP endpoint 인증과 학생별 접근 제어를 추가해야 합니다.
+OAuth 연결과 RLS는 구현되어 있습니다. 운영 배포 전에는 새 Evidence/State migration 적용, reviewer 계정 연결, 환경변수와 권한을 다시 검증해야 합니다.
 
-## Placeholder와 다음 연결점
+## 모델 확장 연결점
 
-- `src/services/learner-state-updater.ts`의 `NoOpLearnerStateUpdater`는 의도적인 placeholder입니다.
-- Student Model 팀은 `LearnerStateUpdater.process(event)` 구현체를 제공하고 service container에 주입하면 됩니다.
+- `src/services/learner-state-updater.ts`는 보수적인 MVP 기준선과 비활성화용 `NoOpLearnerStateUpdater`를 함께 제공합니다.
+- 파일럿에서 보정한 모델은 `LearnerStateUpdater.process(event)` 계약을 유지한 채 교체할 수 있습니다.
 - MCP tool, Supabase repository, Viewer 안에는 Evidence → State 계산 규칙을 넣지 않습니다.
 - State → Pedagogical Policy는 `src/services/teaching-context.ts`의 `buildTeachingPlan`에서 생성합니다.
 - Production/Demo는 이 함수를 공유하며, `display`와 실행 지침의 노출 방식만 달라집니다.

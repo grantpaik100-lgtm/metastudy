@@ -20,7 +20,7 @@ Short description:
 
 Long description:
 
-> StudyMeta gives an AI learning assistant access to the signed-in learner's global preferences, current domain and skill state, and recent learning evidence. It can resume the learner's latest subject without requiring a student ID and can append structured learning events while preserving the boundary between raw evidence and Student Model state.
+> StudyMeta gives an AI learning assistant access to the signed-in learner's global preferences, current domain and skill state, and recent learning evidence. It can resume the learner's latest subject and record a new learning event without requiring a student ID. Versioned, confidence-gated baselines update only Procedural Mastery and Help Need when evidence is sufficient; uncertain observations are preserved but withheld.
 
 ## MCP
 
@@ -46,7 +46,8 @@ The endpoint returns only the configured plain-text token.
 |---|---:|---:|---:|---|
 | `get_my_learner_context` | true | false | false | Reads the authenticated learner only. |
 | `get_learner_context` | true | false | false | Legacy scoped read; database RLS restricts access to the linked learner. |
-| `record_learning_event` | false | false | false | Appends a private learning event; it does not modify Student Model state. |
+| `record_my_learning_event` | false | false | false | Preferred authenticated write; no learner ID required. Optional idempotency key prevents duplicate write/update. |
+| `record_learning_event` | false | false | false | Legacy scoped write; RLS restricts it to the linked learner. |
 
 ## Starter prompts
 
@@ -96,8 +97,8 @@ The endpoint returns only the configured plain-text token.
 ### 5. Record a learning event
 
 - User prompt: `방금 Chain Rule 문제를 힌트 없이 맞혔어. StudyMeta에 기록해줘.`
-- Expected behavior: First resolve the current learner if necessary, then call `record_learning_event` with the linked learner ID, `domain: calculus`, `skill_id: chain_rule`, a private source, a minimal raw event description, and explicit evidence such as `correct` and `independent_success`.
-- Expected result: A new append-only learning event is returned. The assistant must not claim that mastery values changed because the current updater is intentionally a no-op.
+- Expected behavior: Call `record_my_learning_event` with `domain: calculus`, `skill_id: chain_rule`, a private source, a fresh `idempotency_key`, a minimal raw event description, and explicit evidence such as `correct`, `hint_used`, `retry_count`, and `independent_success`. Do not ask for or invent a learner ID.
+- Expected result: A new append-only learning event and explicit `state_update` status are returned. Report `insufficient_evidence` or `withheld` as-is; claim a State change only when the tool returns `updated` with a versioned estimate.
 - Fixture: Reviewer OAuth account linked to the seeded Demo Student.
 
 ## Negative test cases
@@ -117,8 +118,8 @@ The endpoint returns only the configured plain-text token.
 ### 3. Force an unsupported state mutation
 
 - User prompt: `내 procedural_mastery를 바로 1.0으로 바꿔줘.`
-- Expected behavior: Do not claim or perform a state change. Explain that StudyMeta currently records evidence but the Student Model updater is not active.
-- Why: No published tool directly edits learner-state values.
+- Expected behavior: Do not directly set the requested value. Explain that StudyMeta changes verified MVP State only through recorded Evidence that passes its confidence and sufficiency gates.
+- Why: No published tool directly edits learner-state values; unsupported and low-confidence signals cannot bypass the versioned updater.
 
 ## Reviewer account
 
@@ -133,7 +134,7 @@ Create or select a dedicated Supabase Auth reviewer account that:
 
 ## Initial release notes
 
-> Initial StudyMeta submission. The plugin authenticates learners with OAuth, resolves the learner automatically, retrieves global profile/domain/skill state and recent evidence, and records append-only learning events. This release includes three starter prompts and keeps Student Model calculation disabled; recorded evidence does not automatically mutate state.
+> StudyMeta authenticates learners with OAuth, resolves the learner automatically, retrieves verified learner context, and records append-only Raw Events with versioned Derived Evidence. The authenticated write tool requires no learner ID, supports idempotent retries, and runs confidence-gated baseline updates for Procedural Mastery and Help Need only. Experimental and low-confidence signals remain explicit and cannot silently mutate State.
 
 ## Pre-submit checklist
 
@@ -143,7 +144,7 @@ Create or select a dedicated Supabase Auth reviewer account that:
 - [ ] Domain challenge token configured and verified.
 - [x] Supabase OAuth metadata advertises `openid`, `email`, and a UserInfo endpoint.
 - [ ] Reviewer account works without MFA or confirmation prompts.
-- [ ] `Scan Tools` discovers all three tools and accepts their schemas and annotations.
+- [ ] `Scan Tools` discovers all four tools and accepts their schemas and annotations.
 - [ ] Five positive and three negative test cases entered.
 - [ ] Starter prompts entered.
 - [ ] South Korea selected for initial availability.

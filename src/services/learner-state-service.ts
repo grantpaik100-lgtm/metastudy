@@ -7,6 +7,7 @@ import {
   type GetLearnerContextOutput,
   type GetMyLearnerContextInput,
   type GetMyLearnerContextOutput,
+  type SkillState,
 } from "../domain/contracts.js";
 import { NotFoundError } from "../domain/errors.js";
 import type { StudyMetaRepository } from "../repositories/study-meta-repository.js";
@@ -28,10 +29,12 @@ export class LearnerStateService {
       demoMode: boolean;
       learnerProfileType: "stored" | "synthetic" | "synthetic_demo";
       demoStudentId?: string;
+      stateUpdateAutomated?: boolean;
     } = {
       demoMode: false,
       learnerProfileType: "stored",
       demoStudentId: DEFAULT_DEMO_STUDENT_ID,
+      stateUpdateAutomated: true,
     },
   ) {}
 
@@ -68,6 +71,8 @@ export class LearnerStateService {
         demoMode,
         profileType: "stored",
         firstTurnContract: null,
+        stateUpdateAutomated: this.defaults.stateUpdateAutomated ?? true,
+        includeExperimentalStates: false,
       });
       return GetMyLearnerContextOutputSchema.parse({
         student_id: studentId,
@@ -83,6 +88,8 @@ export class LearnerStateService {
         pedagogical_policy: teachingPlan.interaction_policy,
         demo_scenario: null,
         first_turn_contract: null,
+        state_estimates: [],
+        experimental_states_included: false,
         ...teachingPlan,
       });
     }
@@ -93,6 +100,7 @@ export class LearnerStateService {
       ...(input.skill_id ? { skill_id: input.skill_id } : {}),
       demo_mode: demoMode,
       learner_profile_type: learnerProfileType,
+      include_experimental_states: input.include_experimental_states,
     });
     return GetMyLearnerContextOutputSchema.parse({
       ...context,
@@ -114,6 +122,8 @@ export class LearnerStateService {
       requestedProfileType: learnerProfileType,
     });
     const effectiveProfileType = syntheticDemo ? "synthetic_demo" : "stored";
+    const includeExperimentalStates =
+      input.include_experimental_states ?? syntheticDemo;
     const firstTurnContract = syntheticDemo ? CHAIN_RULE_IR_FIRST_TURN : null;
     const student = await this.repository.getStudent(input.student_id);
 
@@ -142,17 +152,50 @@ export class LearnerStateService {
     const storedSkillStates = input.skill_id
       ? []
       : await this.repository.listSkillStates(input.student_id, input.domain, 10);
+    const storedStateEstimates = input.skill_id
+      ? await this.repository.listLearnerStateEstimates(
+          input.student_id,
+          input.domain,
+          input.skill_id,
+        )
+      : (
+          await Promise.all(
+            storedSkillStates.map((state) =>
+              this.repository.listLearnerStateEstimates(
+                input.student_id,
+                input.domain,
+                state.skill_id,
+              ),
+            ),
+          )
+        ).flat();
 
     const learnerProfile =
       syntheticDemo
         ? SYNTHETIC_LEARNER_PROFILE
         : storedLearnerProfile;
-    const skillState =
+    const unfilteredSkillState =
       syntheticDemo && input.skill_id
         ? buildSyntheticSkillState(input.domain, input.skill_id, storedSkillState)
         : storedSkillState;
-    const skillStates =
-      storedSkillStates;
+    const skillState = filterStateForExposure(
+      unfilteredSkillState,
+      includeExperimentalStates,
+      syntheticDemo,
+      storedStateEstimates,
+    );
+    const skillStates = storedSkillStates.map((state) =>
+      filterStateForExposure(
+        state,
+        includeExperimentalStates,
+        false,
+        storedStateEstimates.filter((estimate) => estimate.skill_id === state.skill_id),
+      )!,
+    );
+    const stateEstimates = storedStateEstimates.filter(
+      (estimate) =>
+        includeExperimentalStates || estimate.status !== "experimental",
+    );
     const teachingPlan = buildTeachingPlan({
       learnerProfile,
       domainState,
@@ -161,6 +204,8 @@ export class LearnerStateService {
       demoMode,
       profileType: effectiveProfileType,
       firstTurnContract,
+      stateUpdateAutomated: this.defaults.stateUpdateAutomated ?? true,
+      includeExperimentalStates,
     });
 
     return GetLearnerContextOutputSchema.parse({
@@ -176,7 +221,42 @@ export class LearnerStateService {
       pedagogical_policy: teachingPlan.interaction_policy,
       demo_scenario: firstTurnContract?.scenario ?? null,
       first_turn_contract: firstTurnContract,
+      state_estimates: stateEstimates,
+      experimental_states_included: includeExperimentalStates,
       ...teachingPlan,
     });
   }
+}
+
+function filterStateForExposure(
+  state: SkillState | null,
+  includeExperimentalStates: boolean,
+  syntheticDemo: boolean,
+  estimates: Array<{ state_type: string; status: string }>,
+): SkillState | null {
+  if (!state) return state;
+  const verifiedTypes = new Set(
+    estimates
+      .filter((estimate) => estimate.status === "verified")
+      .map((estimate) => estimate.state_type),
+  );
+  return {
+    ...state,
+    conceptual_mastery:
+      includeExperimentalStates || syntheticDemo
+        ? state.conceptual_mastery
+        : null,
+    procedural_mastery:
+      syntheticDemo || verifiedTypes.has("procedural_mastery")
+        ? state.procedural_mastery
+        : null,
+    retrievability:
+      includeExperimentalStates || syntheticDemo ? state.retrievability : null,
+    transferability:
+      includeExperimentalStates || syntheticDemo ? state.transferability : null,
+    help_need:
+      syntheticDemo || verifiedTypes.has("help_need") ? state.help_need : null,
+    misconceptions:
+      includeExperimentalStates || syntheticDemo ? state.misconceptions : [],
+  };
 }

@@ -1,12 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
   DomainStateSchema,
+  LearnerStateEstimateSchema,
   LearnerProfileSchema,
   RecentLearningEventSchema,
   SkillStateSchema,
   StudentSchema,
   type DomainState,
   type LearnerProfile,
+  type LearnerStateEstimate,
   type LearningEvent,
   type RecordLearningEventInput,
   type RecentLearningEvent,
@@ -27,7 +29,10 @@ function assertQuerySucceeded<T>(
 }
 
 export class SupabaseStudyMetaRepository implements StudyMetaRepository {
-  constructor(private readonly client: SupabaseClient) {}
+  constructor(
+    private readonly client: SupabaseClient,
+    private readonly stateWriter: SupabaseClient = client,
+  ) {}
 
   async getCurrentStudentId(): Promise<string | null> {
     const result = await this.client.rpc("current_student_id");
@@ -152,7 +157,7 @@ export class SupabaseStudyMetaRepository implements StudyMetaRepository {
   ): Promise<RecentLearningEvent[]> {
     let query = this.client
       .from("learning_events")
-      .select("id, source, event_type, raw_event, evidence, occurred_at, created_at")
+      .select("id, source, source_provider, problem_id, event_type, raw_event, evidence, started_at, ended_at, occurred_at, created_at")
       .eq("student_id", studentId)
       .eq("domain", domain);
 
@@ -165,6 +170,40 @@ export class SupabaseStudyMetaRepository implements StudyMetaRepository {
     return RecentLearningEventSchema.array().parse(data);
   }
 
+  async listLearnerStateEstimates(
+    studentId: string,
+    domain: string,
+    skillId: string,
+  ): Promise<LearnerStateEstimate[]> {
+    const result = await this.client
+      .from("learner_state_estimates")
+      .select(
+        "domain, skill_id, state_type, value, status, confidence, evidence_count, effective_sample_size, last_updated, model_version, supporting_event_ids, limitation",
+      )
+      .eq("student_id", studentId)
+      .eq("domain", domain)
+      .eq("skill_id", skillId)
+      .order("state_type", { ascending: true });
+    const data = assertQuerySucceeded("list learner state estimates", result);
+    return LearnerStateEstimateSchema.array().parse(data);
+  }
+
+  async findLearningEventByIdempotencyKey(
+    studentId: string,
+    idempotencyKey: string,
+  ): Promise<LearningEvent | null> {
+    const result = await this.client
+      .from("learning_events")
+      .select(
+        "id, student_id, domain, skill_id, skill_name, source, source_provider, problem_id, event_type, raw_event, evidence, started_at, ended_at, occurred_at, created_at, idempotency_key",
+      )
+      .eq("student_id", studentId)
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+    const data = assertQuerySucceeded("find learning event by idempotency key", result);
+    return data ? parseLearningEvent(data) : null;
+  }
+
   async insertLearningEvent(input: RecordLearningEventInput): Promise<LearningEvent> {
     const result = await this.client
       .from("learning_events")
@@ -172,35 +211,96 @@ export class SupabaseStudyMetaRepository implements StudyMetaRepository {
         student_id: input.student_id,
         domain: input.domain,
         skill_id: input.skill_id,
+        skill_name: input.skill_name ?? null,
         source: input.source,
+        source_provider: input.source_provider ?? null,
         event_type: input.event_type,
+        problem_id: input.problem_id ?? null,
         raw_event: input.raw_event,
         evidence: input.evidence,
+        started_at: input.started_at ?? null,
+        ended_at: input.ended_at ?? null,
         occurred_at: input.occurred_at ?? new Date().toISOString(),
+        idempotency_key: input.idempotency_key ?? null,
       })
       .select(
-        "id, student_id, domain, skill_id, source, event_type, raw_event, evidence, occurred_at, created_at",
+        "id, student_id, domain, skill_id, skill_name, source, source_provider, problem_id, event_type, raw_event, evidence, started_at, ended_at, occurred_at, created_at, idempotency_key",
       )
       .single();
     const data = assertQuerySucceeded("insert learning event", result);
     if (!data) {
       throw new RepositoryError("insert learning event failed: no row returned");
     }
-    const recentEvent = RecentLearningEventSchema.parse(data);
-
-    return {
-      ...recentEvent,
-      student_id: String(data.student_id),
-      domain: String(data.domain),
-      skill_id: String(data.skill_id),
-    };
+    return parseLearningEvent(data);
   }
+
+  async saveLearnerStateEstimate(
+    studentId: string,
+    skillName: string,
+    estimate: LearnerStateEstimate,
+  ): Promise<void> {
+    const estimateResult = await this.stateWriter.from("learner_state_estimates").upsert(
+      {
+        student_id: studentId,
+        domain: estimate.domain,
+        skill_id: estimate.skill_id,
+        state_type: estimate.state_type,
+        value: estimate.value,
+        status: estimate.status,
+        confidence: estimate.confidence,
+        evidence_count: estimate.evidence_count,
+        effective_sample_size: estimate.effective_sample_size,
+        last_updated: estimate.last_updated,
+        model_version: estimate.model_version,
+        supporting_event_ids: estimate.supporting_event_ids,
+        limitation: estimate.limitation,
+      },
+      { onConflict: "student_id,domain,skill_id,state_type" },
+    );
+    assertQuerySucceeded("save learner state estimate", estimateResult);
+
+    if (estimate.status !== "verified" || estimate.value === null) return;
+    const stateColumn =
+      estimate.state_type === "procedural_mastery"
+        ? { procedural_mastery: estimate.value }
+        : estimate.state_type === "help_need"
+          ? { help_need: estimate.value }
+          : {};
+    if (Object.keys(stateColumn).length === 0) return;
+    const stateResult = await this.stateWriter.from("learner_states").upsert(
+      {
+        student_id: studentId,
+        domain: estimate.domain,
+        skill_id: estimate.skill_id,
+        skill_name: skillName,
+        ...stateColumn,
+        state_confidence: estimate.confidence,
+      },
+      { onConflict: "student_id,domain,skill_id" },
+    );
+    assertQuerySucceeded("materialize verified learner state", stateResult);
+  }
+}
+
+function parseLearningEvent(data: Record<string, unknown>): LearningEvent {
+  const recentEvent = RecentLearningEventSchema.parse(data);
+  return {
+    ...recentEvent,
+    student_id: String(data.student_id),
+    domain: String(data.domain),
+    skill_id: String(data.skill_id),
+    ...(typeof data.skill_name === "string" ? { skill_name: data.skill_name } : {}),
+    ...(typeof data.idempotency_key === "string"
+      ? { idempotency_key: data.idempotency_key }
+      : {}),
+  };
 }
 
 export function createSupabaseRepository(
   url: string,
   key: string,
   accessToken?: string,
+  stateWriterKey?: string,
 ): SupabaseStudyMetaRepository {
   const client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -208,5 +308,10 @@ export function createSupabaseRepository(
       ? { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
       : {}),
   });
-  return new SupabaseStudyMetaRepository(client);
+  const stateWriter = stateWriterKey
+    ? createClient(url, stateWriterKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+    : client;
+  return new SupabaseStudyMetaRepository(client, stateWriter);
 }

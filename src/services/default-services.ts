@@ -26,6 +26,7 @@ export function createAuthenticatedServices(accessToken: string): StudyMetaServi
     environment.SUPABASE_URL,
     getSupabasePublicKey(environment),
     accessToken,
+    environment.SUPABASE_SERVICE_ROLE_KEY,
   );
   return createStudyMetaServices(repository, undefined, {
     demoMode: environment.STUDYMETA_DEMO_MODE === "true",

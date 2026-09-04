@@ -2,6 +2,7 @@ import type { StudyMetaRepository } from "../repositories/study-meta-repository.
 import { LearnerStateService } from "./learner-state-service.js";
 import { LearningEventService } from "./learning-event-service.js";
 import {
+  EvidenceBasedLearnerStateUpdater,
   NoOpLearnerStateUpdater,
   type LearnerStateUpdater,
 } from "./learner-state-updater.js";
@@ -13,7 +14,7 @@ export interface StudyMetaServices {
 
 export function createStudyMetaServices(
   repository: StudyMetaRepository,
-  updater: LearnerStateUpdater = new NoOpLearnerStateUpdater(),
+  updater?: LearnerStateUpdater,
   contextDefaults: {
     demoMode: boolean;
     learnerProfileType: "stored" | "synthetic" | "synthetic_demo";
@@ -24,8 +25,15 @@ export function createStudyMetaServices(
     demoStudentId: "00000000-0000-4000-8000-000000000001",
   },
 ): StudyMetaServices {
+  const learnerStateUpdater =
+    updater ?? new EvidenceBasedLearnerStateUpdater(repository);
   return {
-    learnerStateService: new LearnerStateService(repository, contextDefaults),
-    learningEventService: new LearningEventService(repository, updater),
+    learnerStateService: new LearnerStateService(repository, {
+      ...contextDefaults,
+      stateUpdateAutomated: learnerStateUpdater.enabled,
+    }),
+    learningEventService: new LearningEventService(repository, learnerStateUpdater),
   };
 }
+
+export { NoOpLearnerStateUpdater };

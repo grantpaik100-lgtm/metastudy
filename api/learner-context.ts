@@ -33,6 +33,9 @@ export default async function handler(
   const skillId = url.searchParams.get("skill_id");
   const demoMode = url.searchParams.get("demo_mode");
   const learnerProfileType = url.searchParams.get("learner_profile_type");
+  const includeExperimentalStates = url.searchParams.get(
+    "include_experimental_states",
+  );
 
   if (!studentId || !domain) {
     sendJson(response, 400, {
@@ -55,6 +58,9 @@ export default async function handler(
               | "synthetic"
               | "synthetic_demo",
           }
+        : {}),
+      ...(includeExperimentalStates
+        ? { include_experimental_states: includeExperimentalStates === "true" }
         : {}),
     });
     sendJson(response, 200, context);

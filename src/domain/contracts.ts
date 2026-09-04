@@ -3,6 +3,10 @@ import { z } from "zod";
 export const SourceSchema = z.enum([
   "chatgpt",
   "claude",
+  "external_ai",
+  "ai_tutor",
+  "learning_app",
+  "lms",
   "camera",
   "quiz",
   "manual",
@@ -12,6 +16,56 @@ export const EvidenceSchema = z.object({
   type: z.string().trim().min(1),
   value: z.json(),
   extractor_confidence: z.number().min(0).max(1),
+  extractor: z.string().trim().min(1).default("source_reported"),
+  extractor_version: z.string().trim().min(1).default("unknown"),
+  definition_version: z
+    .string()
+    .trim()
+    .min(1)
+    .default("studymeta-evidence-v1"),
+  missing_reason: z.string().trim().min(1).nullable().default(null),
+});
+
+export const LearnerStateStatusSchema = z.enum([
+  "verified",
+  "experimental",
+  "insufficient_evidence",
+  "withheld",
+]);
+
+export const LearnerStateTypeSchema = z.enum([
+  "procedural_mastery",
+  "help_need",
+  "retrievability",
+  "transferability",
+]);
+
+export const LearnerStateEstimateSchema = z.object({
+  domain: z.string(),
+  skill_id: z.string(),
+  state_type: LearnerStateTypeSchema,
+  value: z.number().min(0).max(1).nullable(),
+  status: LearnerStateStatusSchema,
+  confidence: z.number().min(0).max(1).nullable(),
+  evidence_count: z.number().int().min(0),
+  effective_sample_size: z.number().min(0),
+  last_updated: z.string(),
+  model_version: z.string(),
+  supporting_event_ids: z.array(z.string().uuid()),
+  limitation: z.string(),
+});
+
+export const LearnerStateUpdateSchema = z.object({
+  status: z.enum(["updated", "insufficient_evidence", "withheld", "disabled"]),
+  updated_states: z.array(LearnerStateEstimateSchema),
+  excluded_evidence: z.array(
+    z.object({
+      event_id: z.string().uuid(),
+      evidence_type: z.string(),
+      reason: z.string(),
+    }),
+  ),
+  message: z.string(),
 });
 
 export const StudentSchema = z.object({
@@ -57,9 +111,13 @@ export const SkillStateSchema = z.object({
 export const RecentLearningEventSchema = z.object({
   id: z.string().uuid(),
   source: SourceSchema,
+  source_provider: z.string().nullable().optional(),
+  problem_id: z.string().nullable().optional(),
   event_type: z.string(),
   raw_event: z.record(z.string(), z.json()),
   evidence: z.array(EvidenceSchema),
+  started_at: z.string().nullable().optional(),
+  ended_at: z.string().nullable().optional(),
   occurred_at: z.string(),
   created_at: z.string(),
 });
@@ -152,10 +210,11 @@ export const StateSignalSchema = z.object({
 });
 
 export const EvidenceWritebackSchema = z.object({
-  tool: z.literal("record_learning_event"),
+  tool: z.enum(["record_my_learning_event", "record_learning_event"]),
   event_type: z.literal("problem_attempt"),
   evidence_fields: z.array(z.string()),
-  state_update_automated: z.literal(false),
+  state_update_automated: z.boolean(),
+  update_policy: z.string(),
   instruction: z.string(),
 });
 
@@ -167,6 +226,7 @@ export const GetLearnerContextInputSchema = z.object({
   learner_profile_type: z
     .enum(["stored", "synthetic", "synthetic_demo"])
     .optional(),
+  include_experimental_states: z.boolean().optional(),
 });
 
 export const GetLearnerContextOutputSchema = z.object({
@@ -188,6 +248,8 @@ export const GetLearnerContextOutputSchema = z.object({
   first_turn_contract: FirstTurnContractSchema.nullable(),
   display: DisplayPolicySchema,
   evidence_writeback: EvidenceWritebackSchema,
+  state_estimates: z.array(LearnerStateEstimateSchema),
+  experimental_states_included: z.boolean(),
 });
 
 export const GetMyLearnerContextInputSchema = z.object({
@@ -197,30 +259,62 @@ export const GetMyLearnerContextInputSchema = z.object({
   learner_profile_type: z
     .enum(["stored", "synthetic", "synthetic_demo"])
     .optional(),
+  include_experimental_states: z.boolean().optional(),
 });
 
 export const GetMyLearnerContextOutputSchema = GetLearnerContextOutputSchema.extend({
   resolved_domain: z.string().nullable(),
 });
 
-export const RecordLearningEventInputSchema = z.object({
+const LearningEventFieldsSchema = z
+  .object({
+    domain: z.string().trim().min(1),
+    skill_id: z.string().trim().min(1),
+    skill_name: z.string().trim().min(1).optional(),
+    source: SourceSchema,
+    source_provider: z.string().trim().min(1).optional(),
+    event_type: z.string().trim().min(1).default("observation"),
+    problem_id: z.string().trim().min(1).optional(),
+    raw_event: z.record(z.string(), z.json()),
+    evidence: z.array(EvidenceSchema).min(1),
+    started_at: z.iso.datetime({ offset: true }).optional(),
+    ended_at: z.iso.datetime({ offset: true }).optional(),
+    occurred_at: z.iso.datetime({ offset: true }).optional(),
+    idempotency_key: z.string().trim().min(8).max(200).optional(),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.started_at &&
+      value.ended_at &&
+      Date.parse(value.ended_at) < Date.parse(value.started_at)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["ended_at"],
+        message: "ended_at must not be earlier than started_at",
+      });
+    }
+  });
+
+export const RecordLearningEventInputSchema = LearningEventFieldsSchema.safeExtend({
   student_id: z.string().uuid(),
-  domain: z.string().trim().min(1),
-  skill_id: z.string().trim().min(1),
-  source: SourceSchema,
-  event_type: z.string().trim().min(1).default("observation"),
-  raw_event: z.record(z.string(), z.json()),
-  evidence: z.array(EvidenceSchema).min(1),
-  occurred_at: z.iso.datetime({ offset: true }).optional(),
 });
+
+export const RecordMyLearningEventInputSchema = LearningEventFieldsSchema;
 
 export const RecordLearningEventOutputSchema = z.object({
   success: z.literal(true),
   event_id: z.string().uuid(),
   recorded_at: z.string(),
+  duplicate: z.boolean(),
+  state_update: LearnerStateUpdateSchema,
 });
 
 export type Evidence = z.infer<typeof EvidenceSchema>;
+export type LearnerStateStatus = z.infer<typeof LearnerStateStatusSchema>;
+export type LearnerStateType = z.infer<typeof LearnerStateTypeSchema>;
+export type LearnerStateEstimate = z.infer<typeof LearnerStateEstimateSchema>;
+export type LearnerStateUpdate = z.infer<typeof LearnerStateUpdateSchema>;
 export type Student = z.infer<typeof StudentSchema>;
 export type LearnerProfile = z.infer<typeof LearnerProfileSchema>;
 export type DomainState = z.infer<typeof DomainStateSchema>;
@@ -239,10 +333,15 @@ export type GetMyLearnerContextInput = z.input<typeof GetMyLearnerContextInputSc
 export type GetMyLearnerContextOutput = z.infer<typeof GetMyLearnerContextOutputSchema>;
 export type RecordLearningEventInput = z.infer<typeof RecordLearningEventInputSchema>;
 export type RecordLearningEventRawInput = z.input<typeof RecordLearningEventInputSchema>;
+export type RecordMyLearningEventRawInput = z.input<
+  typeof RecordMyLearningEventInputSchema
+>;
 export type RecordLearningEventOutput = z.infer<typeof RecordLearningEventOutputSchema>;
 
 export interface LearningEvent extends RecentLearningEvent {
   student_id: string;
   domain: string;
   skill_id: string;
+  skill_name?: string;
+  idempotency_key?: string;
 }

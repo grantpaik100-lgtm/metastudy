@@ -1,6 +1,7 @@
 import type {
   DomainState,
   LearnerProfile,
+  LearnerStateEstimate,
   LearningEvent,
   RecordLearningEventInput,
   RecentLearningEvent,
@@ -33,5 +34,19 @@ export interface StudyMetaRepository {
     skillId: string | undefined,
     limit: number,
   ): Promise<RecentLearningEvent[]>;
+  listLearnerStateEstimates(
+    studentId: string,
+    domain: string,
+    skillId: string,
+  ): Promise<LearnerStateEstimate[]>;
+  findLearningEventByIdempotencyKey(
+    studentId: string,
+    idempotencyKey: string,
+  ): Promise<LearningEvent | null>;
   insertLearningEvent(input: RecordLearningEventInput): Promise<LearningEvent>;
+  saveLearnerStateEstimate(
+    studentId: string,
+    skillName: string,
+    estimate: LearnerStateEstimate,
+  ): Promise<void>;
 }
