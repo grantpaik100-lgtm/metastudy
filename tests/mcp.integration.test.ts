@@ -18,6 +18,10 @@ import type {
 } from "../src/domain/contracts.js";
 import { createStudyMetaMcpServer } from "../src/mcp/server.js";
 import { createStudyMetaMcpHttpHandlers } from "../src/mcp/http-handler.js";
+import {
+  LEARNER_CARD_MIME_TYPE,
+  LEARNER_CARD_RESOURCE_URI,
+} from "../src/mcp/learner-card-ui.js";
 import type { StudyMetaRepository } from "../src/repositories/study-meta-repository.js";
 import { createStudyMetaServices } from "../src/services/service-container.js";
 
@@ -260,8 +264,40 @@ test("MCP tools read all three learner layers and withhold State changes until E
         "get_my_learner_context",
         "record_learning_event",
         "record_my_learning_event",
+        "render_my_learner_card",
       ],
     );
+
+    const renderTool = tools.tools.find(
+      (tool) => tool.name === "render_my_learner_card",
+    );
+    assert.equal(
+      (renderTool?._meta as { ui?: { resourceUri?: string } } | undefined)?.ui
+        ?.resourceUri,
+      LEARNER_CARD_RESOURCE_URI,
+    );
+
+    const resources = await client.listResources();
+    assert.equal(
+      resources.resources.some(
+        (resource) =>
+          resource.uri === LEARNER_CARD_RESOURCE_URI &&
+          resource.mimeType === LEARNER_CARD_MIME_TYPE,
+      ),
+      true,
+    );
+    const learnerCardResource = await client.readResource({
+      uri: LEARNER_CARD_RESOURCE_URI,
+    });
+    const firstLearnerCardContent = learnerCardResource.contents[0];
+    const learnerCardHtml =
+      firstLearnerCardContent && "text" in firstLearnerCardContent
+        ? firstLearnerCardContent.text
+        : "";
+    assert.match(learnerCardHtml, /ui\/notifications\/tool-result/);
+    assert.match(learnerCardHtml, /ui\/message/);
+    assert.doesNotMatch(learnerCardHtml, /window\.openai/);
+    assert.doesNotMatch(learnerCardHtml, /localStorage/);
 
     const started = await client.callTool({
       name: "get_my_learner_context",
@@ -279,6 +315,39 @@ test("MCP tools read all three learner layers and withhold State changes until E
       (startedContext.skill_states as Array<Record<string, unknown>>)[0]?.skill_id,
       "chain_rule",
     );
+
+    const rendered = await client.callTool({
+      name: "render_my_learner_card",
+      arguments: {
+        domain: "calculus",
+        skill_id: "chain_rule",
+        demo_mode: true,
+        learner_profile_type: "synthetic",
+      },
+    });
+    assert.equal(rendered.isError, undefined);
+    const renderedContext = rendered.structuredContent as Record<string, unknown>;
+    assert.equal(renderedContext.profile_type, "synthetic_demo");
+    assert.equal(
+      (renderedContext.skill_state as Record<string, unknown>).procedural_mastery,
+      0.35,
+    );
+    const renderedText = rendered.content
+      .filter((item) => item.type === "text")
+      .map((item) => item.text)
+      .join("\n");
+    const fallbackPrefix = "STUDYMETA_LEARNER_CARD_DATA:";
+    const fallbackIndex = renderedText.indexOf(fallbackPrefix);
+    assert.notEqual(fallbackIndex, -1);
+    const fallbackPayload = JSON.parse(
+      renderedText.slice(fallbackIndex + fallbackPrefix.length),
+    ) as Record<string, unknown>;
+    assert.equal(fallbackPayload.profile_type, "synthetic_demo");
+    assert.equal(
+      (fallbackPayload.skill_state as Record<string, unknown>).procedural_mastery,
+      0.35,
+    );
+    assert.equal(renderedText.includes("raw_event"), false);
 
     const initial = await client.callTool({
       name: "get_learner_context",
@@ -496,6 +565,38 @@ test("synthetic demo learner returns a deterministic chain_rule_ir first-turn co
   assert.equal(context.interaction_policy.retrievability_probe.signal_status, "experimental");
   assert.equal(context.evidence_writeback.tool, "record_my_learning_event");
   assert.equal(context.evidence_writeback.state_update_automated, true);
+});
+
+test("authenticated learner-card demo does not require a stored learner link", async () => {
+  class UnlinkedMemoryRepository extends MemoryRepository {
+    override async getCurrentStudentId(): Promise<string | null> {
+      return null;
+    }
+
+    override async getStudent(_studentId: string): Promise<Student | null> {
+      return null;
+    }
+  }
+
+  const service = createStudyMetaServices(
+    new UnlinkedMemoryRepository(),
+    undefined,
+    {
+      demoMode: true,
+      learnerProfileType: "synthetic_demo",
+    },
+  ).learnerStateService;
+
+  const context = await service.getMyContext({
+    domain: "calculus",
+    skill_id: "chain_rule",
+    demo_mode: true,
+    learner_profile_type: "synthetic_demo",
+  });
+
+  assert.equal(context.profile_type, "synthetic_demo");
+  assert.equal(context.student.display_name, "Synthetic Demo Learner");
+  assert.equal(context.skill_state?.procedural_mastery, 0.35);
 });
 
 test("IR deployment defaults can enable demo while an explicit request can disable it", async () => {

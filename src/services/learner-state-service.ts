@@ -45,6 +45,36 @@ export class LearnerStateService {
     const demoMode = input.demo_mode ?? this.defaults.demoMode;
     const learnerProfileType =
       input.learner_profile_type ?? this.defaults.learnerProfileType;
+    const demoStudentId =
+      this.defaults.demoStudentId ?? DEFAULT_DEMO_STUDENT_ID;
+
+    // The deterministic Synthetic Demo is deliberately account-independent:
+    // it is a local, read-only fixture rather than a learner record.  Real
+    // learner reads still require an authenticated account-to-learner link.
+    if (
+      isChainRuleIrDemo({
+        demoMode,
+        studentId: demoStudentId,
+        demoStudentId,
+        domain: input.domain ?? "",
+        ...(input.skill_id ? { skillId: input.skill_id } : {}),
+        requestedProfileType: learnerProfileType,
+      })
+    ) {
+      const context = await this.getContext({
+        student_id: demoStudentId,
+        domain: input.domain!,
+        skill_id: input.skill_id,
+        demo_mode: demoMode,
+        learner_profile_type: learnerProfileType,
+        include_experimental_states: input.include_experimental_states,
+      });
+      return GetMyLearnerContextOutputSchema.parse({
+        ...context,
+        resolved_domain: input.domain!,
+      });
+    }
+
     const studentId = await this.repository.getCurrentStudentId();
     if (!studentId) {
       throw new NotFoundError(
@@ -125,6 +155,49 @@ export class LearnerStateService {
     const includeExperimentalStates =
       input.include_experimental_states ?? syntheticDemo;
     const firstTurnContract = syntheticDemo ? CHAIN_RULE_IR_FIRST_TURN : null;
+
+    if (syntheticDemo) {
+      const student = {
+        id: input.student_id,
+        display_name: "Synthetic Demo Learner",
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      };
+      const skillState = buildSyntheticSkillState(
+        input.domain,
+        input.skill_id!,
+        null,
+      );
+      const teachingPlan = buildTeachingPlan({
+        learnerProfile: SYNTHETIC_LEARNER_PROFILE,
+        domainState: null,
+        skillState,
+        skillStates: [],
+        demoMode,
+        profileType: "synthetic_demo",
+        firstTurnContract,
+        stateUpdateAutomated: this.defaults.stateUpdateAutomated ?? true,
+        includeExperimentalStates,
+      });
+      return GetLearnerContextOutputSchema.parse({
+        student_id: input.student_id,
+        student,
+        learner_profile: SYNTHETIC_LEARNER_PROFILE,
+        domain_state: null,
+        skill_state: skillState,
+        skill_states: [],
+        recent_evidence: [],
+        profile_type: "synthetic_demo",
+        learner_state: skillState,
+        pedagogical_policy: teachingPlan.interaction_policy,
+        demo_scenario: firstTurnContract?.scenario ?? null,
+        first_turn_contract: firstTurnContract,
+        state_estimates: [],
+        experimental_states_included: includeExperimentalStates,
+        ...teachingPlan,
+      });
+    }
+
     const student = await this.repository.getStudent(input.student_id);
 
     if (!student) {

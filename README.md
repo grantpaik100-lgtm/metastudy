@@ -20,9 +20,11 @@ api/
 docs/
   openai-plugin-submission.md    OpenAI Plugin 제출·검수 기준
   tutor-mcp-comparison.md        Tutor MCP 기능 비교와 StudyMeta 범위 결정
+extensions/
+  studymeta/                     Claude Desktop용 MCPB manifest 및 패키징 의존성
 src/
   domain/                         Zod 입출력 계약과 오류
-  mcp/                            MCP tool 및 HTTP handler
+  mcp/                            MCP tool, MCP Apps learner-card resource, HTTP handler
   repositories/                  Supabase repository
   services/                      Context/Event service와 confidence-gated State updater
   http.ts                        로컬 Streamable HTTP 서버
@@ -35,6 +37,7 @@ tests/
 index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
 viewer.html                      Supabase Learner Context 검증 Viewer
+learner-card-preview.html        StudyMeta MCP Apps 카드의 독립 브라우저 미리보기 (build 생성)
 deliverables/                    제출용 IR Deck 및 발표 가이드
 design.md                        학생용 UI 설계 문서
 AGENTS.md                        저장소 작업 및 Learner Model 보존 지침
@@ -102,6 +105,25 @@ npm run dev:stdio
 ```
 
 ## MCP 도구
+
+### MCP Apps learner card
+
+`render_my_learner_card`는 인증된 학습자의 기존 Learner Context를 읽기만 하고,
+`ui://studymeta/learner-card` MCP Apps resource와 연결해 대화 안의 StudyMeta 학습
+카드를 렌더링합니다. 기존 `get_my_learner_context`는 데이터 도구로 그대로 유지됩니다.
+
+- UI resource URI: `ui://studymeta/learner-card`
+- MIME type: `text/html;profile=mcp-app`
+- 카드 버튼은 표준 `ui/message` follow-up만 보내며, Evidence나 Learner State를 기록하지 않습니다.
+- 실제 문제 풀이가 완료된 뒤에만 `record_my_learning_event`가 Evidence write-back을 수행합니다.
+- MCP Apps를 지원하지 않는 Host에서는 render 도구의 텍스트 fallback과 `structuredContent`가 그대로 반환됩니다.
+- 일부 Host가 iframe으로 전달하는 `structuredContent`를 누락하는 경우를 위해, render 도구는 카드에 필요한 최소 표시 데이터만 텍스트 fallback에도 포함합니다. UI는 이 사본을 읽을 수 있으며, raw event·학습자 ID·프로필 선호값은 포함하지 않습니다.
+
+`npm run build` 후 독립 미리보기는 다음에서 열 수 있습니다.
+
+```text
+/learner-card-preview.html
+```
 
 ### `get_my_learner_context`
 
@@ -271,7 +293,7 @@ npm run build
 
 통합 테스트는 공식 MCP client로 다음을 검증합니다.
 
-1. 두 Tool이 등록되는지
+1. Context/read/write/render Tool과 MCP Apps resource가 등록되는지
 2. Demo Student의 3계층 Context가 반환되는지
 3. Event가 기록되는지
 4. 재조회 시 최근 Evidence에 나타나는지
