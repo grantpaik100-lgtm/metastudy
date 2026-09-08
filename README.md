@@ -19,21 +19,24 @@ api/
   learner-context.ts             Viewer 전용 read endpoint
 docs/
   openai-plugin-submission.md    OpenAI Plugin 제출·검수 기준
+  studymeta-v2-foundation.md     v2 계약·DB 경계와 다음 단계 준수사항
   tutor-mcp-comparison.md        Tutor MCP 기능 비교와 StudyMeta 범위 결정
 extensions/
   studymeta/                     Claude Desktop용 MCPB manifest 및 패키징 의존성
 src/
   domain/                         Zod 입출력 계약과 오류
+  v2/contracts/                   통합 서비스의 버전된 Event/Evidence/State 공통 계약
   mcp/                            MCP tool, MCP Apps learner-card resource, HTTP handler
   repositories/                  Supabase repository
   services/                      Context/Event service와 confidence-gated State updater
   http.ts                        로컬 Streamable HTTP 서버
   stdio.ts                       로컬 stdio 서버
 supabase/
-  migrations/                    Raw Event, Derived Evidence, State Estimate schema
+  migrations/                    기존 스키마와 비공개 studymeta_v2 기반 migration
   seed.sql                       Demo Student seed
 tests/
   mcp.integration.test.ts        실제 MCP client 호출 테스트
+  v2/foundation-runtime.sql      폐기용 PostgreSQL 15+ migration·무결성 런타임 테스트
 index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
 viewer.html                      Supabase Learner Context 검증 Viewer
