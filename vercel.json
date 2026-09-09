@@ -14,6 +14,18 @@
   },
   "rewrites": [
     {
+      "source": "/student-preview",
+      "destination": "/student-preview.html"
+    },
+    {
+      "source": "/student-dashboard-preview",
+      "destination": "/student-dashboard-preview.html"
+    },
+    {
+      "source": "/student-session-preview",
+      "destination": "/student-session-preview.html"
+    },
+    {
       "source": "/oauth/consent",
       "destination": "/api/oauth-consent"
     },

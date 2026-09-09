@@ -51,3 +51,28 @@ await writeFile(
   studentWebModule.getStudentWebPreviewHtml(),
   "utf8",
 );
+
+// Pre-opened, synthetic-only routes make the IR dashboard and audit-flow states
+// inspectable without implying that authentication or a live session succeeded.
+const studentPreview = studentWebModule.getStudentWebPreviewHtml();
+const openedStudentPreview = studentPreview
+  .replace('<section class="login" id="login">', '<section class="login" id="login" hidden>')
+  .replace('<div class="app" id="app">', '<div class="app active" id="app">');
+
+await writeFile(
+  resolve(publicDirectory, "student-dashboard-preview.html"),
+  openedStudentPreview,
+  "utf8",
+);
+
+const openedSessionPreview = openedStudentPreview
+  .replace('<section class="page active" id="page-home">', '<section class="page" id="page-home">')
+  .replace('<section class="page" id="page-records">', '<section class="page active" id="page-records">')
+  .replace('aria-expanded="false">구조화 요약 보기</button>', 'aria-expanded="true">구조화 요약 숨기기</button>')
+  .replace('<article class="card session-detail" hidden>', '<article class="card session-detail">');
+
+await writeFile(
+  resolve(publicDirectory, "student-session-preview.html"),
+  openedSessionPreview,
+  "utf8",
+);
