@@ -28,6 +28,9 @@ await Promise.all(
 const learnerCardModule = await import(
   pathToFileURL(resolve(projectRoot, "dist/src/mcp/learner-card-ui.js")).href,
 );
+const adminPreviewModule = await import(
+  pathToFileURL(resolve(projectRoot, "dist/src/v2/ui/admin/preview.js")).href,
+);
 const learnerCardPreview = learnerCardModule
   .getLearnerCardHtml()
   .replace(
@@ -40,5 +43,11 @@ const learnerCardPreview = learnerCardModule
 await writeFile(
   resolve(publicDirectory, "learner-card-preview.html"),
   learnerCardPreview,
+  "utf8",
+);
+
+await writeFile(
+  resolve(publicDirectory, "admin-preview.html"),
+  adminPreviewModule.renderAdminPreviewHtml(),
   "utf8",
 );
