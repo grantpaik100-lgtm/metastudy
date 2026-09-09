@@ -198,5 +198,25 @@ export const StoredLearningEventSchema = LearningEventCoreSchema.safeExtend({
   recorded_at: TimestampSchema,
 });
 
+export const LearningEventReceiptSchema = z
+  .object({
+    event_id: UuidSchema,
+    recorded_at: TimestampSchema,
+    duplicate: z.boolean(),
+    processing_status: z.enum(["pending", "processing", "completed", "failed", "dead_letter"]),
+  })
+  .strict();
+
+/** Built only after JWT verification; it is never parsed from the Event body. */
+export const LearningEventAuthContextSchema = z
+  .object({
+    auth_user_id: UuidSchema,
+    actor_type: z.enum(["student", "admin"]),
+    connection_id: UuidSchema.nullable(),
+  })
+  .strict();
+
 export type LearningEventCommand = z.infer<typeof LearningEventCommandSchema>;
 export type StoredLearningEvent = z.infer<typeof StoredLearningEventSchema>;
+export type LearningEventReceipt = z.infer<typeof LearningEventReceiptSchema>;
+export type LearningEventAuthContext = z.infer<typeof LearningEventAuthContextSchema>;

@@ -22,12 +22,16 @@ docs/
   studymeta-v2-foundation.md     v2 계약·DB 경계와 다음 단계 준수사항
   studymeta-v2-identity-rbac.md  v2 개인 계정·역할·RLS와 관리자 조회 계약
   studymeta-v2-supabase-gateway.md v2 Auth·Data API·provisioning runbook
+  studymeta-v2-event-evidence.md v2 Event 접수·멱등성·Evidence worker 경계
   tutor-mcp-comparison.md        Tutor MCP 기능 비교와 StudyMeta 범위 결정
 extensions/
   studymeta/                     Claude Desktop용 MCPB manifest 및 패키징 의존성
 src/
   domain/                         Zod 입출력 계약과 오류
   v2/contracts/                   통합 서비스의 버전된 Event/Evidence/State 공통 계약
+  v2/events/                      v2 strict Event 접수와 canonical SHA-256
+  v2/evidence/                    v2 versioned rule registry와 Evidence worker
+  v2/supabase/                    v2 Stage 3 service-role RPC repository adapter
   mcp/                            MCP tool, MCP Apps learner-card resource, HTTP handler
   repositories/                  Supabase repository
   services/                      Context/Event service와 confidence-gated State updater
@@ -45,6 +49,7 @@ tests/
   v2/foundation-runtime.sql      폐기용 PostgreSQL 15+ migration·무결성 런타임 테스트
   v2/identity-rbac-runtime.sql   폐기용 PostgreSQL 15+ 계정·RLS·관리자 권한 테스트
   v2/supabase-gateway-runtime.sql 폐기용 PostgreSQL 15+ Data API·RPC 경계 테스트
+  v2/event-evidence-runtime.sql   폐기용 PostgreSQL 15+ Event/Evidence 동시성 테스트
 index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
 viewer.html                      Supabase Learner Context 검증 Viewer

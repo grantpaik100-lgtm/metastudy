@@ -119,5 +119,41 @@ export const ProcessingJobSchema = z
   })
   .strict();
 
+export const DerivationOperationalModeSchema = z.enum([
+  "research_only",
+  "pilot",
+  "production",
+]);
+
+export const EvidenceDerivationPolicySchema = z
+  .object({
+    version: VersionSchema,
+    lease_ms: z.number().int().positive(),
+    max_attempts: z.number().int().positive(),
+    retry_delay_ms: z.number().int().nonnegative(),
+    allowed_operational_modes: z.array(DerivationOperationalModeSchema).min(1)
+      .refine((modes) => new Set(modes).size === modes.length, {
+        message: "allowed operational modes must be unique",
+      }),
+  })
+  .strict();
+
+export const EvidenceOperationBindingSchema = z
+  .object({
+    evidence_id: UuidSchema,
+    operational_mode: DerivationOperationalModeSchema,
+    definition_operation_assignment_id: UuidSchema,
+    generation_operation_assignment_id: UuidSchema,
+  })
+  .strict();
+
+export const DerivationHoldReasonSchema = z.enum([
+  "no_authorized_generation_rule",
+]);
+
 export type InputManifest = z.infer<typeof InputManifestSchema>;
 export type ProcessingJob = z.infer<typeof ProcessingJobSchema>;
+export type EvidenceDerivationPolicy = z.infer<typeof EvidenceDerivationPolicySchema>;
+export type EvidenceOperationBinding = z.infer<typeof EvidenceOperationBindingSchema>;
+export type DerivationOperationalMode = z.infer<typeof DerivationOperationalModeSchema>;
+export type DerivationHoldReason = z.infer<typeof DerivationHoldReasonSchema>;
