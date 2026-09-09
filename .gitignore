@@ -9,6 +9,11 @@ public/
 .env.local
 .vercel/
 
+# Local MCP UI test artifacts. Browser profiles may contain session data, and
+# the downloaded tunnel client/logs are machine-local test tooling.
+.tmp-chrome-profile/
+tools/tunnel-client/
+
 # OS metadata
 .DS_Store
 Thumbs.db

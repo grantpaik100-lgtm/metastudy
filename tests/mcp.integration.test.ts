@@ -17,6 +17,10 @@ import type {
   Student,
 } from "../src/domain/contracts.js";
 import { createStudyMetaMcpServer } from "../src/mcp/server.js";
+import {
+  createStudyMetaMcpDemoServer,
+  DEMO_LEARNER_CARD_RESOURCE_URI,
+} from "../src/mcp/demo-server.js";
 import { createStudyMetaMcpHttpHandlers } from "../src/mcp/http-handler.js";
 import {
   LEARNER_CARD_MIME_TYPE,
@@ -244,6 +248,47 @@ class MemoryRepository implements StudyMetaRepository {
     this.skillState.updated_at = estimate.last_updated;
   }
 }
+
+test("synthetic demo MCP exposes only the learner-card resource and read-only render tool", async () => {
+  const server = createStudyMetaMcpDemoServer();
+  const client = new Client({ name: "studymeta-demo-test", version: "1.0.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+
+  try {
+    const tools = await client.listTools();
+    assert.deepEqual(tools.tools.map((tool) => tool.name), ["show_studymeta_learner_card"]);
+    const tool = tools.tools[0];
+    assert.equal(tool?.annotations?.readOnlyHint, true);
+    assert.equal(
+      (tool?._meta as { ui?: { resourceUri?: string } } | undefined)?.ui?.resourceUri,
+      DEMO_LEARNER_CARD_RESOURCE_URI,
+    );
+
+    const resources = await client.listResources();
+    assert.deepEqual(resources.resources.map((resource) => resource.uri), [DEMO_LEARNER_CARD_RESOURCE_URI]);
+    const resource = await client.readResource({ uri: DEMO_LEARNER_CARD_RESOURCE_URI });
+    const html = resource.contents[0] && "text" in resource.contents[0] ? resource.contents[0].text : "";
+    assert.equal(resource.contents[0]?.mimeType, LEARNER_CARD_MIME_TYPE);
+    assert.match(html, /ui\/notifications\/initialized/);
+    assert.match(html, /ui\/notifications\/tool-result/);
+    assert.match(html, /ui\/notifications\/size-changed/);
+    assert.match(html, /ui\/message/);
+
+    const result = await client.callTool({ name: "show_studymeta_learner_card", arguments: {} });
+    const payload = result.structuredContent as Record<string, unknown>;
+    const card = payload.learner_card as Record<string, unknown>;
+    assert.equal(payload.profile_type, "synthetic_demo");
+    assert.equal(card.data_label, "synthetic_demo");
+    assert.equal(card.course, "미적분학");
+    assert.equal(card.current_concept, "연쇄법칙");
+    assert.equal(card.scientific_validation_status, "under_review");
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
 
 test("MCP tools read all three learner layers and withhold State changes until Evidence is sufficient", async () => {
   const repository = new MemoryRepository();
