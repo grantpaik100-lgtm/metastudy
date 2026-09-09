@@ -1,6 +1,7 @@
 export * from "./common.js";
 export * from "./evidence.js";
 export * from "./facts.js";
+export * from "./identity-rbac.js";
 export * from "./knowledge.js";
 export * from "./learner-model-definitions.js";
 export * from "./learning-event.js";
