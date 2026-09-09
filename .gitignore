@@ -3,6 +3,7 @@ md/
 
 # Node / local environment
 node_modules/
+.tmp-chrome-mobile*/
 dist/
 public/
 .env
