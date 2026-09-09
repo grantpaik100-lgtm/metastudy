@@ -1,0 +1,20 @@
+import type { AdminValidationMatrixSchema, LearnerContextDisplaySchema, SessionSummaryDisplaySchema, StudentStateProjection, StudentStateProjectionSchema } from "../contracts.js";
+import type { z } from "zod";
+
+const provenance = { data_mode: "synthetic_ui_mock", source_label: "가상 UI 예시 데이터" } as const;
+const at = "2026-09-09T09:00:00+09:00";
+const coreCards: StudentStateProjection["cards"] = [
+  { state_type: "conceptual_mastery", display_label: "개념 이해", value: null, status: "unknown", display_level: "unknown", display_text: "아직 판단할 학습 기록이 충분하지 않아요.", tone: "neutral", direction: "not_applicable", scale_definition_id: null, scale_definition_version: null, evaluated_at: null, as_of: at, evidence_count: 0, observation_count: 0, result_outcome: "unchanged", result_reason_label: "새로운 관련 근거가 아직 없어요.", estimate_confidence: null, estimate_confidence_label: null },
+  { state_type: "procedural_mastery", display_label: "절차 숙련", value: null, status: "unknown", display_level: "unknown", display_text: "아직 판단할 학습 기록이 충분하지 않아요.", tone: "neutral", direction: "not_applicable", scale_definition_id: null, scale_definition_version: null, evaluated_at: null, as_of: at, evidence_count: 0, observation_count: 0, result_outcome: "unchanged", result_reason_label: "새로운 관련 근거가 아직 없어요.", estimate_confidence: null, estimate_confidence_label: null },
+  { state_type: "help_need", display_label: "도움 필요도", value: null, status: "unknown", display_level: "unknown", display_text: "아직 판단할 학습 기록이 충분하지 않아요.", tone: "neutral", direction: "not_applicable", scale_definition_id: null, scale_definition_version: null, evaluated_at: null, as_of: at, evidence_count: 0, observation_count: 0, result_outcome: "unchanged", result_reason_label: "새로운 관련 근거가 아직 없어요.", estimate_confidence: null, estimate_confidence_label: null },
+];
+
+export const syntheticStudentStateProjection: z.infer<typeof StudentStateProjectionSchema> = { provenance, core_states: ["conceptual_mastery", "procedural_mastery", "help_need"], cards: coreCards };
+export const syntheticLearnerContext: z.infer<typeof LearnerContextDisplaySchema> = { provenance, subject_label: "가상 미적분", concept_label: "가상 연쇄법칙", context_updated_at: at, states: coreCards, recommendation_label: "가상 예시 데이터입니다. 실제 학습 판단이 아닙니다.", next_action: { action_id: "continue_synthetic_session", label: "가상 세션 이어가기", availability: "unavailable", disabled: true } };
+export const syntheticSessionSummary: z.infer<typeof SessionSummaryDisplaySchema> = { provenance, session_id: "synthetic-session-001", subject_label: "가상 미적분", concept_label: "가상 연쇄법칙", started_at: at, ended_at: null, end_status: "interrupted", events: [{ event_id: "synthetic-event-001", label: "가상 학습 활동", occurred_at: at }], evidence: [{ evidence_id: "synthetic-evidence-001", label: "가상 관찰", event_id: "synthetic-event-001" }], state_results: [{ state_type: "conceptual_mastery", display_label: "개념 이해", outcome: "pending", reason_label: "가상 처리 대기", evidence_ids: ["synthetic-evidence-001"] }], excerpts: ["가상 예시 인용입니다. 실제 학생 원문이 아닙니다."], next_actions: [{ label: "가상 다음 행동", availability: "unavailable", disabled: true }] };
+const notAssessed = { evidence_type_id: "correct" as const, assessment_ref: "synthetic-assessment", assessment_version: 1, validation_status: "not_assessed" as const, claim: "가상 UI 행: 실제 검증 주장이 아닙니다.", scope: { population: null, domain: null, task_type: null, learning_environment: null }, supporting_source_refs: [], contradicting_source_refs: [], study_refs: [], limitations: [], reviewer_ref: null, reviewed_at: null, history_ref: null, operation_assignment: null };
+export const syntheticValidationMatrix: z.infer<typeof AdminValidationMatrixSchema> = { provenance, rows: [
+  { ...notAssessed, layer: "A", subject_kind: "evidence_definition", subject_id: "synthetic-definition", subject_version: "1" },
+  { ...notAssessed, layer: "B", subject_kind: "generation_rule", subject_id: "synthetic-generation-rule", subject_version: "1" },
+  { ...notAssessed, layer: "C", subject_kind: "state_update_rule", subject_id: "synthetic-state-update-rule", subject_version: "1" },
+] };

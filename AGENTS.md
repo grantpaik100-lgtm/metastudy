@@ -4,6 +4,12 @@
 목표는 **`index.html`의 Learner Model을 손상시키지 않으면서** `design.md`의 UI 설계를
 프로토타입으로 구현하는 것입니다.
 
+> **v2 UI 세대 구분 (2026-09-09 승인):** 이 문서의 `design.md`, 단일 HTML 규칙과
+> A/B/C 규칙은 legacy `index.html`/`service-prototype.html` 프로토타입에만 적용한다.
+> 새 v2 학생·관리자·MCP UI는 `docs/ui/studymeta-ui-spec-2026-09-09/`를 우선 기준으로
+> 하며 TypeScript build를 사용할 수 있다. 두 세대 모두 Learner Model 원본 데이터는 변경하지
+> 않는다. v2 UI는 State 표시 단계·방향·라벨을 계산하지 않고 backend projection만 표시한다.
+
 ---
 
 ## 0. 가장 중요한 규칙 3가지

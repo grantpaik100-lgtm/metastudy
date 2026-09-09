@@ -1,5 +1,9 @@
 # StudyMeta 학생용 UI 설계 (v0.5)
 
+> **legacy 프로토타입 문서:** 이 문서는 `service-prototype.html`의 A/B/C 경험을 위한
+> 확정 기록이다. 2026-09-09 이후 새 v2 학생·관리자·MCP UI는
+> `docs/ui/studymeta-ui-spec-2026-09-09/`가 우선하며, 이 문서의 제품 범위를 확장하지 않는다.
+
 > `index.html`의 Learner Model 데모(Evidence → Student State → Teaching Decision)는
 > **설계자/연구자용** 화면이다. 이 문서는 같은 엔진(러너 모델)을 **학생에게 직접 노출되는 화면**으로
 > 어떻게 번역할지 정의한다. 리서치 근거는 `md/ui-research.md` 참고.

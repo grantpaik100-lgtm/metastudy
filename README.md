@@ -22,12 +22,14 @@ docs/
   studymeta-v2-foundation.md     v2 계약·DB 경계와 다음 단계 준수사항
   studymeta-v2-identity-rbac.md  v2 개인 계정·역할·RLS와 관리자 조회 계약
   studymeta-v2-supabase-gateway.md v2 Auth·Data API·provisioning runbook
+  ui/studymeta-ui-spec-2026-09-09/ v2 UI 결정, 충돌 검토와 UI-0 표시 계약
   tutor-mcp-comparison.md        Tutor MCP 기능 비교와 StudyMeta 범위 결정
 extensions/
   studymeta/                     Claude Desktop용 MCPB manifest 및 패키징 의존성
 src/
   domain/                         Zod 입출력 계약과 오류
   v2/contracts/                   통합 서비스의 버전된 Event/Evidence/State 공통 계약
+  v2/ui/                          UI-0 표시 전용 Zod 계약과 명시적 synthetic mock
   mcp/                            MCP tool, MCP Apps learner-card resource, HTTP handler
   repositories/                  Supabase repository
   services/                      Context/Event service와 confidence-gated State updater
