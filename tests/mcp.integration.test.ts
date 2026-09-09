@@ -329,6 +329,9 @@ test("MCP tools read all three learner layers and withhold State changes until E
     const v2Html = v2Content && "text" in v2Content ? v2Content.text : "";
     assert.match(v2Html, /ui\/notifications\/tool-result/);
     assert.match(v2Html, /가상 UI 예시 데이터/);
+    assert.match(v2Html, /request\("ui\/initialize"/);
+    assert.match(v2Html, /ui\/notifications\/initialized/);
+    assert.match(v2Html, /ui\/notifications\/size-changed/);
 
     const v2Preview = await client.callTool({
       name: "preview_v2_in_chat_ui_synthetic",

@@ -125,7 +125,7 @@ npm run dev:stdio
 ### v2 MCP/In-chat UI preview (IR 전용)
 
 `preview_v2_in_chat_ui_synthetic`는 MCP Apps resource
-`ui://studymeta/v2/learner-context-and-session-summary`를 가리키는 **명시적
+`ui://studymeta/v2/learner-context-and-session-summary-v2`를 가리키는 **명시적
 `synthetic_ui_mock` preview 도구**입니다. 반환값은 UI-0의 `LearnerContextDisplay`와
 `SessionSummaryDisplay` 계약을 `structuredContent`와 동일한 text fallback으로 함께
 제공합니다. 이 도구는 인증된 학생을 읽지 않고, 세션·Evidence·State를 생성하거나 변경하지
