@@ -4,7 +4,7 @@ import { getV2InChatUiHtml, inChatUiFallbackText, parseInChatUiDisplay, V2_IN_CH
 import { SyntheticUiMockAdapter } from "../../src/v2/mcp/synthetic-ui-mock-adapter.js";
 
 test("v2 in-chat resource has a versioned production-shaped URI and MCP Apps MIME", () => {
-  assert.equal(V2_IN_CHAT_RESOURCE_URI, "ui://studymeta/v2/learner-context-and-session-summary-v2");
+  assert.equal(V2_IN_CHAT_RESOURCE_URI, "ui://studymeta/v2/learner-context-and-session-summary-v3");
   assert.equal(V2_IN_CHAT_MIME_TYPE, "text/html;profile=mcp-app");
   assert.equal(V2_IN_CHAT_RESOURCE_METADATA.mimeType, V2_IN_CHAT_MIME_TYPE);
   assert.equal(V2_IN_CHAT_RESOURCE_METADATA._meta.ui.prefersBorder, true);
@@ -35,6 +35,9 @@ test("rendered UI is host-themed, accessible, and leaves backend actions unavail
   assert.match(html, /aria-live/);
   assert.match(html, /disabled aria-disabled="true"/);
   assert.match(html, /navigator\.clipboard/);
+  assert.match(html, /NEXT LEARNING MODE/);
+  assert.match(html, /LEARNING EVENT/);
+  assert.match(html, /class="brand-mark"/);
   assert.doesNotMatch(html, /intervention_response|state_confidence|scientific_validation/);
 });
 
@@ -42,7 +45,7 @@ test("MCP Apps lifecycle listens before initialize and publishes ready plus size
   const html = getV2InChatUiHtml();
   assert.ok(html.indexOf('ui/notifications/tool-result') < html.indexOf('request("ui/initialize"'));
   assert.match(html, /protocolVersion = "2026-01-26"/);
-  assert.match(html, /appInfo: \{ name: "studymeta-v2-in-chat-ui", version: "0\.2\.0" \}/);
+  assert.match(html, /appInfo: \{ name: "studymeta-v2-in-chat-ui", version: "0\.3\.0" \}/);
   assert.match(html, /availableDisplayModes: \["inline"\]/);
   assert.match(html, /ui\/notifications\/initialized/);
   assert.match(html, /ui\/notifications\/size-changed/);
