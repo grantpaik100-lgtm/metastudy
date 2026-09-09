@@ -42,3 +42,18 @@ await writeFile(
   learnerCardPreview,
   "utf8",
 );
+
+const v2InChatModule = await import(
+  pathToFileURL(resolve(projectRoot, "dist/src/v2/mcp/in-chat-ui.js")).href,
+);
+const v2FixtureModule = await import(
+  pathToFileURL(resolve(projectRoot, "dist/src/v2/ui/mock/fixtures.js")).href,
+);
+await writeFile(
+  resolve(publicDirectory, "v2-in-chat-preview.html"),
+  v2InChatModule.getV2InChatUiHtml().replace(
+    "<head>",
+    `<head><script>window.__STUDYMETA_V2_PREVIEW_CONTENT__=${JSON.stringify({ learner_context: v2FixtureModule.syntheticLearnerContext, session_summary: v2FixtureModule.syntheticSessionSummary })};</script>`,
+  ),
+  "utf8",
+);

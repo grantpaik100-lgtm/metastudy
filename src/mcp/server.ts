@@ -1,4 +1,5 @@
 import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
+import { z } from "zod";
 import {
   GetLearnerContextInputSchema,
   GetLearnerContextOutputSchema,
@@ -14,6 +15,15 @@ import {
   LEARNER_CARD_MIME_TYPE,
   LEARNER_CARD_RESOURCE_URI,
 } from "./learner-card-ui.js";
+import {
+  getV2InChatUiHtml,
+  inChatUiFallbackText,
+  InChatUiDisplaySchema,
+  V2_IN_CHAT_MIME_TYPE,
+  V2_IN_CHAT_RESOURCE_METADATA,
+  V2_IN_CHAT_RESOURCE_URI,
+} from "../v2/mcp/in-chat-ui.js";
+import { SyntheticUiMockAdapter } from "../v2/mcp/synthetic-ui-mock-adapter.js";
 
 const LEARNER_CARD_FALLBACK_PREFIX = "STUDYMETA_LEARNER_CARD_DATA:";
 
@@ -153,6 +163,53 @@ export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer
           },
         },
       ],
+    }),
+  );
+
+  server.registerTool(
+    "preview_v2_in_chat_ui_synthetic",
+    {
+      title: "Preview StudyMeta v2 in-chat UI (synthetic only)",
+      description:
+        "Return an explicitly labeled synthetic_ui_mock Learner Context and Session Summary for MCP Apps UI preview. This preview never reads an authenticated learner, creates a session, records Evidence, or changes State. Production v2 in-chat rendering is unavailable until the authenticated v2 gateway is connected.",
+      inputSchema: z.object({}).strict(),
+      outputSchema: InChatUiDisplaySchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      _meta: {
+        ui: {
+          resourceUri: V2_IN_CHAT_RESOURCE_URI,
+          visibility: ["model", "app"],
+        },
+        "ui/resourceUri": V2_IN_CHAT_RESOURCE_URI,
+      },
+    },
+    async () => {
+      const display = await new SyntheticUiMockAdapter().getDisplay();
+      return {
+        content: [{ type: "text", text: inChatUiFallbackText(display) }],
+        structuredContent: display,
+      };
+    },
+  );
+
+  // UI-1 is a resource-only, production-shaped shell. It has no tool binding
+  // until the authenticated v2 gateway supplies contract-shaped projections.
+  server.registerResource(
+    "studymeta-v2-in-chat-ui",
+    V2_IN_CHAT_RESOURCE_URI,
+    V2_IN_CHAT_RESOURCE_METADATA,
+    async () => ({
+      contents: [{
+        uri: V2_IN_CHAT_RESOURCE_URI,
+        mimeType: V2_IN_CHAT_MIME_TYPE,
+        text: getV2InChatUiHtml(),
+        _meta: V2_IN_CHAT_RESOURCE_METADATA._meta,
+      }],
     }),
   );
 

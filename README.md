@@ -51,6 +51,7 @@ index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
 viewer.html                      Supabase Learner Context 검증 Viewer
 learner-card-preview.html        StudyMeta MCP Apps 카드의 독립 브라우저 미리보기 (build 생성)
+v2-in-chat-preview.html          v2 MCP/In-chat mock 카드의 독립 브라우저 미리보기 (build 생성)
 deliverables/                    제출용 IR Deck 및 발표 가이드
 design.md                        학생용 UI 설계 문서
 AGENTS.md                        저장소 작업 및 Learner Model 보존 지침
@@ -120,6 +121,33 @@ npm run dev:stdio
 ```
 
 ## MCP 도구
+
+### v2 MCP/In-chat UI preview (IR 전용)
+
+`preview_v2_in_chat_ui_synthetic`는 MCP Apps resource
+`ui://studymeta/v2/learner-context-and-session-summary`를 가리키는 **명시적
+`synthetic_ui_mock` preview 도구**입니다. 반환값은 UI-0의 `LearnerContextDisplay`와
+`SessionSummaryDisplay` 계약을 `structuredContent`와 동일한 text fallback으로 함께
+제공합니다. 이 도구는 인증된 학생을 읽지 않고, 세션·Evidence·State를 생성하거나 변경하지
+않습니다. 따라서 실제 v2 gateway가 연결되기 전의 IR 시연 용도로만 사용합니다.
+
+로컬 preview 실행:
+
+```bash
+npm ci
+npm run build
+npm run dev:http
+```
+
+MCP endpoint는 `http://127.0.0.1:3000/mcp`입니다. ChatGPT 또는 Claude 같은 host에
+연결할 때는 이 endpoint가 해당 host에서 도달 가능해야 하며, host가 MCP Apps resource와
+`ui/message`를 지원하지 않으면 tool의 text fallback을 그대로 사용합니다. 외부 host 연결을
+위한 tunnel, 배포, OAuth credential 생성은 이 저장소 작업의 범위가 아닙니다.
+
+실제 인증된 v2 UI 연결에는 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`와 user JWT를
+검증하는 authenticated v2 gateway가 필요합니다. 현재는 이 binding이 구현되지 않았으므로,
+production v2 in-chat tool은 제공하지 않으며 기존 `get_my_learner_context`에도 mock data를
+섞지 않습니다.
 
 ### MCP Apps learner card
 

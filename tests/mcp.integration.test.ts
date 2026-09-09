@@ -22,6 +22,12 @@ import {
   LEARNER_CARD_MIME_TYPE,
   LEARNER_CARD_RESOURCE_URI,
 } from "../src/mcp/learner-card-ui.js";
+import {
+  InChatUiDisplaySchema,
+  V2_IN_CHAT_FALLBACK_PREFIX,
+  V2_IN_CHAT_MIME_TYPE,
+  V2_IN_CHAT_RESOURCE_URI,
+} from "../src/v2/mcp/in-chat-ui.js";
 import type { StudyMetaRepository } from "../src/repositories/study-meta-repository.js";
 import { createStudyMetaServices } from "../src/services/service-container.js";
 
@@ -262,6 +268,7 @@ test("MCP tools read all three learner layers and withhold State changes until E
       [
         "get_learner_context",
         "get_my_learner_context",
+        "preview_v2_in_chat_ui_synthetic",
         "record_learning_event",
         "record_my_learning_event",
         "render_my_learner_card",
@@ -286,6 +293,12 @@ test("MCP tools read all three learner layers and withhold State changes until E
       ),
       true,
     );
+    assert.equal(
+      resources.resources.some(
+        (resource) => resource.uri === V2_IN_CHAT_RESOURCE_URI && resource.mimeType === V2_IN_CHAT_MIME_TYPE,
+      ),
+      true,
+    );
     const learnerCardResource = await client.readResource({
       uri: LEARNER_CARD_RESOURCE_URI,
     });
@@ -298,6 +311,41 @@ test("MCP tools read all three learner layers and withhold State changes until E
     assert.match(learnerCardHtml, /ui\/message/);
     assert.doesNotMatch(learnerCardHtml, /window\.openai/);
     assert.doesNotMatch(learnerCardHtml, /localStorage/);
+
+    const v2PreviewTool = tools.tools.find(
+      (tool) => tool.name === "preview_v2_in_chat_ui_synthetic",
+    );
+    assert.equal(
+      (v2PreviewTool?._meta as { ui?: { resourceUri?: string } } | undefined)?.ui
+        ?.resourceUri,
+      V2_IN_CHAT_RESOURCE_URI,
+    );
+    assert.match(v2PreviewTool?.description ?? "", /synthetic_ui_mock/);
+    assert.equal(tools.tools.some((tool) => tool.name === "render_v2_in_chat_ui"), false);
+
+    const v2Resource = await client.readResource({ uri: V2_IN_CHAT_RESOURCE_URI });
+    const v2Content = v2Resource.contents[0];
+    assert.equal(v2Content?.mimeType, V2_IN_CHAT_MIME_TYPE);
+    const v2Html = v2Content && "text" in v2Content ? v2Content.text : "";
+    assert.match(v2Html, /ui\/notifications\/tool-result/);
+    assert.match(v2Html, /가상 UI 예시 데이터/);
+
+    const v2Preview = await client.callTool({
+      name: "preview_v2_in_chat_ui_synthetic",
+      arguments: {},
+    });
+    assert.equal(v2Preview.isError, undefined);
+    const v2Display = InChatUiDisplaySchema.parse(v2Preview.structuredContent);
+    assert.equal(v2Display.learner_context.provenance.data_mode, "synthetic_ui_mock");
+    assert.equal(v2Display.learner_context.next_action.disabled, true);
+    assert.equal(v2Display.session_summary.next_actions[0]?.disabled, true);
+    const v2Text = v2Preview.content.filter((item) => item.type === "text").map((item) => item.text).join("\n");
+    const fallbackAt = v2Text.indexOf(V2_IN_CHAT_FALLBACK_PREFIX);
+    assert.notEqual(fallbackAt, -1);
+    assert.deepEqual(
+      InChatUiDisplaySchema.parse(JSON.parse(v2Text.slice(fallbackAt + V2_IN_CHAT_FALLBACK_PREFIX.length))),
+      v2Display,
+    );
 
     const started = await client.callTool({
       name: "get_my_learner_context",
@@ -468,6 +516,15 @@ test("Streamable HTTP exposes the same MCP tool contract", async () => {
     assert.equal(
       (result.structuredContent as Record<string, unknown>).student_id,
       demoStudentId,
+    );
+    const preview = await client.callTool({
+      name: "preview_v2_in_chat_ui_synthetic",
+      arguments: {},
+    });
+    assert.equal(preview.isError, undefined);
+    assert.equal(
+      InChatUiDisplaySchema.parse(preview.structuredContent).learner_context.provenance.data_mode,
+      "synthetic_ui_mock",
     );
   } finally {
     await client.close();
