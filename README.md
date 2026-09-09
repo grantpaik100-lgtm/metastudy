@@ -21,6 +21,7 @@ docs/
   openai-plugin-submission.md    OpenAI Plugin 제출·검수 기준
   studymeta-v2-foundation.md     v2 계약·DB 경계와 다음 단계 준수사항
   studymeta-v2-identity-rbac.md  v2 개인 계정·역할·RLS와 관리자 조회 계약
+  studymeta-v2-supabase-gateway.md v2 Auth·Data API·provisioning runbook
   tutor-mcp-comparison.md        Tutor MCP 기능 비교와 StudyMeta 범위 결정
 extensions/
   studymeta/                     Claude Desktop용 MCPB manifest 및 패키징 의존성
@@ -35,10 +36,15 @@ src/
 supabase/
   migrations/                    기존 스키마와 비공개 studymeta_v2 기반 migration
   seed.sql                       Demo Student seed
+scripts/
+  audit-supabase-auth-users.*    migration 전/후 읽기 전용 Auth backfill 감사
+  provision-studymeta-admins.ts  이메일→UUID dry-run 우선 관리자 도구
+  run-postgres-runtime.ps1       고유 TEMP DB를 만드는 PostgreSQL 런타임 검증 runner
 tests/
   mcp.integration.test.ts        실제 MCP client 호출 테스트
   v2/foundation-runtime.sql      폐기용 PostgreSQL 15+ migration·무결성 런타임 테스트
   v2/identity-rbac-runtime.sql   폐기용 PostgreSQL 15+ 계정·RLS·관리자 권한 테스트
+  v2/supabase-gateway-runtime.sql 폐기용 PostgreSQL 15+ Data API·RPC 경계 테스트
 index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
 viewer.html                      Supabase Learner Context 검증 Viewer
@@ -70,13 +76,15 @@ Preference는 측정된 Intervention Effectiveness와 동일하게 취급하지 
 
 ```dotenv
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
 SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+SUPABASE_SECRET_KEY=YOUR_SERVER_ONLY_SECRET_KEY
+# Legacy fallback only:
+SUPABASE_SERVICE_ROLE_KEY=YOUR_LEGACY_SERVICE_ROLE_KEY
 OAUTH_ALLOWED_EMAILS=you@example.com
 PORT=3000
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY`는 브라우저 코드에 넣으면 안 됩니다. Viewer는 서버의 `/api/learner-context`를 통해서만 데이터를 읽습니다. 모든 테이블은 RLS가 활성화되어 있으며 MVP에는 공개 anon policy가 없습니다.
+`SUPABASE_SECRET_KEY`와 legacy `SUPABASE_SERVICE_ROLE_KEY`는 브라우저 코드에 넣으면 안 됩니다. 사용자 JWT 검증과 learner 조회에는 publishable key + 사용자 access token만 사용합니다. v2 Data API와 관리자 dry-run 절차는 `docs/studymeta-v2-supabase-gateway.md`를 따릅니다.
 
 Demo Student ID:
 
@@ -328,7 +336,8 @@ Viewer는 Global Profile, Domain State, Skill State와 최근 Raw Event/Evidence
 
 ```text
 SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SECRET_KEY
 ```
 
 배포된 MCP URL은 다음 형태입니다.

@@ -6,7 +6,7 @@ import {
   isOAuthEmailAllowed,
   sendOAuthChallenge,
 } from "../src/auth/oauth.js";
-import { getEnvironment } from "../src/config/env.js";
+import { getEnvironment, getSupabaseSecretKey } from "../src/config/env.js";
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, {
@@ -36,7 +36,7 @@ export default async function handler(
     const environment = getEnvironment();
     const admin = createClient(
       environment.SUPABASE_URL,
-      environment.SUPABASE_SERVICE_ROLE_KEY,
+      getSupabaseSecretKey(environment),
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
     const existing = await admin

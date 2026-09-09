@@ -1,7 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ZodError } from "zod";
+import {
+  AuthenticationError,
+  authenticateRequest,
+  sendOAuthChallenge,
+} from "../src/auth/oauth.js";
 import { NotFoundError } from "../src/domain/errors.js";
-import { getDefaultServices } from "../src/services/default-services.js";
+import { createAuthenticatedReadServices } from "../src/services/default-services.js";
 
 function sendJson(
   response: ServerResponse,
@@ -28,7 +33,6 @@ export default async function handler(
     request.url ?? "/api/learner-context",
     `https://${request.headers.host ?? "localhost"}`,
   );
-  const studentId = url.searchParams.get("student_id");
   const domain = url.searchParams.get("domain");
   const skillId = url.searchParams.get("skill_id");
   const demoMode = url.searchParams.get("demo_mode");
@@ -37,18 +41,13 @@ export default async function handler(
     "include_experimental_states",
   );
 
-  if (!studentId || !domain) {
-    sendJson(response, 400, {
-      error: "student_id and domain query parameters are required",
-    });
-    return;
-  }
-
   try {
-    const service = getDefaultServices().learnerStateService;
-    const context = await service.getContext({
-      student_id: studentId,
-      domain,
+    const authenticated = await authenticateRequest(request);
+    const service = createAuthenticatedReadServices(
+      authenticated.accessToken,
+    ).learnerStateService;
+    const context = await service.getMyContext({
+      ...(domain ? { domain } : {}),
       ...(skillId ? { skill_id: skillId } : {}),
       ...(demoMode ? { demo_mode: demoMode === "true" } : {}),
       ...(learnerProfileType
@@ -65,6 +64,10 @@ export default async function handler(
     });
     sendJson(response, 200, context);
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      sendOAuthChallenge(request, response, error.message);
+      return;
+    }
     if (error instanceof ZodError) {
       sendJson(response, 400, { error: "Invalid query", details: error.issues });
       return;

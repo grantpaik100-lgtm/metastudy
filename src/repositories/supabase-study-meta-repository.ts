@@ -315,3 +315,18 @@ export function createSupabaseRepository(
     : client;
   return new SupabaseStudyMetaRepository(client, stateWriter);
 }
+
+export function createUserScopedSupabaseRepository(
+  url: string,
+  publishableKey: string,
+  accessToken: string,
+): SupabaseStudyMetaRepository {
+  return createSupabaseRepository(url, publishableKey, accessToken);
+}
+
+export function createElevatedSupabaseRepository(
+  url: string,
+  secretKey: string,
+): SupabaseStudyMetaRepository {
+  return createSupabaseRepository(url, secretKey);
+}

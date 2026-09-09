@@ -27,6 +27,8 @@ test("Bearer token parsing rejects missing and malformed authorization", () => {
   assert.equal(extractBearerToken("Bearer token-value"), "token-value");
   assert.throws(() => extractBearerToken(undefined), AuthenticationError);
   assert.throws(() => extractBearerToken("Basic abc"), AuthenticationError);
+  assert.throws(() => extractBearerToken("Bearer token with spaces"), AuthenticationError);
+  assert.throws(() => extractBearerToken("Bearer token,second"), AuthenticationError);
 });
 
 test("OAuth consent page emits parseable browser JavaScript", () => {

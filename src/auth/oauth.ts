@@ -1,15 +1,36 @@
-import { createClient, type User } from "@supabase/supabase-js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   getAllowedOAuthEmails,
   getEnvironment,
+  getSupabasePublicKey,
 } from "../config/env.js";
+import { createAuthVerificationClient } from "../supabase/clients.js";
 
 export const oauthScopes = ["openid", "email", "profile"] as const;
 
 export interface AuthenticatedRequest {
   accessToken: string;
-  user: User;
+  user: VerifiedAuthUser;
+}
+
+export interface VerifiedAuthUser {
+  id: string;
+  email?: string | undefined;
+}
+
+interface AuthVerificationClient {
+  auth: {
+    getUser(jwt: string): Promise<{
+      data: { user: VerifiedAuthUser | null };
+      error: { message: string } | null;
+    }>;
+  };
+}
+
+interface VerifyUserAccessTokenOptions {
+  supabaseUrl: string;
+  publishableKey: string;
+  createAuthClient?: (url: string, key: string) => AuthVerificationClient;
 }
 
 export interface ProtectedResourceMetadata {
@@ -59,11 +80,39 @@ export function buildProtectedResourceMetadata(
 
 export function extractBearerToken(header: string | string[] | undefined): string {
   const value = Array.isArray(header) ? header[0] : header;
-  const match = value?.match(/^Bearer\s+(.+)$/i);
-  if (!match?.[1]) {
+  const match = value?.match(/^Bearer ([^\s,]+)$/i);
+  if (!match?.[1] || match[1].length > 16_384) {
     throw new AuthenticationError();
   }
-  return match[1].trim();
+  return match[1];
+}
+
+export async function verifyUserAccessToken(
+  accessToken: string,
+  options: VerifyUserAccessTokenOptions,
+): Promise<VerifiedAuthUser> {
+  const createAuthClient =
+    options.createAuthClient ?? createAuthVerificationClient;
+  const authClient = createAuthClient(
+    options.supabaseUrl,
+    options.publishableKey,
+  );
+  let result: Awaited<ReturnType<AuthVerificationClient["auth"]["getUser"]>>;
+  try {
+    result = await authClient.auth.getUser(accessToken);
+  } catch {
+    throw new AuthenticationError("Invalid or expired access token");
+  }
+  if (result.error || !result.data.user || !isUuid(result.data.user.id)) {
+    throw new AuthenticationError("Invalid or expired access token");
+  }
+  return result.data.user;
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 export async function authenticateRequest(
@@ -71,16 +120,11 @@ export async function authenticateRequest(
 ): Promise<AuthenticatedRequest> {
   const accessToken = extractBearerToken(request.headers.authorization);
   const environment = getEnvironment();
-  const authClient = createClient(
-    environment.SUPABASE_URL,
-    environment.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-  const { data, error } = await authClient.auth.getUser(accessToken);
-  if (error || !data.user) {
-    throw new AuthenticationError("Invalid or expired access token");
-  }
-  return { accessToken, user: data.user };
+  const user = await verifyUserAccessToken(accessToken, {
+    supabaseUrl: environment.SUPABASE_URL,
+    publishableKey: getSupabasePublicKey(environment),
+  });
+  return { accessToken, user };
 }
 
 export function isOAuthEmailAllowed(email: string | undefined): boolean {

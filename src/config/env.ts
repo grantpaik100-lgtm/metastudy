@@ -5,7 +5,8 @@ config({ path: [".env.local", ".env"], quiet: true });
 
 const EnvironmentSchema = z.object({
   SUPABASE_URL: z.url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   OAUTH_ALLOWED_EMAILS: z.string().default(""),
@@ -34,6 +35,19 @@ export function getSupabasePublicKey(
   if (!key) {
     throw new Error(
       "SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY is required for OAuth",
+    );
+  }
+  return key;
+}
+
+export function getSupabaseSecretKey(
+  environment: Environment = getEnvironment(),
+): string {
+  const key =
+    environment.SUPABASE_SECRET_KEY ?? environment.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) {
+    throw new Error(
+      "SUPABASE_SECRET_KEY or legacy SUPABASE_SERVICE_ROLE_KEY is required for elevated server operations",
     );
   }
   return key;
