@@ -32,7 +32,10 @@ tests/
 index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
 viewer.html                      Supabase Learner Context 검증 Viewer
-design.md                        학생용 UI 설계 문서
+design.md                        학생용 UI 설계 문서 (v0.6 재작성 중 — 1단계 리서치 단계)
+docs/
+  interview-guide.md             1단계 사용자 인터뷰 가이드 (검증할 가정, 질문지, 정리 절차)
+  interviews/                    인터뷰 기록
 AGENTS.md                        저장소 작업 및 Learner Model 보존 지침
 md/                              공개 저장소에서 제외되는 로컬 연구 노트
 ```
