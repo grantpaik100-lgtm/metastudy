@@ -143,9 +143,10 @@ function receiveOp({ rev, op, by, name }) {
   applyOp(state, op, { trusted: true });
   if (op.type === "screen.move") { moveNode(op.id, by); return; }
   // 그림 저장이 서버에서 빠졌다면 서버가 예전 board-ops.js를 쓰고 있다는 뜻이다.
-  if (by === clientId && op.type === "screen.update" && drawSaveCheck === op.id) {
+  if (by === clientId && op.type === "screen.update" && drawSaveCheck?.id === op.id) {
+    const sentFrame = drawSaveCheck.frame;
     drawSaveCheck = null;
-    if (!op.fields || !("drawing" in op.fields)) toast("서버가 예전 board-ops.js를 쓰고 있어서 그림이 저장되지 않았어요. board-ops.js를 교체하고 서버를 다시 켜 주세요.");
+    if (!op.fields || !("drawing" in op.fields) || op.fields.drawing.frame !== sentFrame) toast("서버가 예전 board-ops.js를 쓰고 있어서 그림이 저장되지 않았어요. board-ops.js를 교체하고 서버를 다시 켜 주세요.");
   }
   if (by !== clientId && draw && (op.id === draw.screenId || op.type === "replace")) {
     const notice = drawDialog()?.querySelector(".dw-notice");
@@ -640,7 +641,52 @@ function injectWebStyles() {
 // ── 그리기 도구 ─────────────────────────────────────────────────────
 // 화면마다 drawing { frame, shapes } 를 저장한다(board-ops.js의 drawingField가 검사).
 // 도형이 하나라도 있으면 그 화면은 글자 블록 대신 그림으로 그려진다. 좌표는 틀의 가상 크기 기준이다.
-const DRAW_FRAME_SIZE = { phone: { label: "폰", width: 390, height: 760 }, web: { label: "웹", width: 1280, height: 800 } };
+const DRAW_FRAME_SIZE = { phone: { label: "폰", width: 390, height: 760 }, chatgpt: { label: "ChatGPT", width: 390, height: 760 }, web: { label: "웹", width: 1280, height: 800 } };
+// ChatGPT 틀: 위쪽 머리줄과 아래 입력창은 고정 배경으로 깔고, 그 사이 대화 영역(48~696)에 그린다.
+const CHAT_AREA = { top: 48, bottom: 696 };
+function frameUnderlay(frame) {
+  if (frame !== "chatgpt") return "";
+  return `<g pointer-events="none"><rect x="0" y="0" width="390" height="48" fill="#ffffff"/><line x1="0" y1="48" x2="390" y2="48" stroke="#ececec"/><text x="18" y="30" font-size="17" font-weight="700" fill="#0d0d0d">ChatGPT</text><text x="372" y="30" font-size="12" fill="#8e8e8e" text-anchor="end">StudyMeta 연결됨</text><rect x="14" y="704" width="362" height="44" rx="22" fill="#ffffff" stroke="#e3e3e3"/><text x="34" y="731" font-size="14" fill="#8e8e8e">무엇이든 물어보세요</text><circle cx="352" cy="726" r="14" fill="#0d0d0d"/><text x="352" y="731" font-size="14" fill="#fff" text-anchor="middle">↑</text></g>`;
+}
+// ChatGPT 요소 도장: 기본 도형 몇 개를 묶어 한 번에 넣는다. y는 넣을 위치 기준 상대 좌표.
+const CHAT_STAMPS = {
+  user: { label: "사용자 말풍선", shapes: [{ type: "rect", x: 150, y: 0, w: 222, h: 44, text: "사용자 메시지", tone: "soft", size: "s", round: true }] },
+  tool: { label: "도구 호출", shapes: [{ type: "text", x: 18, y: 0, text: "⚙ StudyMeta 사용 중", tone: "soft", size: "s" }] },
+  ai: { label: "AI 답변", shapes: [{ type: "text", x: 18, y: 0, text: "AI 답변을 적어 주세요", tone: "line", size: "m" }] },
+  inline: { label: "Inline 카드", shapes: [
+    { type: "rect", x: 16, y: 0, w: 358, h: 160, tone: "line", round: true },
+    { type: "text", x: 30, y: 10, text: "StudyMeta · Inline 카드", tone: "accent", size: "s" },
+    { type: "line", x: 16, y: 40, w: 358, h: 0, tone: "soft" },
+    { type: "text", x: 30, y: 52, text: "카드 내용", tone: "line", size: "m" },
+    { type: "rect", x: 30, y: 114, w: 110, h: 32, text: "버튼 1", tone: "dark", size: "s", round: true },
+    { type: "rect", x: 150, y: 114, w: 110, h: 32, text: "버튼 2", tone: "line", size: "s", round: true },
+  ] },
+  carousel: { label: "캐러셀", shapes: [
+    { type: "text", x: 18, y: 0, text: "StudyMeta · 캐러셀", tone: "accent", size: "s" },
+    { type: "rect", x: 16, y: 26, w: 170, h: 150, tone: "line", round: true },
+    { type: "image", x: 28, y: 38, w: 146, h: 60, round: true },
+    { type: "text", x: 28, y: 108, text: "카드 1", tone: "line", size: "m" },
+    { type: "rect", x: 28, y: 138, w: 90, h: 28, text: "선택", tone: "dark", size: "s", round: true },
+    { type: "rect", x: 196, y: 26, w: 170, h: 150, tone: "line", round: true },
+    { type: "image", x: 208, y: 38, w: 146, h: 60, round: true },
+    { type: "text", x: 208, y: 108, text: "카드 2", tone: "line", size: "m" },
+    { type: "rect", x: 208, y: 138, w: 90, h: 28, text: "선택", tone: "dark", size: "s", round: true },
+  ] },
+  pip: { label: "PiP", fixedY: 60, shapes: [
+    { type: "rect", x: 164, y: 0, w: 210, h: 132, tone: "line", round: true },
+    { type: "text", x: 176, y: 10, text: "StudyMeta · PiP", tone: "accent", size: "s" },
+    { type: "text", x: 356, y: 10, text: "✕", tone: "soft", size: "s" },
+    { type: "line", x: 164, y: 38, w: 210, h: 0, tone: "soft" },
+    { type: "text", x: 176, y: 50, text: "계속 떠 있는 내용", tone: "line", size: "s" },
+  ] },
+  fullscreen: { label: "Fullscreen", fixedY: 48, shapes: [
+    { type: "rect", x: 0, y: 0, w: 390, h: 648, tone: "line" },
+    { type: "text", x: 18, y: 14, text: "StudyMeta · Fullscreen", tone: "accent", size: "m" },
+    { type: "text", x: 356, y: 14, text: "✕", tone: "soft", size: "m" },
+    { type: "line", x: 0, y: 50, w: 390, h: 0, tone: "soft" },
+    { type: "text", x: 18, y: 66, text: "전체 화면 내용", tone: "line", size: "m" },
+  ] },
+};
 const DRAW_TOOL_LIST = [["select", "선택", "V", "↖"], ["rect", "사각형", "R", "▭"], ["ellipse", "원", "O", "◯"], ["line", "선", "L", "╱"], ["arrow", "화살표", "A", "↗"], ["text", "텍스트", "T", "T"], ["image", "이미지 자리", "I", "⊠"]];
 const DRAW_TONE_LIST = [["line", "선만"], ["soft", "회색"], ["accent", "보라"], ["dark", "검정"]];
 const DRAW_SIZE_LIST = [["s", "작게"], ["m", "보통"], ["l", "크게"]];
@@ -655,6 +701,13 @@ const LINE_TYPES = new Set(["line", "arrow"]);
 const drawingOf = (screen) => (screen?.drawing && Array.isArray(screen.drawing.shapes) ? screen.drawing : null);
 const hasDrawing = (screen) => (drawingOf(screen)?.shapes.length || 0) > 0;
 const isWideScreen = (screen) => (hasDrawing(screen) ? screen.drawing.frame === "web" : isWebScreen(screen));
+// 상자 도형 안에 완전히 들어 있고 그 위에 그려진 도형들. 상자를 옮기거나 복제할 때 함께 다룬다.
+function shapesInside(container, shapes) {
+  if (LINE_TYPES.has(container.type) || container.type === "text") return [];
+  const box = boxOf(container), index = shapes.indexOf(container);
+  const inside = (x, y) => x >= box.x - .5 && x <= box.x + box.w + .5 && y >= box.y - .5 && y <= box.y + box.h + .5;
+  return shapes.slice(index + 1).filter((shape) => { const other = boxOf(shape); return inside(other.x, other.y) && inside(other.x + other.w, other.y + other.h); });
+}
 const shapeId = () => `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const boxOf = (shape) => ({ x: Math.min(shape.x, shape.x + shape.w), y: Math.min(shape.y, shape.y + shape.h), w: Math.abs(shape.w), h: Math.abs(shape.h) });
 // 글자 폭을 대충 잰다(한글·전각은 글자 크기만큼, 나머지는 0.6배).
@@ -699,7 +752,7 @@ function shapeSvg(shape, editing) {
 function drawingView(screen, footer) {
   const drawing = drawingOf(screen);
   const frame = DRAW_FRAME_SIZE[drawing.frame] || DRAW_FRAME_SIZE.phone;
-  const svg = `<svg class="dw-view" viewBox="0 0 ${frame.width} ${frame.height}" preserveAspectRatio="xMidYMin meet" role="img" aria-label="${escapeHtml(screen.title || "화면")} 그림">${drawing.shapes.map((shape) => shapeSvg(shape, false)).join("")}</svg>`;
+  const svg = `<svg class="dw-view" viewBox="0 0 ${frame.width} ${frame.height}" preserveAspectRatio="xMidYMin meet" role="img" aria-label="${escapeHtml(screen.title || "화면")} 그림">${frameUnderlay(drawing.frame)}${drawing.shapes.map((shape) => shapeSvg(shape, false)).join("")}</svg>`;
   if (drawing.frame === "web") return `<div class="wb-shell"><div class="wb-web dw-webview"><div class="wb-chrome"><i></i><i></i><i></i><span class="wb-url">studymeta.app · ${escapeHtml(screen.title || "")}</span></div>${svg}</div>${footer}</div>`;
   return `<div class="phone-frame flow-phone dw-phone"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div>${svg}${footer}</div><div class="phone-home"></div></div>`;
 }
@@ -736,7 +789,7 @@ function openDraw(screenId) {
   if (!screen) return;
   ensureDrawDialog();
   const saved = drawingOf(screen);
-  draw = { screenId, title: screen.title, frame: saved?.frame || (isWebScreen(screen) ? "web" : "phone"), shapes: JSON.parse(JSON.stringify(saved?.shapes || [])), selected: null, tool: "select", tone: "line", size: "m", round: false, grid: true, history: [], future: [], dirty: false, action: null, textFocused: false };
+  draw = { screenId, title: screen.title, frame: saved?.frame || (isWebScreen(screen) ? "web" : isChatScreen(screen) ? "chatgpt" : "phone"), shapes: JSON.parse(JSON.stringify(saved?.shapes || [])), selected: null, tool: "select", tone: "line", size: "m", round: false, grid: true, history: [], future: [], dirty: false, action: null, textFocused: false };
   const dialog = drawDialog();
   dialog.querySelector(".dw-title").value = screen.title;
   dialog.querySelector(".dw-notice").hidden = true;
@@ -761,7 +814,7 @@ function saveDraw() {
   const title = drawDialog().querySelector(".dw-title").value.trim();
   if (title && title !== screen.title) fields.title = title;
   if (!commit({ type: "screen.update", id: draw.screenId, fields })) return;
-  drawSaveCheck = draw.screenId;
+  drawSaveCheck = { id: draw.screenId, frame: draw.frame };
   closeDraw(true);
   toast("그림을 저장했습니다.");
 }
@@ -770,13 +823,14 @@ function fitDrawDevice() {
   const dialog = drawDialog();
   const stage = dialog.querySelector(".dw-stage"), device = dialog.querySelector(".dw-device"), svg = dialog.querySelector("#dw-svg");
   const frame = DRAW_FRAME_SIZE[draw.frame];
-  const bar = draw.frame === "phone" ? 24 : 28, border = draw.frame === "phone" ? 16 : 2;
+  const phoneLike = draw.frame !== "web";
+  const bar = phoneLike ? 24 : 28, border = phoneLike ? 16 : 2;
   const room = { width: stage.clientWidth - 32 - border, height: stage.clientHeight - 32 - border - bar };
   const scale = Math.max(.1, Math.min(room.width / frame.width, room.height / frame.height));
   svg.style.width = `${Math.floor(frame.width * scale)}px`;
   svg.style.height = `${Math.floor(frame.height * scale)}px`;
-  device.className = `dw-device ${draw.frame}`;
-  device.querySelector(".dw-device-bar").innerHTML = draw.frame === "phone" ? "<span>9:41</span><span>●●● ▰</span>" : `<i></i><i></i><i></i><span>studymeta.app · ${escapeHtml(draw.title || "")}</span>`;
+  device.className = `dw-device ${phoneLike ? "phone" : "web"}`;
+  device.querySelector(".dw-device-bar").innerHTML = phoneLike ? "<span>9:41</span><span>●●● ▰</span>" : `<i></i><i></i><i></i><span>studymeta.app · ${escapeHtml(draw.title || "")}</span>`;
 }
 function renderDrawSvg() {
   const svg = drawDialog().querySelector("#dw-svg");
@@ -795,7 +849,7 @@ function renderDrawSvg() {
       selection = `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="none" stroke="#7c6cd8" stroke-width="${1.5 * unit}" stroke-dasharray="${4 * unit} ${3 * unit}" pointer-events="none"/>` + (shape.type === "text" ? "" : handle("nw", box.x, box.y) + handle("ne", box.x + box.w, box.y) + handle("sw", box.x, box.y + box.h) + handle("se", box.x + box.w, box.y + box.h));
     }
   }
-  svg.innerHTML = `<rect width="100%" height="100%" fill="#fff"/>${grid}${draw.shapes.map((item) => shapeSvg(item, true)).join("")}${selection}`;
+  svg.innerHTML = `<rect width="100%" height="100%" fill="#fff"/>${grid}${frameUnderlay(draw.frame)}${draw.shapes.map((item) => shapeSvg(item, true)).join("")}${selection}`;
 }
 function renderDrawUi() {
   if (!draw) return;
@@ -816,6 +870,7 @@ function renderDrawUi() {
   if (!draw.textFocused) textField.value = shape?.text || "";
   textField.placeholder = shape ? "도형에 넣을 글자 (Enter로 줄바꿈)" : "도형을 선택하면 글자를 넣을 수 있어요";
   dialog.querySelector(".dw-count").textContent = `도형 ${draw.shapes.length}개`;
+  dialog.querySelector(".dw-stamps").hidden = draw.frame !== "chatgpt";
   fitDrawDevice();
   renderDrawSvg();
 }
@@ -849,7 +904,25 @@ function drawCommand(command, value) {
   if (command === "undo") { undoDraw(); return; }
   if (command === "redo") { redoDraw(); return; }
   if (command === "delete" && shape) { pushDrawHistory(); draw.shapes = draw.shapes.filter((item) => item !== shape); draw.selected = null; }
-  if (command === "duplicate" && shape) { pushDrawHistory(); const copy = { ...shape, id: shapeId(), x: shape.x + 20, y: shape.y + 20 }; draw.shapes.push(copy); draw.selected = copy.id; }
+  if (command === "duplicate" && shape) {
+    pushDrawHistory();
+    const copies = [shape, ...shapesInside(shape, draw.shapes)].map((item) => ({ ...item, id: shapeId(), x: item.x + 20, y: item.y + 20 }));
+    draw.shapes.push(...copies);
+    draw.selected = copies[0].id;
+  }
+  if (command === "stamp" && CHAT_STAMPS[value]) {
+    // 고정 위치 요소(PiP · Fullscreen)가 아니면 지금까지 그린 것 아래에 이어 붙인다(대화가 쌓이는 방향).
+    const stamp = CHAT_STAMPS[value];
+    const bottom = Math.max(CHAT_AREA.top + 4, ...draw.shapes.map((item) => boxOf(item).y + boxOf(item).h).filter((y) => y < CHAT_AREA.bottom));
+    const height = Math.max(...stamp.shapes.map((item) => item.y + (item.h || 24)));
+    const top = stamp.fixedY ?? snapValue(Math.min(bottom + 12, CHAT_AREA.bottom - height));
+    pushDrawHistory();
+    const shapes = stamp.shapes.map((item) => ({ w: 0, h: 0, text: "", tone: "line", size: "m", round: false, ...item, id: shapeId(), y: item.y + top }));
+    shapes.filter((item) => item.type === "text").forEach(fitTextBox);
+    draw.shapes.push(...shapes);
+    draw.selected = shapes[0].id;
+    draw.tool = "select";
+  }
   if ((command === "front" || command === "back") && shape) { pushDrawHistory(); draw.shapes = draw.shapes.filter((item) => item !== shape); if (command === "front") draw.shapes.push(shape); else draw.shapes.unshift(shape); }
   if (command === "save") { saveDraw(); return; }
   if (command === "close") { closeDraw(); return; }
@@ -874,7 +947,7 @@ function drawPointerDown(event) {
   if (draw.tool === "select") {
     draw.selected = hit ? hit.dataset.shapeId : null;
     const shape = selectedShape();
-    draw.action = shape ? { kind: "move", start: point, origin: { x: shape.x, y: shape.y }, pushed: false } : null;
+    draw.action = shape ? { kind: "move", start: point, origin: { x: shape.x, y: shape.y }, children: shapesInside(shape, draw.shapes).map((child) => ({ child, x: child.x, y: child.y })), pushed: false } : null;
     renderDrawUi();
     return;
   }
@@ -911,6 +984,7 @@ function drawPointerMove(event) {
     if (!action.pushed && (dx || dy)) { pushDrawHistory(); action.pushed = true; }
     shape.x = action.origin.x + dx;
     shape.y = action.origin.y + dy;
+    for (const { child, x, y } of action.children) { child.x = x + dx; child.y = y + dy; }
   }
   if (action.kind === "resize") {
     const x = snapValue(point.x), y = snapValue(point.y), origin = action.origin;
@@ -959,7 +1033,8 @@ function drawKeyDown(event) {
   if (arrows && selectedShape()) {
     event.preventDefault();
     const step = event.shiftKey || draw.grid ? 10 : 1;
-    applyToSelection((shape) => { shape.x += arrows[0] * step; shape.y += arrows[1] * step; });
+    const children = shapesInside(selectedShape(), draw.shapes);
+    applyToSelection((shape) => { for (const item of [shape, ...children]) { item.x += arrows[0] * step; item.y += arrows[1] * step; } });
     return;
   }
   const tool = DRAW_TOOL_LIST.find(([, , shortcut]) => shortcut.toLowerCase() === key);
@@ -974,9 +1049,9 @@ function ensureDrawDialog() {
   dialog.setAttribute("aria-label", "화면 그리기");
   dialog.innerHTML = `<div class="dw-top"><input class="dw-title" aria-label="화면 이름" maxlength="200"><div class="dw-seg" role="group" aria-label="화면 틀">${Object.entries(DRAW_FRAME_SIZE).map(([value, frame]) => button(`data-dw-frame data-value="${value}" aria-pressed="false"`, frame.label)).join("")}</div><span class="dw-count" aria-live="polite"></span><span class="dw-spacer"></span>${button(`data-dw="undo"`, "↶ 되돌리기", "되돌리기 (Ctrl/⌘+Z)")}${button(`data-dw="redo"`, "↷ 다시", "다시 실행 (Ctrl/⌘+Shift+Z)")}${button(`data-dw="close"`, "닫기")}${button(`data-dw="save" class="dw-primary"`, "저장", "저장 (Ctrl/⌘+S)")}</div>
   <p class="dw-notice" role="status" hidden></p>
-  <div class="dw-body"><div class="dw-tools" role="toolbar" aria-label="그리기 도구"><span class="dw-group-label">도구</span>${DRAW_TOOL_LIST.map(([value, label, key, icon]) => button(`data-dw-tool data-value="${value}" aria-pressed="false"`, `<b aria-hidden="true">${icon}</b>${label}<kbd>${key}</kbd>`, `${label} (${key})`)).join("")}<span class="dw-sep"></span><span class="dw-group-label">색</span>${DRAW_TONE_LIST.map(([value, label]) => button(`data-dw-tone data-value="${value}" aria-pressed="false"`, `<i class="dw-swatch" style="background:${TONE_STYLE[value].fill};border-color:${TONE_STYLE[value].stroke}"></i>${label}`)).join("")}<span class="dw-sep"></span><span class="dw-group-label">글자 크기</span>${DRAW_SIZE_LIST.map(([value, label]) => button(`data-dw-size data-value="${value}" aria-pressed="false"`, label)).join("")}<span class="dw-sep"></span>${button(`data-dw="round" aria-pressed="false"`, "둥근 모서리")}${button(`data-dw="grid" aria-pressed="true"`, "격자에 맞추기")}<span class="dw-sep"></span>${button(`data-dw="duplicate"`, "복제", "복제 (Ctrl/⌘+D)")}${button(`data-dw="front"`, "맨 앞으로")}${button(`data-dw="back"`, "맨 뒤로")}${button(`data-dw="delete" class="dw-danger"`, "삭제", "삭제 (Delete)")}</div>
+  <div class="dw-body"><div class="dw-tools" role="toolbar" aria-label="그리기 도구"><span class="dw-group-label">도구</span>${DRAW_TOOL_LIST.map(([value, label, key, icon]) => button(`data-dw-tool data-value="${value}" aria-pressed="false"`, `<b aria-hidden="true">${icon}</b>${label}<kbd>${key}</kbd>`, `${label} (${key})`)).join("")}<div class="dw-stamps" role="group" aria-label="ChatGPT 요소"><span class="dw-sep"></span><span class="dw-group-label">ChatGPT 요소</span>${Object.entries(CHAT_STAMPS).map(([value, stamp]) => button(`data-dw-stamp data-value="${value}"`, `<b aria-hidden="true">＋</b>${stamp.label}`)).join("")}</div><span class="dw-sep"></span><span class="dw-group-label">색</span>${DRAW_TONE_LIST.map(([value, label]) => button(`data-dw-tone data-value="${value}" aria-pressed="false"`, `<i class="dw-swatch" style="background:${TONE_STYLE[value].fill};border-color:${TONE_STYLE[value].stroke}"></i>${label}`)).join("")}<span class="dw-sep"></span><span class="dw-group-label">글자 크기</span>${DRAW_SIZE_LIST.map(([value, label]) => button(`data-dw-size data-value="${value}" aria-pressed="false"`, label)).join("")}<span class="dw-sep"></span>${button(`data-dw="round" aria-pressed="false"`, "둥근 모서리")}${button(`data-dw="grid" aria-pressed="true"`, "격자에 맞추기")}<span class="dw-sep"></span>${button(`data-dw="duplicate"`, "복제", "복제 (Ctrl/⌘+D)")}${button(`data-dw="front"`, "맨 앞으로")}${button(`data-dw="back"`, "맨 뒤로")}${button(`data-dw="delete" class="dw-danger"`, "삭제", "삭제 (Delete)")}</div>
   <div class="dw-stage"><div class="dw-device"><div class="dw-device-bar"></div><svg id="dw-svg" class="dw-svg" xmlns="http://www.w3.org/2000/svg" tabindex="0" role="application" aria-label="그림판. 도구를 고른 뒤 끌어서 그리세요."></svg></div></div></div>
-  <div class="dw-bottom"><label class="dw-text"><span>글자</span><textarea id="dw-text" rows="1"></textarea></label><small>끌어서 그리기 · Shift: 정사각형 · 정원 · 45° · 방향키: 이동 · Delete: 삭제 · Esc: 선택 해제</small></div>`;
+  <div class="dw-bottom"><label class="dw-text"><span>글자</span><textarea id="dw-text" rows="1"></textarea></label><small>끌어서 그리기 · Shift: 정사각형 · 정원 · 45° · 큰 도형을 옮기면 안에 든 도형도 함께 움직여요 · Delete: 삭제 · Esc: 선택 해제</small></div>`;
   document.body.append(dialog);
   dialog.addEventListener("click", (event) => {
     const target = event.target.closest("button");
@@ -985,6 +1060,7 @@ function ensureDrawDialog() {
     else if ("dwFrame" in target.dataset) drawCommand("frame", target.dataset.value);
     else if ("dwTone" in target.dataset) drawCommand("tone", target.dataset.value);
     else if ("dwSize" in target.dataset) drawCommand("size", target.dataset.value);
+    else if ("dwStamp" in target.dataset) drawCommand("stamp", target.dataset.value);
     else if (target.dataset.dw) drawCommand(target.dataset.dw);
   });
   dialog.addEventListener("keydown", drawKeyDown);
@@ -1042,6 +1118,7 @@ function injectDrawStyles() {
 .dw-tools b{width:16px;text-align:center}
 .dw-tools kbd{margin-left:auto;color:#9aa1ad;font:11px ui-monospace,monospace}
 .dw-tools .dw-danger{color:#b42318}
+.dw-stamps{display:flex;flex-direction:column;gap:4px}.dw-stamps[hidden]{display:none}
 .dw-sep{flex:none;height:1px;margin:4px 0;background:#e3e5ec}
 .dw-group-label{color:#6b7280;font-size:11px;font-weight:700}
 .dw-swatch{display:inline-block;width:12px;height:12px;border:1.5px solid;border-radius:3px}
@@ -1060,7 +1137,7 @@ function injectDrawStyles() {
 .dw-text{display:flex;align-items:center;gap:8px;flex:1 1 320px;font-weight:700}
 .dw-text textarea{flex:1;min-width:0;resize:vertical;padding:6px 8px;border:1px solid #d5d8e1;border-radius:8px;font:inherit;font-weight:400}
 .dw-bottom small{color:#6b7280}
-@media (max-width:760px){.dw-dialog{width:100vw;height:100vh;border-radius:0}.dw-body{flex-direction:column}.dw-tools{flex-direction:row;flex-wrap:wrap;width:auto;max-height:118px;border-right:0;border-bottom:1px solid #e3e5ec}.dw-sep{width:1px;height:auto;margin:0 2px}.dw-group-label,.dw-tools kbd,.dw-bottom small{display:none}}
+@media (max-width:760px){.dw-dialog{width:100vw;height:100vh;border-radius:0}.dw-body{flex-direction:column}.dw-tools{flex-direction:row;flex-wrap:wrap;width:auto;max-height:118px;border-right:0;border-bottom:1px solid #e3e5ec}.dw-sep{width:1px;height:auto;margin:0 2px}.dw-stamps{flex-direction:row;flex-wrap:wrap}.dw-group-label,.dw-tools kbd,.dw-bottom small{display:none}}
 `;
   document.head.append(style);
 }
