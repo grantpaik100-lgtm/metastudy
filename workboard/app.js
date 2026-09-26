@@ -24,7 +24,7 @@ let toastTimer;
 // 흐름도 확대·축소. 트랙패드 핀치(ctrlKey가 붙은 wheel), 버튼, 전체 맞춤을 지원한다.
 const NODE_W = 248, NODE_H = 542, SCALE_MIN = .25, SCALE_MAX = 2, SCALE_KEY = "workboard-flow-scale";
 const stageSize = () => ({
-  width: Math.max(1930, ...state.screens.map((screen) => (Number.isFinite(screen.x) ? screen.x : 0) + NODE_W + 70)),
+  width: Math.max(1930, ...state.screens.map((screen) => (Number.isFinite(screen.x) ? screen.x : 0) + nodeWidth(screen) + 70)),
   height: Math.max(1230, ...state.screens.map((screen) => (Number.isFinite(screen.y) ? screen.y : 0) + NODE_H + 70)),
 });
 const clampScale = (value) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, value));
@@ -61,7 +61,7 @@ function setScale(next, anchor) {
 function fitScale() {
   const scroll = document.querySelector(".flow-scroll");
   if (!scroll || !state.screens.length) return;
-  const right = Math.max(...state.screens.map((item) => (Number.isFinite(item.x) ? item.x : 0) + NODE_W + 30));
+  const right = Math.max(...state.screens.map((item) => (Number.isFinite(item.x) ? item.x : 0) + nodeWidth(item) + 30));
   const bottom = Math.max(...state.screens.map((item) => (Number.isFinite(item.y) ? item.y : 0) + NODE_H + 30));
   flowScale = clampScale(Math.min((scroll.clientWidth - 24) / right, (scroll.clientHeight - 24) / bottom, 1));
   applyScale();
@@ -279,7 +279,7 @@ function home() {
   <section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>AI와 함께 쓰는 방법</h2></div><span>AI 대화는 평소 사용하는 도구에서 진행합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>작업판의 현재 상태를 AI에게 건네세요.</h3><p>AI가 실험 가설, 화면 구성, 연결을 제안하거나 JSON을 수정하도록 요청할 수 있습니다. 이 버튼은 현재 작업판 데이터와 형식을 요청문에 담아 복사합니다.</p><button class="primary-button" data-action="copy-ai-prompt">AI 요청문 복사 →</button><small>클립보드에만 복사됩니다. 원하는 AI 대화창에 직접 붙여 넣으세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>복사해 AI에게 전달</strong><small>프로젝트 목표와 원하는 작업을 요청문에 덧붙입니다.</small></span></div><div><b>02</b><span><strong>결과를 검토</strong><small>화면 이름, 연결, 문구를 확인하고 JSON으로 저장합니다.</small></span></div><div><b>03</b><span><strong>불러와 직접 눌러보기</strong><small>상단 불러오기로 반영하고 흐름도와 프로토타입을 확인합니다.</small></span></div></div></div><p class="ai-guide-note">작업판의 디자인·기능 자체를 바꾸려면 이 폴더를 AI 코딩 도구에서 열고 원하는 변경을 요청하세요. 작업판 데이터는 서버를 켠 컴퓨터의 <b>data/board.json</b>에 저장되고, 접속한 모든 팀원에게 실시간으로 반영됩니다. AI에게 건넬 때는 <b>내보내기</b>나 AI 요청문 복사를 사용하세요.</p></section>`;
 }
 function aiPrompt() {
-  return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n- ChatGPT(MCP) 화면은 sections에 다음 형식을 씁니다. ${CHAT_RULES}. 위젯 표시 방식은 inline(카드, 버튼 2개까지) · carousel(카드 3~8개) · fullscreen · pip 네 가지입니다.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
+  return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n- ChatGPT(MCP) 화면은 sections에 다음 형식을 씁니다. ${CHAT_RULES}. 위젯 표시 방식은 inline(카드, 버튼 2개까지) · carousel(카드 3~8개) · fullscreen · pip 네 가지입니다.\n- 웹 화면은 sections에 다음 형식을 씁니다. ${WEB_RULES}.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
 }
 async function copyAiPrompt() {
   try {
@@ -383,9 +383,9 @@ function chatScreen(screen) {
 function chatPhone(screen, footer) {
   return `<div class="phone-frame flow-phone cg-phone"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div>${chatScreen(screen)}${footer}</div><div class="phone-home"></div></div>`;
 }
-function insertChatBlock(kind) {
+function insertChatBlock(kind, blocks = CHAT_BLOCKS) {
   const textarea = $("#editor-fields textarea[name='sections']");
-  const block = CHAT_BLOCKS[kind];
+  const block = blocks[kind];
   if (!textarea || !block) return;
   const start = textarea.selectionStart ?? textarea.value.length, end = textarea.selectionEnd ?? start;
   const before = textarea.value.slice(0, start), after = textarea.value.slice(end);
@@ -399,10 +399,11 @@ function updateChatPreview() {
   const sections = $("#editor-fields textarea[name='sections']")?.value || "";
   if (!preview) return;
   const draft = { sections };
-  preview.innerHTML = isChatScreen(draft) ? chatPhone(draft, "") : `<p class="cg-preview-empty">위 버튼으로 ChatGPT 블록을 추가하면 여기에 미리보기가 나타나요.</p>`;
+  preview.innerHTML = isWebScreen(draft) ? webShell(draft, "") : isChatScreen(draft) ? chatPhone(draft, "") : `<p class="cg-preview-empty">위 버튼으로 ChatGPT 블록이나 웹 블록을 추가하면 여기에 미리보기가 나타나요.</p>`;
 }
 function chatEditorTools() {
-  return `<div class="cg-tools"><div class="cg-toolbar" role="group" aria-label="ChatGPT 블록 추가"><span>ChatGPT 블록 추가</span>${Object.entries(CHAT_BLOCKS).map(([kind, block]) => `<button type="button" class="${WIDGET_KINDS[kind] ? "widget" : ""}" data-action="insert-chat-block" data-id="${kind}">＋ ${escapeHtml(block.label)}</button>`).join("")}</div><small class="cg-rules">${escapeHtml(CHAT_RULES)}</small><div class="cg-preview-wrap"><span>미리보기</span><div id="cg-preview" aria-live="polite"></div></div></div>`;
+  const toolbar = (label, action, blocks, rules, highlight) => `<div class="cg-toolbar" role="group" aria-label="${label}"><span>${label}</span>${Object.entries(blocks).map(([kind, block]) => `<button type="button" class="${highlight(kind) ? "widget" : ""}" data-action="${action}" data-id="${kind}">＋ ${escapeHtml(block.label)}</button>`).join("")}</div><small class="cg-rules">${escapeHtml(rules)}</small>`;
+  return `<div class="cg-tools">${toolbar("ChatGPT 블록 추가", "insert-chat-block", CHAT_BLOCKS, CHAT_RULES, (kind) => WIDGET_KINDS[kind])}${toolbar("웹 블록 추가", "insert-web-block", WEB_BLOCKS, WEB_RULES, (kind) => kind === "card" || kind === "aside")}<div class="cg-preview-wrap"><span>미리보기</span><div id="cg-preview" aria-live="polite"></div></div></div>`;
 }
 function injectChatStyles() {
   if (document.getElementById("cg-styles")) return;
@@ -461,17 +462,183 @@ function injectChatStyles() {
 `;
   document.head.append(style);
 }
+// ── 웹 목업 ─────────────────────────────────────────────────────────
+// 정보 블록에 [web] [메뉴] [제목] [탭] [배너] [카드] [목록] [입력] [사이드] 머리표가 있으면 브라우저 화면으로 그린다.
+// 웹 화면은 흐름도에서 폰 두 칸 너비(WEB_W)를 차지한다.
+const WEB_W = NODE_W * 2 + 62;
+const WEB_TAGS = { "web": "page", "웹": "page", "페이지": "page", "메뉴": "menu", "menu": "menu", "제목": "heading", "title": "heading", "탭": "tabs", "tabs": "tabs", "배너": "banner", "banner": "banner", "카드": "card", "card": "card", "목록": "list", "list": "list", "사이드": "aside", "aside": "aside", "입력": "input", "input": "input", "버튼": "button", "button": "button" };
+const WEB_BLOCKS = {
+  page: { label: "페이지 · 메뉴", text: "[web] 홈 · 과목 대시보드\n[메뉴] *홈 | 계획 | 학습 | 정리" },
+  heading: { label: "제목", text: "[제목] 안녕하세요! 오늘은 무엇부터 해볼까요?" },
+  tabs: { label: "탭", text: "[탭] *미적분학 | 일반물리학 | ＋" },
+  banner: { label: "배너", text: "[배너] 가장 가까운 시험은 미적분학 중간고사예요 (D-25)" },
+  card: { label: "카드", text: "[카드] 미적분학\n- 중간고사 | D-25\n- 중간값 정리 | 도움이 필요해요\n[버튼] 과목 열기" },
+  list: { label: "목록", text: "[목록] 오늘 할 일\n- [ ] 연속 · 예제 5개 | AI 제안\n- [ ] 교수님 강조 부분 | 내가 추가" },
+  input: { label: "입력칸", text: "[입력] 과목명 | 미적분학" },
+  aside: { label: "사이드 패널", text: "[사이드] 다가오는 시험\n- 일반물리학 퀴즈 | D-9\n- 미적분학 중간고사 | D-25" },
+  button: { label: "버튼", text: "[버튼] 버튼 1 | 버튼 2" },
+};
+const WEB_STARTER = `[web] 홈 · 과목 대시보드
+[메뉴] *홈 | 계획 | 학습 | 정리 | 설정
+[제목] 안녕하세요! 오늘은 무엇부터 해볼까요?
+[배너] 가장 가까운 시험은 일반물리학 퀴즈예요 (D-9)
+[버튼] 오늘 학습 시작
+[카드] 미적분학
+- 중간고사 | D-25
+- 할 일 | 3 / 7
+- 중간값 정리 | 도움이 필요해요
+[버튼] 과목 열기
+[카드] 일반물리학
+- 퀴즈 | D-9
+- 할 일 | 1 / 4
+- 운동 법칙 | 복습 추천
+[버튼] 과목 열기
+[카드] ＋ 과목 추가
+과목 · 일정 · 시험범위 · PDF를 등록해요
+[버튼] 등록하기
+[목록] 오늘 할 일
+- [ ] 연속 · 예제 5개 | AI 제안
+- [ ] 교수님 강조 부분 정리 | 내가 추가
+- [x] 극한의 정의 복습 | AI 제안
+[사이드] 다가오는 시험
+- 일반물리학 퀴즈 | D-9
+- 미적분학 중간고사 | D-25`;
+const WEB_RULES = "[web] 탭 제목 · [메뉴] *홈 | 계획 (*는 선택된 메뉴) · [제목] [배너] [탭] 한 줄 · [카드] [목록] [사이드] 제목 줄 아래에 '- 항목 | 배지', '-- 하위 항목' · [입력] 라벨 | 값 · [버튼] A | B는 바로 위 블록의 버튼 · 이어지는 [카드]는 격자로 배치";
+const STATE_BADGES = ["확인 필요", "도움이 필요해요", "복습 추천"];
+
+const webTag = (line) => { const match = /^\[([^\]]+)\]\s*(.*)$/.exec(line); const tag = match && WEB_TAGS[match[1].trim().toLowerCase()]; return tag ? { tag, text: match[2].trim() } : null; };
+const isWebScreen = (screen) => sectionLines(screen).some((line) => { const tagged = webTag(line); return tagged && tagged.tag !== "button"; });
+const barItems = (text) => {
+  const items = String(text).split("|").map((item) => item.trim()).filter(Boolean);
+  const active = Math.max(0, items.findIndex((item) => item.startsWith("*")));
+  return items.map((item, index) => ({ label: item.replace(/^\*\s*/, ""), active: index === active }));
+};
+function parseWeb(screen) {
+  const page = { title: "", menu: [], main: [], aside: [] };
+  let current = null;
+  for (const line of sectionLines(screen)) {
+    const tagged = webTag(line);
+    if (tagged) {
+      const { tag, text } = tagged;
+      if (tag === "page") { page.title = text; continue; }
+      if (tag === "menu") { page.menu = barItems(text); continue; }
+      if (tag === "button") { const labels = text.split("|").map((label) => label.trim()).filter(Boolean); if (current) current.buttons.push(...labels); else page.main.push({ type: "buttons", labels }); continue; }
+      if (tag === "heading" || tag === "tabs" || tag === "input") {
+        current = null;
+        if (tag === "heading") page.main.push({ type: "heading", text });
+        if (tag === "tabs") page.main.push({ type: "tabs", items: barItems(text) });
+        if (tag === "input") { const [label, ...value] = text.split("|").map((part) => part.trim()); page.main.push({ type: "input", label, value: value.join(" · ") }); }
+        continue;
+      }
+      current = { type: tag, title: text, items: [], body: [], buttons: [] };
+      (tag === "aside" ? page.aside : page.main).push(current);
+      continue;
+    }
+    const item = /^(-+)\s*(.*)$/.exec(line);
+    if (item && current && current.type !== "banner") {
+      const [text, ...badges] = item[2].split("|").map((part) => part.trim());
+      current.items.push({ depth: Math.min(3, item[1].length), text, badge: badges.join(" · ") });
+    } else if (current?.type === "banner") current.title = `${current.title} ${line}`.trim();
+    else if (current) current.body.push(line);
+    else page.main.push({ type: "text", text: line });
+  }
+  return page;
+}
+const webBadgeTone = (badge) => (/확인 필요/.test(badge) ? "red" : /도움이 필요|늘고 있/.test(badge) ? "amber" : /복습/.test(badge) ? "blue" : /AI/.test(badge) ? "purple" : /내가|완료|좋아지|능숙|안정/.test(badge) ? "green" : /^D-\d/.test(badge) ? "dark" : "");
+const webButtons = (labels) => (labels.length ? `<div class="wb-buttons">${labels.map((label, index) => `<span class="wb-button${index ? "" : " primary"}">${escapeHtml(label)}</span>`).join("")}</div>` : "");
+function webBlock(block) {
+  const rows = block.items.map((item) => `<div class="wb-row depth-${item.depth}"><span>${item.depth > 1 ? "└ " : ""}${escapeHtml(chatCheck(item.text))}</span>${item.badge ? `<b class="wb-badge ${webBadgeTone(item.badge)}">${escapeHtml(item.badge)}</b>` : ""}</div>`).join("");
+  const stateBadges = block.items.filter((item) => STATE_BADGES.some((badge) => item.badge.includes(badge))).length;
+  const lint = block.type === "card" && stateBadges > 2 ? `<div class="wb-lint">⚠ 카드당 상태 배지는 2개까지 (design.md)</div>` : "";
+  const cls = block.type === "aside" ? "wb-panel" : block.type === "list" ? "wb-list" : "wb-card";
+  return `<section class="${cls}">${block.title ? `<strong>${escapeHtml(block.title)}</strong>` : ""}${block.body.map((text) => `<p class="wb-text">${escapeHtml(chatCheck(text))}</p>`).join("")}${rows}${webButtons(block.buttons)}${lint}</section>`;
+}
+function webPage(screen) {
+  const page = parseWeb(screen);
+  const main = [];
+  for (let index = 0; index < page.main.length; index += 1) {
+    const block = page.main[index];
+    // 이어지는 카드와 입력칸은 한 격자로 묶는다.
+    if (block.type === "card" || block.type === "input") {
+      const group = [];
+      while (page.main[index]?.type === block.type) group.push(page.main[index++]);
+      index -= 1;
+      main.push(block.type === "card"
+        ? `<div class="wb-grid">${group.map(webBlock).join("")}</div>`
+        : `<div class="wb-form">${group.map((field) => `<label class="wb-input"><span>${escapeHtml(field.label)}</span><b>${escapeHtml(field.value || "입력해 주세요")}</b></label>`).join("")}</div>`);
+      continue;
+    }
+    if (block.type === "heading") main.push(`<h4 class="wb-heading">${escapeHtml(block.text)}</h4>`);
+    if (block.type === "tabs") main.push(`<div class="wb-tabs">${block.items.map((item) => `<span class="wb-tab${item.active ? " active" : ""}">${escapeHtml(item.label)}</span>`).join("")}</div>`);
+    if (block.type === "banner") main.push(`<div class="wb-banner"><span>${escapeHtml(block.title)}</span>${webButtons(block.buttons)}</div>`);
+    if (block.type === "list") main.push(webBlock(block));
+    if (block.type === "buttons") main.push(webButtons(block.labels));
+    if (block.type === "text") main.push(`<p class="wb-text">${escapeHtml(block.text)}</p>`);
+  }
+  const menu = page.menu.length ? `<nav class="wb-side"><strong class="wb-logo">StudyMeta</strong>${page.menu.map((item) => `<span class="wb-nav${item.active ? " active" : ""}">${escapeHtml(item.label)}</span>`).join("")}</nav>` : "";
+  const aside = page.aside.length ? `<aside class="wb-aside">${page.aside.map(webBlock).join("")}</aside>` : "";
+  return `<div class="wb-web${menu ? " has-menu" : ""}${aside ? " has-aside" : ""}"><div class="wb-chrome"><i></i><i></i><i></i><span class="wb-url">studymeta.app${page.title ? ` · ${escapeHtml(page.title)}` : ""}</span></div><div class="wb-page">${menu}<main class="wb-main">${main.join("") || '<p class="wb-text">블록을 추가해 주세요</p>'}</main>${aside}</div></div>`;
+}
+const webShell = (screen, footer) => `<div class="wb-shell">${webPage(screen)}${footer}</div>`;
+const nodeWidth = (screen) => (screen && isWebScreen(screen) ? WEB_W : NODE_W);
+function injectWebStyles() {
+  if (document.getElementById("wb-styles")) return;
+  const style = document.createElement("style");
+  style.id = "wb-styles";
+  style.textContent = `
+.wb-shell{display:grid;gap:6px;width:100%}
+.wb-web{container-type:inline-size;display:flex;flex-direction:column;height:400px;border:1px solid #d9dbe3;border-radius:10px;overflow:hidden;background:#f7f8fb;color:#1d2330;font:9.5px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;text-align:left}
+.wb-chrome{display:flex;align-items:center;gap:4px;padding:5px 8px;background:#eceef3;border-bottom:1px solid #dfe2ea}
+.wb-chrome i{flex:none;width:7px;height:7px;border-radius:50%;background:#ff5f57}.wb-chrome i:nth-child(2){background:#febc2e}.wb-chrome i:nth-child(3){background:#28c840}
+.wb-url{flex:1;min-width:0;margin-left:8px;padding:2px 8px;border-radius:6px;background:#fff;color:#6b7280;font-size:8.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb-page{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);overflow:hidden}
+.wb-web.has-menu .wb-page{grid-template-columns:90px minmax(0,1fr)}
+.wb-web.has-aside .wb-page{grid-template-columns:minmax(0,1fr) 138px}
+.wb-web.has-menu.has-aside .wb-page{grid-template-columns:90px minmax(0,1fr) 138px}
+.wb-side{display:flex;flex-direction:column;gap:2px;padding:9px 7px;background:#fff;border-right:1px solid #e6e8ef;overflow:hidden}
+.wb-logo{margin:0 5px 8px;color:#4a3ab0;font-size:10.5px}
+.wb-nav{padding:4px 6px;border-radius:6px;color:#4b5563;white-space:nowrap}.wb-nav.active{background:#efedff;color:#4a3ab0;font-weight:700}
+.wb-main{min-width:0;display:flex;flex-direction:column;gap:7px;padding:10px 11px;overflow:hidden}
+.wb-heading{margin:0;font-size:13px;font-weight:750;letter-spacing:-.01em}
+.wb-tabs{display:flex;gap:2px;border-bottom:1px solid #e3e5ec;overflow:hidden}.wb-tab{padding:3px 8px;color:#6b7280;white-space:nowrap}.wb-tab.active{color:#1d2330;font-weight:700;box-shadow:inset 0 -2px #7c6cd8}
+.wb-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;padding:7px 9px;border-radius:8px;background:#efedff;color:#3b2f94}.wb-banner .wb-buttons{margin:0}
+.wb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}
+.wb-card,.wb-list,.wb-panel{display:flex;flex-direction:column;gap:4px;min-width:0;padding:8px 9px;border:1px solid #e3e5ec;border-radius:9px;background:#fff}
+.wb-card>strong,.wb-list>strong,.wb-panel>strong{font-size:10px}
+.wb-text{margin:0;color:#4b5563;overflow-wrap:anywhere}
+.wb-row{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
+.wb-row>span{min-width:0;overflow-wrap:anywhere}.wb-row.depth-2{padding-left:10px}.wb-row.depth-3{padding-left:20px}
+.wb-list .wb-row.depth-1{font-weight:600}.wb-row+.wb-row.depth-1{border-top:1px dashed #eceef3;padding-top:3px}
+.wb-badge{flex:none;max-width:62%;padding:1px 6px;border-radius:999px;background:#f1f2f6;color:#4b5563;font-size:8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb-badge.red{background:#fdecec;color:#b42318}.wb-badge.amber{background:#fff4e0;color:#9a5b00}.wb-badge.blue{background:#e8f1fd;color:#1d5fbf}.wb-badge.purple{background:#f1efff;color:#4a3ab0}.wb-badge.green{background:#e7f6ee;color:#1f7a4a}.wb-badge.dark{background:#1d2330;color:#fff}
+.wb-buttons{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.wb-button{padding:3px 9px;border:1px solid #d5d8e1;border-radius:7px;background:#fff;font-size:8.5px;font-weight:600;white-space:nowrap}.wb-button.primary{border-color:#4a3ab0;background:#4a3ab0;color:#fff}
+.wb-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
+.wb-input{display:grid;gap:2px}.wb-input span{color:#6b7280;font-size:8px}.wb-input b{padding:5px 7px;border:1px solid #d5d8e1;border-radius:7px;background:#fff;font-weight:500}
+.wb-aside{display:flex;flex-direction:column;gap:7px;min-width:0;padding:10px 9px 10px 0;overflow:hidden}
+.wb-lint{padding:3px 6px;border-radius:6px;background:#fff6e5;color:#9a5b00;font-size:8px}
+@container (max-width:440px){.wb-web.has-menu .wb-page,.wb-web.has-aside .wb-page,.wb-web.has-menu.has-aside .wb-page{grid-template-columns:minmax(0,1fr);grid-auto-rows:max-content}.wb-side{flex-direction:row;align-items:center;padding:5px 7px;border-right:0;border-bottom:1px solid #e6e8ef}.wb-logo{margin:0 6px 0 0}.wb-aside{padding:0 11px 10px}}
+.flow-node.web-node{width:${WEB_W}px}
+.wire-card.wb-wire-card{grid-column:span 2}
+.wire-card .wb-web{height:360px}
+.preview-center .wb-shell{width:min(860px,100%)}.preview-center .wb-web{height:540px;font-size:11px}
+#cg-preview .wb-shell{width:100%}#cg-preview .wb-web{height:380px}
+@media (max-width:900px){.wire-card.wb-wire-card{grid-column:auto}}
+`;
+  document.head.append(style);
+}
 function phoneContent(screen, interactive = false, action = "go-screen") {
   const blocks = sectionLines(screen);
   const links = state.links.filter((link) => link.from === screen.id).map((link) => ({ link, target: state.screens.find((item) => item.id === link.to) })).filter((entry) => entry.target);
   const footer = `<div class="phone-footer">${interactive && links.length ? links.map(({ link, target }) => `<button class="phone-cta" data-action="${action}" data-id="${escapeHtml(target.id)}">${escapeHtml(link.label || target.title)} →</button>`).join("") : `<div class="phone-cta muted">${escapeHtml(screen.actionLabel || "주요 버튼")}</div>`}</div>`;
+  if (isWebScreen(screen)) return webShell(screen, footer);
   if (isChatScreen(screen)) return chatPhone(screen, footer);
   return `<div class="phone-frame"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="phone-body"><div class="phone-kicker">${escapeHtml(state.projectName)}</div><h3>${escapeHtml(screen.title)}</h3><p class="phone-purpose">${escapeHtml(screen.purpose || "이 화면의 목적을 적어 주세요.")}</p><div class="wire-blocks">${blocks.length ? blocks.map((block, index) => `<div class="wire-block"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(block)}</div>`).join("") : `<div class="wire-placeholder">+ 정보 블록을 추가해 주세요</div>`}</div></div>${footer}</div><div class="phone-home"></div></div>`;
 }
 function wireframe() {
-  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
-  return `${pageHeader("ROOM 02 / STRUCTURE", "와이어프레임", "화면별 목적과 정보의 순서를 잡습니다. 이 목록이 흐름도와 프로토타입의 공통 원본입니다. 정보 블록에 ChatGPT 블록(Inline 카드 · 캐러셀 · Fullscreen · PiP)을 넣으면 ChatGPT 대화 목업으로 그려집니다.", button)}
-  ${state.screens.length ? `<div class="wire-grid">${state.screens.map((screen, index) => `<article class="wire-card" data-presence-id="${escapeHtml(screen.id)}"><div class="wire-heading"><span class="index-label">SCREEN ${String(index + 1).padStart(2, "0")}</span><span class="status ${screen.status === "확정" ? "done" : "in-progress"}">${escapeHtml(screen.status)}</span></div>${phoneContent(screen)}<div class="wire-meta"><h2>${escapeHtml(screen.title)}</h2><p>${escapeHtml(screen.purpose || "목적 미입력")}</p><div class="card-actions"><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">편집</button><button data-action="delete-screen" data-id="${escapeHtml(screen.id)}">삭제</button></div></div></article>`).join("")}</div>` : empty("▦", "아직 화면이 없습니다", "첫 화면을 추가하면 흐름도와 프로토타입에도 자동으로 나타납니다.", "add-screen", "+ 첫 화면 추가")}`;
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="import-merge">파일 합쳐 불러오기</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
+  return `${pageHeader("ROOM 02 / STRUCTURE", "와이어프레임", "화면별 목적과 정보의 순서를 잡습니다. 이 목록이 흐름도와 프로토타입의 공통 원본입니다. 정보 블록에 ChatGPT 블록을 넣으면 ChatGPT 대화 목업으로, 웹 블록을 넣으면 브라우저 목업으로 그려집니다.", button)}
+  ${state.screens.length ? `<div class="wire-grid">${state.screens.map((screen, index) => `<article class="wire-card${isWebScreen(screen) ? " wb-wire-card" : ""}" data-presence-id="${escapeHtml(screen.id)}"><div class="wire-heading"><span class="index-label">SCREEN ${String(index + 1).padStart(2, "0")}</span><span class="status ${screen.status === "확정" ? "done" : "in-progress"}">${escapeHtml(screen.status)}</span></div>${phoneContent(screen)}<div class="wire-meta"><h2>${escapeHtml(screen.title)}</h2><p>${escapeHtml(screen.purpose || "목적 미입력")}</p><div class="card-actions"><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">편집</button><button data-action="delete-screen" data-id="${escapeHtml(screen.id)}">삭제</button></div></div></article>`).join("")}</div>` : empty("▦", "아직 화면이 없습니다", "첫 화면을 추가하면 흐름도와 프로토타입에도 자동으로 나타납니다.", "add-screen", "+ 첫 화면 추가")}`;
 }
 // 흐름도에서는 설명 목록 대신 실제 화면 구조를 닮은 작은 폰 목업을 보여 준다.
 // StudyMeta의 계획 → 학습 → 정리 화면은 각각 구성하고, 이후 추가하는 화면은 공통 폰 목업을 사용한다.
@@ -483,7 +650,9 @@ function flowPhoneContent(screen, action = "focus-flow-screen") {
   const url = validUrl(screen.url);
   if (url) return `<div class="phone-frame flow-phone"><div class="phone-island"></div><div class="phone-screen"><iframe class="flow-live-frame" title="${escapeHtml(screen.title)} 미리보기" src="${escapeHtml(url)}"></iframe><div class="flow-phone-footer">${linkButtons}</div></div><div class="phone-home"></div></div>`;
   // ChatGPT 블록이 있는 화면은 아래 고정 목업보다 우선한다. 정보 블록을 고치면 흐름도에도 바로 반영된다.
-  if (isChatScreen(screen)) return chatPhone(screen, `<div class="flow-phone-footer">${linkButtons || `<span class="flow-no-link">연결된 화면이 없어요</span>`}</div>`);
+  const flowFooter = `<div class="flow-phone-footer">${linkButtons || `<span class="flow-no-link">연결된 화면이 없어요</span>`}</div>`;
+  if (isWebScreen(screen)) return webShell(screen, flowFooter);
+  if (isChatScreen(screen)) return chatPhone(screen, flowFooter);
   const field = (label, value = "입력해 주세요") => `<div class="mock-field"><span>${label}</span><strong>${value}</strong></div>`;
   const chip = (text, active = false) => `<span class="mock-chip${active ? " active" : ""}">${text}</span>`;
   const card = (title, text, badge = "") => `<div class="mock-card"><div><strong>${title}</strong>${badge ? `<b>${badge}</b>` : ""}</div><p>${text}</p></div>`;
@@ -506,9 +675,9 @@ function flowPhoneContent(screen, action = "focus-flow-screen") {
   return `<div class="phone-frame flow-phone"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="mock-body"><div class="mock-brand">StudyMeta <span>설계 목업</span></div>${views[screen.id]}</div><div class="flow-phone-footer">${linkButtons || `<span class="flow-no-link">연결된 화면이 없어요</span>`}</div></div><div class="phone-home"></div></div>`;
 }
 function flow() {
-  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
   return `${pageHeader("ROOM 03 / CONNECT", "흐름도", "화면을 보며 동선을 확인하세요. 폰 속 버튼을 누르면 연결된 화면으로 이동합니다.", button)}
-  ${state.screens.length ? `<div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => `<div class="flow-node${flowFocus === screen.id ? " focused" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3>${escapeHtml(screen.title)}</h3><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></div>${flowPhoneContent(screen)}<div class="flow-node-caption">${escapeHtml(screen.purpose || "화면 목적 미입력")}</div></div>`).join("")}</div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
+  ${state.screens.length ? `<div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => `<div class="flow-node${flowFocus === screen.id ? " focused" : ""}${isWebScreen(screen) ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${isWebScreen(screen) ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3>${escapeHtml(screen.title)}</h3><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></div>${flowPhoneContent(screen)}<div class="flow-node-caption">${escapeHtml(screen.purpose || "화면 목적 미입력")}</div></div>`).join("")}</div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
 }
 function prototype() {
   if (!state.screens.length) return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "화면을 폰 프레임에서 눌러보며 동선을 확인합니다.")}${empty("▶", "아직 눌러볼 화면이 없습니다", "와이어프레임에서 화면을 추가하면 이곳에서 바로 확인할 수 있습니다.", "add-screen", "+ 첫 화면 추가")}`;
@@ -523,17 +692,20 @@ function drawLines() {
   if (!svg) return;
   const { width, height } = stageSize();
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const widths = Object.fromEntries(state.screens.map((screen) => [screen.id, nodeWidth(screen)]));
   svg.innerHTML = `<defs><marker id="flow-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M 0 0 L 9 4.5 L 0 9 z" fill="#8879d4"/></marker></defs>` + state.links.map((link) => {
     const from = [...document.querySelectorAll(".flow-node")].find((node) => node.dataset.id === link.from);
     const to = [...document.querySelectorAll(".flow-node")].find((node) => node.dataset.id === link.to);
     if (!from || !to) return "";
     const fx = parseFloat(from.style.left), fy = parseFloat(from.style.top);
     const tx = parseFloat(to.style.left), ty = parseFloat(to.style.top);
-    const dx = tx - fx, dy = ty - fy;
+    // 웹 화면은 폰보다 넓어서 화면마다 너비를 따로 쓰고, 방향은 두 화면의 가운데끼리 비교한다.
+    const fw = widths[link.from] || NODE_W, tw = widths[link.to] || NODE_W;
+    const dx = (tx + tw / 2) - (fx + fw / 2), dy = ty - fy;
     const horizontal = Math.abs(dx) > Math.abs(dy) * .8;
-    const x1 = horizontal ? fx + (dx >= 0 ? NODE_W : 0) : fx + NODE_W / 2;
+    const x1 = horizontal ? fx + (dx >= 0 ? fw : 0) : fx + fw / 2;
     const y1 = horizontal ? fy + NODE_H / 2 : fy + (dy >= 0 ? NODE_H : 0);
-    const x2 = horizontal ? tx + (dx >= 0 ? 0 : NODE_W) : tx + NODE_W / 2;
+    const x2 = horizontal ? tx + (dx >= 0 ? 0 : tw) : tx + tw / 2;
     const y2 = horizontal ? ty + NODE_H / 2 : ty + (dy >= 0 ? 0 : NODE_H);
     const bend = Math.max(55, Math.min(180, (horizontal ? Math.abs(x2 - x1) : Math.abs(y2 - y1)) * .48));
     // 서로 되돌아오는 두 연결은 겹치지 않게 조금 벌린다(오른쪽·아래로 가는 선이 위·왼쪽).
@@ -543,13 +715,13 @@ function drawLines() {
       ? `M ${x1} ${y1 + shift} C ${x1 + Math.sign(dx) * bend} ${y1 + shift}, ${x2 - Math.sign(dx) * bend} ${y2 + shift}, ${x2} ${y2 + shift}`
       : `M ${x1 + shift} ${y1} C ${x1 + shift} ${y1 + Math.sign(dy) * bend}, ${x2 + shift} ${y2 - Math.sign(dy) * bend}, ${x2 + shift} ${y2}`;
     // 같은 줄에서 화면을 건너뛰는 연결은 화면 위쪽으로 넘어가 중간 화면을 가리지 않는다.
-    if (horizontal && Math.abs(dy) < 40 && Math.abs(dx) > NODE_W * 1.5 + 70) {
+    if (horizontal && Math.abs(dy) < 40 && Math.abs(x2 - x1) > NODE_W + 70) {
       const top = Math.max(8, Math.min(fy, ty) - 52);
-      path = `M ${fx + NODE_W / 2} ${fy} C ${fx + NODE_W / 2} ${top}, ${tx + NODE_W / 2} ${top}, ${tx + NODE_W / 2} ${ty}`;
+      path = `M ${fx + fw / 2} ${fy} C ${fx + fw / 2} ${top}, ${tx + tw / 2} ${top}, ${tx + tw / 2} ${ty}`;
     }
     // 다른 열로 올라가거나 내려가는 연결은 두 줄 사이 틈으로 보내고, 가운데를 비켜 도착한다.
     if (!horizontal && Math.abs(dx) > 40) {
-      const endX = tx + NODE_W / 2 + (dx > 0 ? -1 : 1) * NODE_W * .3;
+      const endX = tx + tw / 2 + (dx > 0 ? -1 : 1) * Math.min(tw, NODE_W) * .3;
       const middle = (y1 + y2) / 2;
       path = `M ${x1} ${y1} C ${x1} ${middle}, ${endX} ${middle}, ${endX} ${y2}`;
     }
@@ -564,7 +736,7 @@ function focusFlowScreen(screenId) {
   const node = [...document.querySelectorAll(".flow-node")].find((element) => element.dataset.id === screenId);
   const scroll = $(".flow-scroll");
   if (!node || !scroll) return;
-  scroll.scrollTo({ left: (parseFloat(node.style.left) + NODE_W / 2) * flowScale - scroll.clientWidth / 2, top: (parseFloat(node.style.top) + NODE_H / 2) * flowScale - scroll.clientHeight / 2, behavior: "smooth" });
+  scroll.scrollTo({ left: (parseFloat(node.style.left) + node.offsetWidth / 2) * flowScale - scroll.clientWidth / 2, top: (parseFloat(node.style.top) + NODE_H / 2) * flowScale - scroll.clientHeight / 2, behavior: "smooth" });
 }
 function setFlowExpanded(expanded) {
   flowExpanded = expanded;
@@ -678,10 +850,29 @@ function exportData() {
   setTimeout(() => URL.revokeObjectURL(href), 1000);
   toast("작업판 JSON을 내보냈습니다.");
 }
+// 합쳐 불러오기: 지금 작업판은 그대로 두고, 파일의 화면·연결·실험을 기존 op로 하나씩 추가한다.
+// 같은 id가 있으면 새 id를 붙이고, 화면은 기존 화면들 아래쪽에 놓는다.
+let importMode = "replace";
+function mergeBoard(data) {
+  const taken = new Set([...state.screens, ...state.experiments].map((item) => item.id));
+  const freshId = (itemId) => { let next = itemId; while (taken.has(next)) next = `${itemId}-${id().slice(0, 6)}`; taken.add(next); return next; };
+  const offsetY = state.screens.length ? Math.max(...state.screens.map((screen) => (Number.isFinite(screen.y) ? screen.y : 0))) + 600 : 0;
+  const ids = {};
+  for (const screen of data.screens) {
+    ids[screen.id] = freshId(screen.id);
+    commit({ type: "screen.create", item: { ...screen, id: ids[screen.id], y: Math.min(5000, (Number.isFinite(screen.y) ? screen.y : 0) + offsetY) } }, { rerender: false });
+  }
+  for (const link of data.links) commit({ type: "link.create", item: { id: id(), from: ids[link.from], to: ids[link.to], label: link.label } }, { quiet: true, rerender: false });
+  const experiments = data.experiments.filter((experiment) => !state.experiments.some((item) => item.title === experiment.title));
+  for (const experiment of experiments) commit({ type: "experiment.create", item: { ...experiment, id: freshId(experiment.id) } }, { rerender: false });
+  refresh();
+  toast(`화면 ${data.screens.length}개 · 연결 ${data.links.length}개 · 실험 ${experiments.length}개를 지금 작업판에 더했습니다.`);
+}
 async function importData(file) {
   try {
     const data = normalizeBoard(JSON.parse(await file.text()));
     if (!data) throw new Error("invalid");
+    if (importMode === "merge") { importMode = "replace"; mergeBoard(data); return; }
     if (!confirm("접속한 모든 팀원의 작업판이 선택한 파일 내용으로 바뀝니다. 바꾸기 직전 상태는 서버의 data/backups/에 자동으로 백업됩니다. 계속할까요?")) return;
     selectedScreen = null;
     if (commit({ type: "replace", board: data })) toast("작업판을 불러왔습니다.");
@@ -701,6 +892,9 @@ document.addEventListener("click", (event) => {
   if (action === "add-screen") openEditor("screen");
   if (action === "add-chat-screen") openEditor("screen", null, { sections: CHAT_STARTER });
   if (action === "insert-chat-block") insertChatBlock(itemId);
+  if (action === "add-web-screen") openEditor("screen", null, { sections: WEB_STARTER });
+  if (action === "insert-web-block") insertChatBlock(itemId, WEB_BLOCKS);
+  if (action === "import-merge") { importMode = "merge"; $("#import-file").click(); }
   if (action === "edit-screen") { const item = state.screens.find((screen) => screen.id === itemId); if (item) openEditor("screen", item); }
   if (action === "delete-screen") remove("screen", itemId);
   if (action === "add-experiment") openEditor("experiment");
@@ -713,7 +907,7 @@ document.addEventListener("click", (event) => {
   if (action === "close-dialog") closeEditor();
   if (action === "rename") openEditor("nickname");
   if (action === "export") exportData();
-  if (action === "import") $("#import-file").click();
+  if (action === "import") { importMode = "replace"; $("#import-file").click(); }
   if (action === "copy-ai-prompt") copyAiPrompt();
   if (action === "zoom-in") setScale(flowScale * 1.2);
   if (action === "zoom-out") setScale(flowScale / 1.2);
@@ -786,6 +980,7 @@ document.addEventListener("pointercancel", endDrag);
 
 // 처음 들어오면 팀원에게 보일 이름을 정한다.
 injectChatStyles();
+injectWebStyles();
 render();
 renderPresence();
 connect();
