@@ -142,6 +142,16 @@ function receiveOp({ rev, op, by, name }) {
   collab.rev = rev;
   applyOp(state, op, { trusted: true });
   if (op.type === "screen.move") { moveNode(op.id, by); return; }
+  // 그림 저장이 서버에서 빠졌다면 서버가 예전 board-ops.js를 쓰고 있다는 뜻이다.
+  if (by === clientId && op.type === "screen.update" && drawSaveCheck === op.id) {
+    drawSaveCheck = null;
+    if (!op.fields || !("drawing" in op.fields)) toast("서버가 예전 board-ops.js를 쓰고 있어서 그림이 저장되지 않았어요. board-ops.js를 교체하고 서버를 다시 켜 주세요.");
+  }
+  if (by !== clientId && draw && (op.id === draw.screenId || op.type === "replace")) {
+    const notice = drawDialog()?.querySelector(".dw-notice");
+    const gone = op.type === "screen.delete" || (op.type === "replace" && !state.screens.some((item) => item.id === draw.screenId));
+    if (notice && (gone || op.fields?.drawing || op.type === "replace")) { notice.hidden = false; notice.textContent = gone ? `${name}님이 이 화면을 삭제했어요. 저장해도 반영되지 않습니다.` : `${name}님이 방금 이 화면 그림을 바꿨어요. 저장하면 내 그림으로 덮어씁니다.`; }
+  }
   if (by !== clientId && editContext?.id && (op.id === editContext.id || op.item?.id === editContext.id || op.type === "replace")) {
     const notice = $("#collab-notice");
     const gone = op.type.endsWith(".delete") || (op.type === "replace" && ![...state.screens, ...state.experiments].some((item) => item.id === editContext.id));
@@ -279,7 +289,7 @@ function home() {
   <section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>AI와 함께 쓰는 방법</h2></div><span>AI 대화는 평소 사용하는 도구에서 진행합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>작업판의 현재 상태를 AI에게 건네세요.</h3><p>AI가 실험 가설, 화면 구성, 연결을 제안하거나 JSON을 수정하도록 요청할 수 있습니다. 이 버튼은 현재 작업판 데이터와 형식을 요청문에 담아 복사합니다.</p><button class="primary-button" data-action="copy-ai-prompt">AI 요청문 복사 →</button><small>클립보드에만 복사됩니다. 원하는 AI 대화창에 직접 붙여 넣으세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>복사해 AI에게 전달</strong><small>프로젝트 목표와 원하는 작업을 요청문에 덧붙입니다.</small></span></div><div><b>02</b><span><strong>결과를 검토</strong><small>화면 이름, 연결, 문구를 확인하고 JSON으로 저장합니다.</small></span></div><div><b>03</b><span><strong>불러와 직접 눌러보기</strong><small>상단 불러오기로 반영하고 흐름도와 프로토타입을 확인합니다.</small></span></div></div></div><p class="ai-guide-note">작업판의 디자인·기능 자체를 바꾸려면 이 폴더를 AI 코딩 도구에서 열고 원하는 변경을 요청하세요. 작업판 데이터는 서버를 켠 컴퓨터의 <b>data/board.json</b>에 저장되고, 접속한 모든 팀원에게 실시간으로 반영됩니다. AI에게 건넬 때는 <b>내보내기</b>나 AI 요청문 복사를 사용하세요.</p></section>`;
 }
 function aiPrompt() {
-  return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n- ChatGPT(MCP) 화면은 sections에 다음 형식을 씁니다. ${CHAT_RULES}. 위젯 표시 방식은 inline(카드, 버튼 2개까지) · carousel(카드 3~8개) · fullscreen · pip 네 가지입니다.\n- 웹 화면은 sections에 다음 형식을 씁니다. ${WEB_RULES}.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
+  return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n- ChatGPT(MCP) 화면은 sections에 다음 형식을 씁니다. ${CHAT_RULES}. 위젯 표시 방식은 inline(카드, 버튼 2개까지) · carousel(카드 3~8개) · fullscreen · pip 네 가지입니다.\n- 화면의 drawing 필드는 그리기 도구로 그린 그림입니다. 있으면 내용을 바꾸지 말고 그대로 두세요.\n- 웹 화면은 sections에 다음 형식을 씁니다. ${WEB_RULES}.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
 }
 async function copyAiPrompt() {
   try {
@@ -580,7 +590,7 @@ function webPage(screen) {
   return `<div class="wb-web${menu ? " has-menu" : ""}${aside ? " has-aside" : ""}"><div class="wb-chrome"><i></i><i></i><i></i><span class="wb-url">studymeta.app${page.title ? ` · ${escapeHtml(page.title)}` : ""}</span></div><div class="wb-page">${menu}<main class="wb-main">${main.join("") || '<p class="wb-text">블록을 추가해 주세요</p>'}</main>${aside}</div></div>`;
 }
 const webShell = (screen, footer) => `<div class="wb-shell">${webPage(screen)}${footer}</div>`;
-const nodeWidth = (screen) => (screen && isWebScreen(screen) ? WEB_W : NODE_W);
+const nodeWidth = (screen) => (screen && isWideScreen(screen) ? WEB_W : NODE_W);
 function injectWebStyles() {
   if (document.getElementById("wb-styles")) return;
   const style = document.createElement("style");
@@ -627,18 +637,446 @@ function injectWebStyles() {
 `;
   document.head.append(style);
 }
+// ── 그리기 도구 ─────────────────────────────────────────────────────
+// 화면마다 drawing { frame, shapes } 를 저장한다(board-ops.js의 drawingField가 검사).
+// 도형이 하나라도 있으면 그 화면은 글자 블록 대신 그림으로 그려진다. 좌표는 틀의 가상 크기 기준이다.
+const DRAW_FRAME_SIZE = { phone: { label: "폰", width: 390, height: 760 }, web: { label: "웹", width: 1280, height: 800 } };
+const DRAW_TOOL_LIST = [["select", "선택", "V", "↖"], ["rect", "사각형", "R", "▭"], ["ellipse", "원", "O", "◯"], ["line", "선", "L", "╱"], ["arrow", "화살표", "A", "↗"], ["text", "텍스트", "T", "T"], ["image", "이미지 자리", "I", "⊠"]];
+const DRAW_TONE_LIST = [["line", "선만"], ["soft", "회색"], ["accent", "보라"], ["dark", "검정"]];
+const DRAW_SIZE_LIST = [["s", "작게"], ["m", "보통"], ["l", "크게"]];
+const TONE_STYLE = {
+  line: { fill: "#ffffff", stroke: "#1d2330", text: "#1d2330" },
+  soft: { fill: "#eef0f4", stroke: "#b9bfcb", text: "#1d2330" },
+  accent: { fill: "#efedff", stroke: "#7c6cd8", text: "#4a3ab0" },
+  dark: { fill: "#1d2330", stroke: "#1d2330", text: "#ffffff" },
+};
+const FONT_SIZE = { s: 13, m: 16, l: 24 };
+const LINE_TYPES = new Set(["line", "arrow"]);
+const drawingOf = (screen) => (screen?.drawing && Array.isArray(screen.drawing.shapes) ? screen.drawing : null);
+const hasDrawing = (screen) => (drawingOf(screen)?.shapes.length || 0) > 0;
+const isWideScreen = (screen) => (hasDrawing(screen) ? screen.drawing.frame === "web" : isWebScreen(screen));
+const shapeId = () => `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const boxOf = (shape) => ({ x: Math.min(shape.x, shape.x + shape.w), y: Math.min(shape.y, shape.y + shape.h), w: Math.abs(shape.w), h: Math.abs(shape.h) });
+// 글자 폭을 대충 잰다(한글·전각은 글자 크기만큼, 나머지는 0.6배).
+const textWidth = (line, size) => [...line].reduce((sum, char) => sum + (/[ᄀ-ᇿ　-鿿가-힯＀-￯]/.test(char) ? size : size * .6), 0);
+function fitTextBox(shape) {
+  const size = FONT_SIZE[shape.size] || FONT_SIZE.m;
+  const lines = String(shape.text || " ").split("\n");
+  shape.w = Math.max(24, Math.ceil(Math.max(...lines.map((line) => textWidth(line, size))) + 4));
+  shape.h = Math.ceil(lines.length * size * 1.3 + 4);
+}
+function svgText(text, x, y, size, color, anchor, weight = 500) {
+  const lines = String(text).split("\n");
+  return `<text x="${x}" y="${y}" font-size="${size}" fill="${color}" text-anchor="${anchor}" font-weight="${weight}">${lines.map((line, index) => `<tspan x="${x}" dy="${index ? size * 1.3 : 0}">${escapeHtml(line) || " "}</tspan>`).join("")}</text>`;
+}
+function centeredLabel(shape, box, color) {
+  if (!shape.text) return "";
+  const size = FONT_SIZE[shape.size] || FONT_SIZE.m;
+  const lines = String(shape.text).split("\n").length;
+  return svgText(shape.text, box.x + box.w / 2, box.y + box.h / 2 - ((lines - 1) * size * 1.3) / 2 + size * .35, size, color, "middle", 600);
+}
+function shapeSvg(shape, editing) {
+  const tone = TONE_STYLE[shape.tone] || TONE_STYLE.line;
+  const box = boxOf(shape);
+  const tag = editing ? ` data-shape-id="${escapeHtml(shape.id)}"` : "";
+  if (shape.type === "rect") return `<g${tag}><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${shape.round ? Math.min(14, box.h / 2) : 2}" fill="${tone.fill}" stroke="${tone.stroke}" stroke-width="2"/>${centeredLabel(shape, box, tone.text)}</g>`;
+  if (shape.type === "ellipse") return `<g${tag}><ellipse cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" rx="${box.w / 2}" ry="${box.h / 2}" fill="${tone.fill}" stroke="${tone.stroke}" stroke-width="2"/>${centeredLabel(shape, box, tone.text)}</g>`;
+  if (shape.type === "image") return `<g${tag}><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${shape.round ? 12 : 2}" fill="#f3f4f6" stroke="#b9bfcb" stroke-width="2"/><path d="M ${box.x} ${box.y} L ${box.x + box.w} ${box.y + box.h} M ${box.x + box.w} ${box.y} L ${box.x} ${box.y + box.h}" stroke="#d3d7de" stroke-width="1.5"/>${centeredLabel({ ...shape, text: shape.text || "이미지" }, box, "#6b7280")}</g>`;
+  if (shape.type === "text") {
+    const size = FONT_SIZE[shape.size] || FONT_SIZE.m;
+    const color = shape.tone === "dark" ? "#0d0d0d" : shape.tone === "soft" ? "#6b7280" : tone.text;
+    return `<g${tag}>${editing ? `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="rgba(0,0,0,0)"/>` : ""}${svgText(shape.text || "텍스트", box.x, box.y + size, size, color, "start", shape.tone === "dark" || shape.size === "l" ? 700 : 500)}</g>`;
+  }
+  // 선 · 화살표. 화살촉은 marker 대신 직접 그려서 여러 SVG가 한 페이지에 있어도 깨지지 않게 한다.
+  const x2 = shape.x + shape.w, y2 = shape.y + shape.h;
+  const color = shape.tone === "soft" ? "#9aa1ad" : tone.stroke === "#ffffff" ? "#1d2330" : tone.stroke;
+  const angle = Math.atan2(shape.h, shape.w), head = 14;
+  const arrow = shape.type === "arrow" && (shape.w || shape.h) ? `<polygon points="${x2},${y2} ${x2 - head * Math.cos(angle - .45)},${y2 - head * Math.sin(angle - .45)} ${x2 - head * Math.cos(angle + .45)},${y2 - head * Math.sin(angle + .45)}" fill="${color}"/>` : "";
+  const hit = editing ? `<line x1="${shape.x}" y1="${shape.y}" x2="${x2}" y2="${y2}" stroke="rgba(0,0,0,0)" stroke-width="16"/>` : "";
+  const label = shape.text ? svgText(shape.text, (shape.x + x2) / 2, (shape.y + y2) / 2 - 8, FONT_SIZE[shape.size] || FONT_SIZE.m, color, "middle", 600) : "";
+  return `<g${tag}>${hit}<line x1="${shape.x}" y1="${shape.y}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>${arrow}${label}</g>`;
+}
+function drawingView(screen, footer) {
+  const drawing = drawingOf(screen);
+  const frame = DRAW_FRAME_SIZE[drawing.frame] || DRAW_FRAME_SIZE.phone;
+  const svg = `<svg class="dw-view" viewBox="0 0 ${frame.width} ${frame.height}" preserveAspectRatio="xMidYMin meet" role="img" aria-label="${escapeHtml(screen.title || "화면")} 그림">${drawing.shapes.map((shape) => shapeSvg(shape, false)).join("")}</svg>`;
+  if (drawing.frame === "web") return `<div class="wb-shell"><div class="wb-web dw-webview"><div class="wb-chrome"><i></i><i></i><i></i><span class="wb-url">studymeta.app · ${escapeHtml(screen.title || "")}</span></div>${svg}</div>${footer}</div>`;
+  return `<div class="phone-frame flow-phone dw-phone"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div>${svg}${footer}</div><div class="phone-home"></div></div>`;
+}
+
+// 그리기 창 상태. 저장 전까지는 이 브라우저에만 있고, 저장하면 screen.update 하나로 팀원에게 보낸다.
+let draw = null;
+let drawSaveCheck = null;
+const drawDialog = () => document.getElementById("draw-dialog");
+const selectedShape = () => draw?.shapes.find((shape) => shape.id === draw.selected) || null;
+function drawSnapshot() { return JSON.stringify({ frame: draw.frame, shapes: draw.shapes }); }
+function pushDrawHistory() {
+  draw.history.push(drawSnapshot());
+  if (draw.history.length > 100) draw.history.shift();
+  draw.future = [];
+  draw.dirty = true;
+}
+function restoreDraw(snapshot) {
+  const data = JSON.parse(snapshot);
+  draw.frame = data.frame;
+  draw.shapes = data.shapes;
+  if (!selectedShape()) draw.selected = null;
+  draw.dirty = true;
+  renderDrawUi();
+}
+function undoDraw() { if (draw.history.length) { draw.future.push(drawSnapshot()); restoreDraw(draw.history.pop()); } }
+function redoDraw() { if (draw.future.length) { draw.history.push(drawSnapshot()); restoreDraw(draw.future.pop()); } }
+function normalizeShape(shape) {
+  if (LINE_TYPES.has(shape.type)) return;
+  Object.assign(shape, boxOf(shape));
+  if (shape.type === "text") fitTextBox(shape);
+}
+function openDraw(screenId) {
+  const screen = state.screens.find((item) => item.id === screenId);
+  if (!screen) return;
+  ensureDrawDialog();
+  const saved = drawingOf(screen);
+  draw = { screenId, title: screen.title, frame: saved?.frame || (isWebScreen(screen) ? "web" : "phone"), shapes: JSON.parse(JSON.stringify(saved?.shapes || [])), selected: null, tool: "select", tone: "line", size: "m", round: false, grid: true, history: [], future: [], dirty: false, action: null, textFocused: false };
+  const dialog = drawDialog();
+  dialog.querySelector(".dw-title").value = screen.title;
+  dialog.querySelector(".dw-notice").hidden = true;
+  dialog.showModal();
+  renderDrawUi();
+  dialog.querySelector("#dw-svg").focus({ preventScroll: true }); // 단축키가 제목 칸에 입력되지 않게 그림판에 포커스를 둔다.
+  setEditing(screenId, "edit");
+}
+function closeDraw(force = false) {
+  if (!draw) return;
+  if (!force && draw.dirty && !confirm("저장하지 않은 그림이 있어요. 저장하지 않고 닫을까요?")) return;
+  draw = null;
+  if (drawDialog()?.open) drawDialog().close();
+  setEditing(null);
+}
+function saveDraw() {
+  if (!draw) return;
+  const screen = state.screens.find((item) => item.id === draw.screenId);
+  if (!screen) { toast("다른 팀원이 삭제한 화면이에요."); closeDraw(true); return; }
+  draw.shapes.forEach(normalizeShape);
+  const fields = { drawing: { frame: draw.frame, shapes: draw.shapes } };
+  const title = drawDialog().querySelector(".dw-title").value.trim();
+  if (title && title !== screen.title) fields.title = title;
+  if (!commit({ type: "screen.update", id: draw.screenId, fields })) return;
+  drawSaveCheck = draw.screenId;
+  closeDraw(true);
+  toast("그림을 저장했습니다.");
+}
+function fitDrawDevice() {
+  if (!draw) return;
+  const dialog = drawDialog();
+  const stage = dialog.querySelector(".dw-stage"), device = dialog.querySelector(".dw-device"), svg = dialog.querySelector("#dw-svg");
+  const frame = DRAW_FRAME_SIZE[draw.frame];
+  const bar = draw.frame === "phone" ? 24 : 28, border = draw.frame === "phone" ? 16 : 2;
+  const room = { width: stage.clientWidth - 32 - border, height: stage.clientHeight - 32 - border - bar };
+  const scale = Math.max(.1, Math.min(room.width / frame.width, room.height / frame.height));
+  svg.style.width = `${Math.floor(frame.width * scale)}px`;
+  svg.style.height = `${Math.floor(frame.height * scale)}px`;
+  device.className = `dw-device ${draw.frame}`;
+  device.querySelector(".dw-device-bar").innerHTML = draw.frame === "phone" ? "<span>9:41</span><span>●●● ▰</span>" : `<i></i><i></i><i></i><span>studymeta.app · ${escapeHtml(draw.title || "")}</span>`;
+}
+function renderDrawSvg() {
+  const svg = drawDialog().querySelector("#dw-svg");
+  const frame = DRAW_FRAME_SIZE[draw.frame];
+  svg.setAttribute("viewBox", `0 0 ${frame.width} ${frame.height}`);
+  svg.classList.toggle("drawing-tool", draw.tool !== "select");
+  const unit = frame.width / Math.max(1, svg.clientWidth || frame.width); // 화면 1px이 가상 좌표로 몇인지
+  const grid = draw.grid ? `<defs><pattern id="dw-grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="#eef0f4" stroke-width="${unit}"/></pattern></defs><rect width="100%" height="100%" fill="url(#dw-grid)"/>` : "";
+  const shape = selectedShape();
+  let selection = "";
+  if (shape) {
+    const handle = (name, x, y) => `<rect data-handle="${name}" x="${x - 5 * unit}" y="${y - 5 * unit}" width="${10 * unit}" height="${10 * unit}" fill="#fff" stroke="#7c6cd8" stroke-width="${1.5 * unit}"/>`;
+    if (LINE_TYPES.has(shape.type)) selection = handle("p1", shape.x, shape.y) + handle("p2", shape.x + shape.w, shape.y + shape.h);
+    else {
+      const box = boxOf(shape);
+      selection = `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="none" stroke="#7c6cd8" stroke-width="${1.5 * unit}" stroke-dasharray="${4 * unit} ${3 * unit}" pointer-events="none"/>` + (shape.type === "text" ? "" : handle("nw", box.x, box.y) + handle("ne", box.x + box.w, box.y) + handle("sw", box.x, box.y + box.h) + handle("se", box.x + box.w, box.y + box.h));
+    }
+  }
+  svg.innerHTML = `<rect width="100%" height="100%" fill="#fff"/>${grid}${draw.shapes.map((item) => shapeSvg(item, true)).join("")}${selection}`;
+}
+function renderDrawUi() {
+  if (!draw) return;
+  const dialog = drawDialog();
+  const pressed = (selector, value) => dialog.querySelectorAll(selector).forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.value === value)));
+  const shape = selectedShape();
+  pressed("[data-dw-tool]", draw.tool);
+  pressed("[data-dw-frame]", draw.frame);
+  pressed("[data-dw-tone]", shape?.tone || draw.tone);
+  pressed("[data-dw-size]", shape?.size || draw.size);
+  dialog.querySelector("[data-dw='round']").setAttribute("aria-pressed", String(shape ? shape.round : draw.round));
+  dialog.querySelector("[data-dw='grid']").setAttribute("aria-pressed", String(draw.grid));
+  dialog.querySelector("[data-dw='undo']").disabled = !draw.history.length;
+  dialog.querySelector("[data-dw='redo']").disabled = !draw.future.length;
+  dialog.querySelectorAll("[data-dw='duplicate'],[data-dw='delete'],[data-dw='front'],[data-dw='back']").forEach((button) => { button.disabled = !shape; });
+  const textField = dialog.querySelector("#dw-text");
+  textField.disabled = !shape;
+  if (!draw.textFocused) textField.value = shape?.text || "";
+  textField.placeholder = shape ? "도형에 넣을 글자 (Enter로 줄바꿈)" : "도형을 선택하면 글자를 넣을 수 있어요";
+  dialog.querySelector(".dw-count").textContent = `도형 ${draw.shapes.length}개`;
+  fitDrawDevice();
+  renderDrawSvg();
+}
+function drawPoint(event) {
+  const svg = drawDialog().querySelector("#dw-svg");
+  const point = svg.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+  const local = point.matrixTransform(svg.getScreenCTM().inverse());
+  return { x: local.x, y: local.y };
+}
+const snapValue = (value) => (draw.grid ? Math.round(value / 10) * 10 : Math.round(value));
+function applyToSelection(change) {
+  const shape = selectedShape();
+  if (!shape) return false;
+  pushDrawHistory();
+  change(shape);
+  if (shape.type === "text") fitTextBox(shape);
+  renderDrawUi();
+  return true;
+}
+function drawCommand(command, value) {
+  if (!draw) return;
+  const shape = selectedShape();
+  if (command === "tool") { draw.tool = value; if (value !== "select") draw.selected = null; }
+  if (command === "frame" && value !== draw.frame) { pushDrawHistory(); draw.frame = value; }
+  if (command === "tone") { draw.tone = value; if (applyToSelection((item) => { item.tone = value; })) return; }
+  if (command === "size") { draw.size = value; if (applyToSelection((item) => { item.size = value; })) return; }
+  if (command === "round") { if (shape) { applyToSelection((item) => { item.round = !item.round; }); return; } draw.round = !draw.round; }
+  if (command === "grid") draw.grid = !draw.grid;
+  if (command === "undo") { undoDraw(); return; }
+  if (command === "redo") { redoDraw(); return; }
+  if (command === "delete" && shape) { pushDrawHistory(); draw.shapes = draw.shapes.filter((item) => item !== shape); draw.selected = null; }
+  if (command === "duplicate" && shape) { pushDrawHistory(); const copy = { ...shape, id: shapeId(), x: shape.x + 20, y: shape.y + 20 }; draw.shapes.push(copy); draw.selected = copy.id; }
+  if ((command === "front" || command === "back") && shape) { pushDrawHistory(); draw.shapes = draw.shapes.filter((item) => item !== shape); if (command === "front") draw.shapes.push(shape); else draw.shapes.unshift(shape); }
+  if (command === "save") { saveDraw(); return; }
+  if (command === "close") { closeDraw(); return; }
+  renderDrawUi();
+}
+function drawPointerDown(event) {
+  if (!draw || event.button !== 0) return;
+  const svg = event.currentTarget;
+  const point = drawPoint(event);
+  const handle = event.target.closest("[data-handle]");
+  const hit = event.target.closest("[data-shape-id]");
+  // 아래에서 그림판을 다시 그리면 눌린 요소가 사라져 브라우저가 포커스를 body로 옮긴다.
+  // 기본 동작을 막고 포커스를 그림판에 직접 두어야 단축키가 계속 동작한다.
+  event.preventDefault();
+  svg.setPointerCapture(event.pointerId);
+  svg.focus({ preventScroll: true });
+  if (handle && selectedShape()) {
+    pushDrawHistory();
+    draw.action = { kind: "resize", handle: handle.dataset.handle, origin: { ...selectedShape() } };
+    return;
+  }
+  if (draw.tool === "select") {
+    draw.selected = hit ? hit.dataset.shapeId : null;
+    const shape = selectedShape();
+    draw.action = shape ? { kind: "move", start: point, origin: { x: shape.x, y: shape.y }, pushed: false } : null;
+    renderDrawUi();
+    return;
+  }
+  const start = { x: snapValue(point.x), y: snapValue(point.y) };
+  const shape = { id: shapeId(), type: draw.tool, x: start.x, y: start.y, w: 0, h: 0, text: draw.tool === "text" ? "텍스트" : "", tone: draw.tone, size: draw.size, round: draw.tool === "rect" && draw.round };
+  pushDrawHistory();
+  draw.shapes.push(shape);
+  draw.selected = shape.id;
+  draw.action = { kind: "create", start };
+  renderDrawSvg();
+}
+function drawPointerMove(event) {
+  if (!draw?.action) return;
+  const shape = selectedShape();
+  if (!shape) return;
+  const point = drawPoint(event);
+  const action = draw.action;
+  if (action.kind === "create") {
+    let w = snapValue(point.x) - action.start.x, h = snapValue(point.y) - action.start.y;
+    if (event.shiftKey && LINE_TYPES.has(shape.type)) {
+      const angle = Math.round(Math.atan2(h, w) / (Math.PI / 4)) * (Math.PI / 4), length = Math.hypot(w, h);
+      w = Math.round(Math.cos(angle) * length);
+      h = Math.round(Math.sin(angle) * length);
+    } else if (event.shiftKey) {
+      const side = Math.max(Math.abs(w), Math.abs(h));
+      w = Math.sign(w || 1) * side;
+      h = Math.sign(h || 1) * side;
+    }
+    shape.w = w;
+    shape.h = h;
+  }
+  if (action.kind === "move") {
+    const dx = snapValue(point.x - action.start.x), dy = snapValue(point.y - action.start.y);
+    if (!action.pushed && (dx || dy)) { pushDrawHistory(); action.pushed = true; }
+    shape.x = action.origin.x + dx;
+    shape.y = action.origin.y + dy;
+  }
+  if (action.kind === "resize") {
+    const x = snapValue(point.x), y = snapValue(point.y), origin = action.origin;
+    if (action.handle === "p1") { shape.x = x; shape.y = y; shape.w = origin.x + origin.w - x; shape.h = origin.y + origin.h - y; }
+    else if (action.handle === "p2") { shape.w = x - origin.x; shape.h = y - origin.y; }
+    else {
+      const box = boxOf(origin);
+      const left = action.handle.includes("w") ? x : box.x, right = action.handle.includes("e") ? x : box.x + box.w;
+      const top = action.handle.includes("n") ? y : box.y, bottom = action.handle.includes("s") ? y : box.y + box.h;
+      Object.assign(shape, { x: left, y: top, w: right - left, h: bottom - top });
+    }
+  }
+  renderDrawSvg();
+}
+function drawPointerUp() {
+  if (!draw?.action) return;
+  const shape = selectedShape();
+  const action = draw.action;
+  draw.action = null;
+  if (shape && action.kind === "create") {
+    // 끌지 않고 클릭만 했으면 누른 곳을 가운데로 기본 크기 도형을 만든다.
+    if (Math.abs(shape.w) < 6 && Math.abs(shape.h) < 6 && shape.type !== "text") {
+      const size = { rect: { w: 160, h: 52 }, ellipse: { w: 80, h: 80 }, image: { w: 200, h: 140 }, line: { w: 140, h: 0 }, arrow: { w: 140, h: 0 } }[shape.type];
+      Object.assign(shape, size, { x: snapValue(shape.x - size.w / 2), y: snapValue(shape.y - size.h / 2) });
+    }
+    draw.tool = "select";
+  }
+  if (shape) normalizeShape(shape);
+  renderDrawUi();
+  if (shape && action.kind === "create" && shape.type === "text") { const field = drawDialog().querySelector("#dw-text"); field.focus(); field.select(); }
+}
+function drawKeyDown(event) {
+  if (!draw) return;
+  const typing = event.target.matches("input, textarea");
+  const mod = event.metaKey || event.ctrlKey;
+  if (mod && event.key.toLowerCase() === "s") { event.preventDefault(); saveDraw(); return; }
+  if (typing) return;
+  const key = event.key.toLowerCase();
+  if (mod && key === "z") { event.preventDefault(); if (event.shiftKey) redoDraw(); else undoDraw(); return; }
+  if (mod && key === "y") { event.preventDefault(); redoDraw(); return; }
+  if (mod && key === "d") { event.preventDefault(); drawCommand("duplicate"); return; }
+  if (mod) return;
+  if (event.key === "Escape" && (draw.selected || draw.tool !== "select")) { event.preventDefault(); draw.selected = null; draw.tool = "select"; renderDrawUi(); return; }
+  if ((event.key === "Delete" || event.key === "Backspace") && draw.selected) { event.preventDefault(); drawCommand("delete"); return; }
+  const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+  if (arrows && selectedShape()) {
+    event.preventDefault();
+    const step = event.shiftKey || draw.grid ? 10 : 1;
+    applyToSelection((shape) => { shape.x += arrows[0] * step; shape.y += arrows[1] * step; });
+    return;
+  }
+  const tool = DRAW_TOOL_LIST.find(([, , shortcut]) => shortcut.toLowerCase() === key);
+  if (tool) { event.preventDefault(); drawCommand("tool", tool[0]); }
+}
+function ensureDrawDialog() {
+  if (drawDialog()) return;
+  const button = (attrs, label, title = "") => `<button type="button" ${attrs}${title ? ` title="${title}"` : ""}>${label}</button>`;
+  const dialog = document.createElement("dialog");
+  dialog.id = "draw-dialog";
+  dialog.className = "dw-dialog";
+  dialog.setAttribute("aria-label", "화면 그리기");
+  dialog.innerHTML = `<div class="dw-top"><input class="dw-title" aria-label="화면 이름" maxlength="200"><div class="dw-seg" role="group" aria-label="화면 틀">${Object.entries(DRAW_FRAME_SIZE).map(([value, frame]) => button(`data-dw-frame data-value="${value}" aria-pressed="false"`, frame.label)).join("")}</div><span class="dw-count" aria-live="polite"></span><span class="dw-spacer"></span>${button(`data-dw="undo"`, "↶ 되돌리기", "되돌리기 (Ctrl/⌘+Z)")}${button(`data-dw="redo"`, "↷ 다시", "다시 실행 (Ctrl/⌘+Shift+Z)")}${button(`data-dw="close"`, "닫기")}${button(`data-dw="save" class="dw-primary"`, "저장", "저장 (Ctrl/⌘+S)")}</div>
+  <p class="dw-notice" role="status" hidden></p>
+  <div class="dw-body"><div class="dw-tools" role="toolbar" aria-label="그리기 도구"><span class="dw-group-label">도구</span>${DRAW_TOOL_LIST.map(([value, label, key, icon]) => button(`data-dw-tool data-value="${value}" aria-pressed="false"`, `<b aria-hidden="true">${icon}</b>${label}<kbd>${key}</kbd>`, `${label} (${key})`)).join("")}<span class="dw-sep"></span><span class="dw-group-label">색</span>${DRAW_TONE_LIST.map(([value, label]) => button(`data-dw-tone data-value="${value}" aria-pressed="false"`, `<i class="dw-swatch" style="background:${TONE_STYLE[value].fill};border-color:${TONE_STYLE[value].stroke}"></i>${label}`)).join("")}<span class="dw-sep"></span><span class="dw-group-label">글자 크기</span>${DRAW_SIZE_LIST.map(([value, label]) => button(`data-dw-size data-value="${value}" aria-pressed="false"`, label)).join("")}<span class="dw-sep"></span>${button(`data-dw="round" aria-pressed="false"`, "둥근 모서리")}${button(`data-dw="grid" aria-pressed="true"`, "격자에 맞추기")}<span class="dw-sep"></span>${button(`data-dw="duplicate"`, "복제", "복제 (Ctrl/⌘+D)")}${button(`data-dw="front"`, "맨 앞으로")}${button(`data-dw="back"`, "맨 뒤로")}${button(`data-dw="delete" class="dw-danger"`, "삭제", "삭제 (Delete)")}</div>
+  <div class="dw-stage"><div class="dw-device"><div class="dw-device-bar"></div><svg id="dw-svg" class="dw-svg" xmlns="http://www.w3.org/2000/svg" tabindex="0" role="application" aria-label="그림판. 도구를 고른 뒤 끌어서 그리세요."></svg></div></div></div>
+  <div class="dw-bottom"><label class="dw-text"><span>글자</span><textarea id="dw-text" rows="1"></textarea></label><small>끌어서 그리기 · Shift: 정사각형 · 정원 · 45° · 방향키: 이동 · Delete: 삭제 · Esc: 선택 해제</small></div>`;
+  document.body.append(dialog);
+  dialog.addEventListener("click", (event) => {
+    const target = event.target.closest("button");
+    if (!target || !draw) return;
+    if ("dwTool" in target.dataset) drawCommand("tool", target.dataset.value);
+    else if ("dwFrame" in target.dataset) drawCommand("frame", target.dataset.value);
+    else if ("dwTone" in target.dataset) drawCommand("tone", target.dataset.value);
+    else if ("dwSize" in target.dataset) drawCommand("size", target.dataset.value);
+    else if (target.dataset.dw) drawCommand(target.dataset.dw);
+  });
+  dialog.addEventListener("keydown", drawKeyDown);
+  dialog.addEventListener("cancel", (event) => { event.preventDefault(); closeDraw(); });
+  dialog.querySelector(".dw-title").addEventListener("input", (event) => { if (draw) { draw.title = event.target.value; draw.dirty = true; fitDrawDevice(); } });
+  const svg = dialog.querySelector("#dw-svg");
+  svg.addEventListener("pointerdown", drawPointerDown);
+  svg.addEventListener("pointermove", drawPointerMove);
+  svg.addEventListener("pointerup", drawPointerUp);
+  svg.addEventListener("pointercancel", drawPointerUp);
+  svg.addEventListener("dblclick", (event) => { if (draw && event.target.closest("[data-shape-id]")) dialog.querySelector("#dw-text").focus(); });
+  const textField = dialog.querySelector("#dw-text");
+  // 글자 칸에 들어갈 때 상태를 기억해 두고, 실제로 입력했을 때만 되돌리기 기록에 넣는다.
+  textField.addEventListener("focus", () => { if (draw && selectedShape()) { draw.textSnapshot = drawSnapshot(); draw.textFocused = true; } });
+  textField.addEventListener("blur", () => { if (draw) { draw.textFocused = false; renderDrawUi(); } });
+  textField.addEventListener("input", () => {
+    const shape = selectedShape();
+    if (!shape) return;
+    if (draw.textSnapshot) { draw.history.push(draw.textSnapshot); draw.future = []; draw.dirty = true; draw.textSnapshot = null; }
+    shape.text = textField.value.slice(0, 300);
+    if (shape.type === "text") fitTextBox(shape);
+    renderDrawSvg();
+  });
+  window.addEventListener("resize", () => { if (draw) renderDrawUi(); });
+}
+function injectDrawStyles() {
+  if (document.getElementById("dw-styles")) return;
+  const style = document.createElement("style");
+  style.id = "dw-styles";
+  style.textContent = `
+.dw-phone .phone-screen{display:flex;flex-direction:column}
+.dw-view{display:block;flex:1 1 0;width:100%;min-height:320px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+.dw-webview{display:flex;flex-direction:column}.dw-webview .dw-view{min-height:0}
+.dw-node-actions{display:inline-flex;gap:4px}
+.dw-dialog{width:min(1200px,96vw);height:min(880px,94vh);max-width:none;max-height:none;margin:auto;padding:0;border:0;border-radius:16px;background:#f4f5f8;color:#1d2330;box-shadow:0 24px 60px rgba(0,0,0,.28);font:13px/1.4 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;overflow:hidden}
+.dw-dialog[open]{display:flex;flex-direction:column}
+.dw-dialog::backdrop{background:rgba(20,22,30,.5)}
+.dw-dialog button{font:inherit;cursor:pointer;color:#1d2330}
+.dw-dialog button:disabled{opacity:.4;cursor:default}
+.dw-dialog button:focus-visible,.dw-dialog input:focus-visible,.dw-dialog textarea:focus-visible{outline:2px solid #7c6cd8;outline-offset:2px}
+.dw-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid #e3e5ec}
+.dw-title{flex:1 1 200px;min-width:0;padding:7px 10px;border:1px solid #d5d8e1;border-radius:8px;font:inherit;font-weight:700}
+.dw-seg{display:inline-flex;border:1px solid #d5d8e1;border-radius:8px;overflow:hidden}
+.dw-seg button{padding:6px 14px;border:0;background:#fff}
+.dw-top>button{padding:6px 11px;border:1px solid #d5d8e1;border-radius:8px;background:#fff}
+.dw-count{color:#6b7280;font-size:12px}
+.dw-spacer{flex:1}
+.dw-dialog [aria-pressed=true]{background:#efedff!important;color:#4a3ab0!important;border-color:#7c6cd8!important;font-weight:700}
+.dw-dialog .dw-primary{background:#4a3ab0;border-color:#4a3ab0;color:#fff;font-weight:700}
+.dw-notice{margin:0;padding:7px 12px;background:#fff6e5;color:#9a5b00}
+.dw-body{flex:1;min-height:0;display:flex}
+.dw-tools{display:flex;flex-direction:column;gap:4px;width:140px;flex:none;padding:10px;overflow:auto;background:#fff;border-right:1px solid #e3e5ec}
+.dw-tools button{display:flex;align-items:center;gap:7px;padding:5px 8px;border:1px solid #e3e5ec;border-radius:8px;background:#fff;font-size:12px;text-align:left}
+.dw-tools button:hover:not(:disabled){border-color:#7c6cd8}
+.dw-tools b{width:16px;text-align:center}
+.dw-tools kbd{margin-left:auto;color:#9aa1ad;font:11px ui-monospace,monospace}
+.dw-tools .dw-danger{color:#b42318}
+.dw-sep{flex:none;height:1px;margin:4px 0;background:#e3e5ec}
+.dw-group-label{color:#6b7280;font-size:11px;font-weight:700}
+.dw-swatch{display:inline-block;width:12px;height:12px;border:1.5px solid;border-radius:3px}
+.dw-stage{flex:1;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.dw-device{display:flex;flex-direction:column;flex:none;overflow:hidden;background:#fff;box-shadow:0 8px 26px rgba(0,0,0,.14)}
+.dw-device.phone{border:8px solid #16181d;border-radius:30px}
+.dw-device.web{border:1px solid #d9dbe3;border-radius:10px}
+.dw-device-bar{display:flex;align-items:center;gap:5px;height:24px;padding:0 14px;font-size:11px;justify-content:space-between}
+.dw-device.web .dw-device-bar{height:28px;justify-content:flex-start;padding:0 10px;background:#eceef3;border-bottom:1px solid #dfe2ea}
+.dw-device-bar i{width:9px;height:9px;border-radius:50%;background:#ff5f57}.dw-device-bar i:nth-child(2){background:#febc2e}.dw-device-bar i:nth-child(3){background:#28c840}
+.dw-device-bar span:last-child{color:#6b7280}.dw-device.web .dw-device-bar span{margin-left:8px;padding:2px 10px;border-radius:6px;background:#fff}
+.dw-svg{display:block;touch-action:none;user-select:none;cursor:default;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+.dw-svg.drawing-tool{cursor:crosshair}.dw-svg:focus{outline:none}.dw-svg:focus-visible{outline:2px solid #7c6cd8}
+.dw-svg [data-shape-id]{cursor:move}.dw-svg [data-handle]{cursor:nwse-resize}
+.dw-bottom{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 12px;background:#fff;border-top:1px solid #e3e5ec}
+.dw-text{display:flex;align-items:center;gap:8px;flex:1 1 320px;font-weight:700}
+.dw-text textarea{flex:1;min-width:0;resize:vertical;padding:6px 8px;border:1px solid #d5d8e1;border-radius:8px;font:inherit;font-weight:400}
+.dw-bottom small{color:#6b7280}
+@media (max-width:760px){.dw-dialog{width:100vw;height:100vh;border-radius:0}.dw-body{flex-direction:column}.dw-tools{flex-direction:row;flex-wrap:wrap;width:auto;max-height:118px;border-right:0;border-bottom:1px solid #e3e5ec}.dw-sep{width:1px;height:auto;margin:0 2px}.dw-group-label,.dw-tools kbd,.dw-bottom small{display:none}}
+`;
+  document.head.append(style);
+}
 function phoneContent(screen, interactive = false, action = "go-screen") {
   const blocks = sectionLines(screen);
   const links = state.links.filter((link) => link.from === screen.id).map((link) => ({ link, target: state.screens.find((item) => item.id === link.to) })).filter((entry) => entry.target);
   const footer = `<div class="phone-footer">${interactive && links.length ? links.map(({ link, target }) => `<button class="phone-cta" data-action="${action}" data-id="${escapeHtml(target.id)}">${escapeHtml(link.label || target.title)} →</button>`).join("") : `<div class="phone-cta muted">${escapeHtml(screen.actionLabel || "주요 버튼")}</div>`}</div>`;
+  if (hasDrawing(screen)) return drawingView(screen, footer);
   if (isWebScreen(screen)) return webShell(screen, footer);
   if (isChatScreen(screen)) return chatPhone(screen, footer);
   return `<div class="phone-frame"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="phone-body"><div class="phone-kicker">${escapeHtml(state.projectName)}</div><h3>${escapeHtml(screen.title)}</h3><p class="phone-purpose">${escapeHtml(screen.purpose || "이 화면의 목적을 적어 주세요.")}</p><div class="wire-blocks">${blocks.length ? blocks.map((block, index) => `<div class="wire-block"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(block)}</div>`).join("") : `<div class="wire-placeholder">+ 정보 블록을 추가해 주세요</div>`}</div></div>${footer}</div><div class="phone-home"></div></div>`;
 }
 function wireframe() {
-  const button = `<div class="intro-buttons"><button class="outline-button" data-action="import-merge">파일 합쳐 불러오기</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
-  return `${pageHeader("ROOM 02 / STRUCTURE", "와이어프레임", "화면별 목적과 정보의 순서를 잡습니다. 이 목록이 흐름도와 프로토타입의 공통 원본입니다. 정보 블록에 ChatGPT 블록을 넣으면 ChatGPT 대화 목업으로, 웹 블록을 넣으면 브라우저 목업으로 그려집니다.", button)}
-  ${state.screens.length ? `<div class="wire-grid">${state.screens.map((screen, index) => `<article class="wire-card${isWebScreen(screen) ? " wb-wire-card" : ""}" data-presence-id="${escapeHtml(screen.id)}"><div class="wire-heading"><span class="index-label">SCREEN ${String(index + 1).padStart(2, "0")}</span><span class="status ${screen.status === "확정" ? "done" : "in-progress"}">${escapeHtml(screen.status)}</span></div>${phoneContent(screen)}<div class="wire-meta"><h2>${escapeHtml(screen.title)}</h2><p>${escapeHtml(screen.purpose || "목적 미입력")}</p><div class="card-actions"><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">편집</button><button data-action="delete-screen" data-id="${escapeHtml(screen.id)}">삭제</button></div></div></article>`).join("")}</div>` : empty("▦", "아직 화면이 없습니다", "첫 화면을 추가하면 흐름도와 프로토타입에도 자동으로 나타납니다.", "add-screen", "+ 첫 화면 추가")}`;
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="import-merge">파일 합쳐 불러오기</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
+  return `${pageHeader("ROOM 02 / STRUCTURE", "와이어프레임", "화면별 목적과 정보의 순서를 잡습니다. 이 목록이 흐름도와 프로토타입의 공통 원본입니다. 정보 블록에 ChatGPT 블록을 넣으면 ChatGPT 대화 목업으로, 웹 블록을 넣으면 브라우저 목업으로 그려집니다. 원하는 모양이 있으면 그리기로 네모·원·선을 직접 그리세요.", button)}
+  ${state.screens.length ? `<div class="wire-grid">${state.screens.map((screen, index) => `<article class="wire-card${isWideScreen(screen) ? " wb-wire-card" : ""}" data-presence-id="${escapeHtml(screen.id)}"><div class="wire-heading"><span class="index-label">SCREEN ${String(index + 1).padStart(2, "0")}</span><span class="status ${screen.status === "확정" ? "done" : "in-progress"}">${escapeHtml(screen.status)}</span></div>${phoneContent(screen)}<div class="wire-meta"><h2>${escapeHtml(screen.title)}</h2><p>${escapeHtml(screen.purpose || "목적 미입력")}</p><div class="card-actions"><button data-action="draw-screen" data-id="${escapeHtml(screen.id)}">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">편집</button><button data-action="delete-screen" data-id="${escapeHtml(screen.id)}">삭제</button></div></div></article>`).join("")}</div>` : empty("▦", "아직 화면이 없습니다", "첫 화면을 추가하면 흐름도와 프로토타입에도 자동으로 나타납니다.", "add-screen", "+ 첫 화면 추가")}`;
 }
 // 흐름도에서는 설명 목록 대신 실제 화면 구조를 닮은 작은 폰 목업을 보여 준다.
 // StudyMeta의 계획 → 학습 → 정리 화면은 각각 구성하고, 이후 추가하는 화면은 공통 폰 목업을 사용한다.
@@ -651,6 +1089,7 @@ function flowPhoneContent(screen, action = "focus-flow-screen") {
   if (url) return `<div class="phone-frame flow-phone"><div class="phone-island"></div><div class="phone-screen"><iframe class="flow-live-frame" title="${escapeHtml(screen.title)} 미리보기" src="${escapeHtml(url)}"></iframe><div class="flow-phone-footer">${linkButtons}</div></div><div class="phone-home"></div></div>`;
   // ChatGPT 블록이 있는 화면은 아래 고정 목업보다 우선한다. 정보 블록을 고치면 흐름도에도 바로 반영된다.
   const flowFooter = `<div class="flow-phone-footer">${linkButtons || `<span class="flow-no-link">연결된 화면이 없어요</span>`}</div>`;
+  if (hasDrawing(screen)) return drawingView(screen, flowFooter);
   if (isWebScreen(screen)) return webShell(screen, flowFooter);
   if (isChatScreen(screen)) return chatPhone(screen, flowFooter);
   const field = (label, value = "입력해 주세요") => `<div class="mock-field"><span>${label}</span><strong>${value}</strong></div>`;
@@ -675,9 +1114,9 @@ function flowPhoneContent(screen, action = "focus-flow-screen") {
   return `<div class="phone-frame flow-phone"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="mock-body"><div class="mock-brand">StudyMeta <span>설계 목업</span></div>${views[screen.id]}</div><div class="flow-phone-footer">${linkButtons || `<span class="flow-no-link">연결된 화면이 없어요</span>`}</div></div><div class="phone-home"></div></div>`;
 }
 function flow() {
-  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
   return `${pageHeader("ROOM 03 / CONNECT", "흐름도", "화면을 보며 동선을 확인하세요. 폰 속 버튼을 누르면 연결된 화면으로 이동합니다.", button)}
-  ${state.screens.length ? `<div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => `<div class="flow-node${flowFocus === screen.id ? " focused" : ""}${isWebScreen(screen) ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${isWebScreen(screen) ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3>${escapeHtml(screen.title)}</h3><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></div>${flowPhoneContent(screen)}<div class="flow-node-caption">${escapeHtml(screen.purpose || "화면 목적 미입력")}</div></div>`).join("")}</div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
+  ${state.screens.length ? `<div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => `<div class="flow-node${flowFocus === screen.id ? " focused" : ""}${isWideScreen(screen) ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${isWideScreen(screen) ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3>${escapeHtml(screen.title)}</h3><span class="dw-node-actions"><button data-action="draw-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 그리기">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></span></div>${flowPhoneContent(screen)}<div class="flow-node-caption">${escapeHtml(screen.purpose || "화면 목적 미입력")}</div></div>`).join("")}</div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
 }
 function prototype() {
   if (!state.screens.length) return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "화면을 폰 프레임에서 눌러보며 동선을 확인합니다.")}${empty("▶", "아직 눌러볼 화면이 없습니다", "와이어프레임에서 화면을 추가하면 이곳에서 바로 확인할 수 있습니다.", "add-screen", "+ 첫 화면 추가")}`;
@@ -685,7 +1124,7 @@ function prototype() {
   const screen = state.screens.find((item) => item.id === selectedScreen);
   const url = validUrl(screen.url);
   return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "왼쪽에서 화면을 고르거나 폰 안의 이동 버튼을 눌러 실제 흐름처럼 확인하세요.")}
-  <div class="prototype-layout"><aside class="screen-rail"><div class="rail-heading"><span class="eyebrow">SCREENS</span><strong>${state.screens.length}개 화면</strong></div>${state.screens.map((item, index) => `<button class="rail-item ${item.id === screen.id ? "selected" : ""}" data-action="go-screen" data-id="${escapeHtml(item.id)}" data-presence-id="${escapeHtml(item.id)}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(item.title)}</strong><i>↗</i></button>`).join("")}<div class="rail-note">흐름도에서 연결한 화면은 폰 안의 버튼으로 이동할 수 있습니다.</div></aside><div class="preview-area"><div class="preview-toolbar"><span class="live-dot"></span><span>${url ? "실제 화면 미리보기" : "설계 목업"}</span><span class="spacer"></span>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">새 탭에서 열기 ↗</a>` : `<button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">이 화면 편집 ↗</button>`}</div><div class="preview-center">${url ? `<div class="phone-frame live-phone"><div class="phone-island"></div><iframe title="${escapeHtml(screen.title)} 미리보기" src="${escapeHtml(url)}"></iframe><div class="phone-home"></div></div>` : flowPhoneContent(screen, "go-screen")}<div class="preview-caption"><strong>${escapeHtml(screen.title)}</strong><p>${escapeHtml(screen.purpose || "화면 목적 미입력")}</p>${url ? "<small>외부 사이트는 임베드를 차단할 수 있습니다. 이 경우 새 탭에서 여세요.</small>" : ""}</div></div></div></div>`;
+  <div class="prototype-layout"><aside class="screen-rail"><div class="rail-heading"><span class="eyebrow">SCREENS</span><strong>${state.screens.length}개 화면</strong></div>${state.screens.map((item, index) => `<button class="rail-item ${item.id === screen.id ? "selected" : ""}" data-action="go-screen" data-id="${escapeHtml(item.id)}" data-presence-id="${escapeHtml(item.id)}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(item.title)}</strong><i>↗</i></button>`).join("")}<div class="rail-note">흐름도에서 연결한 화면은 폰 안의 버튼으로 이동할 수 있습니다.</div></aside><div class="preview-area"><div class="preview-toolbar"><span class="live-dot"></span><span>${url ? "실제 화면 미리보기" : "설계 목업"}</span><span class="spacer"></span>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">새 탭에서 열기 ↗</a>` : `<button data-action="draw-screen" data-id="${escapeHtml(screen.id)}">이 화면 그리기 ✎</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">이 화면 편집 ↗</button>`}</div><div class="preview-center">${url ? `<div class="phone-frame live-phone"><div class="phone-island"></div><iframe title="${escapeHtml(screen.title)} 미리보기" src="${escapeHtml(url)}"></iframe><div class="phone-home"></div></div>` : flowPhoneContent(screen, "go-screen")}<div class="preview-caption"><strong>${escapeHtml(screen.title)}</strong><p>${escapeHtml(screen.purpose || "화면 목적 미입력")}</p>${url ? "<small>외부 사이트는 임베드를 차단할 수 있습니다. 이 경우 새 탭에서 여세요.</small>" : ""}</div></div></div></div>`;
 }
 function drawLines() {
   const svg = $("#flow-lines");
@@ -892,6 +1331,11 @@ document.addEventListener("click", (event) => {
   if (action === "add-screen") openEditor("screen");
   if (action === "add-chat-screen") openEditor("screen", null, { sections: CHAT_STARTER });
   if (action === "insert-chat-block") insertChatBlock(itemId);
+  if (action === "draw-screen") openDraw(itemId);
+  if (action === "add-draw-screen") {
+    const index = state.screens.length, newId = id();
+    if (commit({ type: "screen.create", item: { id: newId, title: "새 그림 화면", purpose: "", sections: "", actionLabel: "", url: "", status: "작업 중", x: 60 + (index % 5) * 310, y: 60 + Math.floor(index / 5) * 580, drawing: { frame: "phone", shapes: [] } } })) openDraw(newId);
+  }
   if (action === "add-web-screen") openEditor("screen", null, { sections: WEB_STARTER });
   if (action === "insert-web-block") insertChatBlock(itemId, WEB_BLOCKS);
   if (action === "import-merge") { importMode = "merge"; $("#import-file").click(); }
@@ -920,7 +1364,7 @@ $("#editor").addEventListener("close", () => { editContext = null; if (collab.ed
 $("#import-file").addEventListener("change", (event) => { if (event.target.files[0]) importData(event.target.files[0]); });
 window.addEventListener("hashchange", () => { flowExpanded = false; render(); $("#app").focus(); });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && flowExpanded && !$("#editor")?.open) setFlowExpanded(false);
+  if (event.key === "Escape" && flowExpanded && !$("#editor")?.open && !drawDialog()?.open) setFlowExpanded(false);
 });
 
 document.addEventListener("wheel", (event) => {
@@ -981,6 +1425,7 @@ document.addEventListener("pointercancel", endDrag);
 // 처음 들어오면 팀원에게 보일 이름을 정한다.
 injectChatStyles();
 injectWebStyles();
+injectDrawStyles();
 render();
 renderPresence();
 connect();

@@ -34,7 +34,7 @@ service-prototype.html           가입부터 화면 A/B/C까지의 전체 서�
 viewer.html                      Supabase Learner Context 검증 Viewer
 design.md                        학생용 UI 설계 문서
 AGENTS.md                        저장소 작업 및 Learner Model 보존 지침
-workboard/                       작업판 도구용 계획 → 학습 → 정리 흐름 데이터와 app.js (ChatGPT · 웹 목업 포함)
+workboard/                       작업판 도구용 계획 → 학습 → 정리 흐름 데이터와 app.js (ChatGPT · 웹 목업, 그리기 도구 포함)
 md/                              공개 저장소에서 제외되는 로컬 연구 노트
 ```
 
