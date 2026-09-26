@@ -279,7 +279,7 @@ function home() {
   <section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>AI와 함께 쓰는 방법</h2></div><span>AI 대화는 평소 사용하는 도구에서 진행합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>작업판의 현재 상태를 AI에게 건네세요.</h3><p>AI가 실험 가설, 화면 구성, 연결을 제안하거나 JSON을 수정하도록 요청할 수 있습니다. 이 버튼은 현재 작업판 데이터와 형식을 요청문에 담아 복사합니다.</p><button class="primary-button" data-action="copy-ai-prompt">AI 요청문 복사 →</button><small>클립보드에만 복사됩니다. 원하는 AI 대화창에 직접 붙여 넣으세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>복사해 AI에게 전달</strong><small>프로젝트 목표와 원하는 작업을 요청문에 덧붙입니다.</small></span></div><div><b>02</b><span><strong>결과를 검토</strong><small>화면 이름, 연결, 문구를 확인하고 JSON으로 저장합니다.</small></span></div><div><b>03</b><span><strong>불러와 직접 눌러보기</strong><small>상단 불러오기로 반영하고 흐름도와 프로토타입을 확인합니다.</small></span></div></div></div><p class="ai-guide-note">작업판의 디자인·기능 자체를 바꾸려면 이 폴더를 AI 코딩 도구에서 열고 원하는 변경을 요청하세요. 작업판 데이터는 서버를 켠 컴퓨터의 <b>data/board.json</b>에 저장되고, 접속한 모든 팀원에게 실시간으로 반영됩니다. AI에게 건넬 때는 <b>내보내기</b>나 AI 요청문 복사를 사용하세요.</p></section>`;
 }
 function aiPrompt() {
-  return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
+  return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n- ChatGPT(MCP) 화면은 sections에 다음 형식을 씁니다. ${CHAT_RULES}. 위젯 표시 방식은 inline(카드, 버튼 2개까지) · carousel(카드 3~8개) · fullscreen · pip 네 가지입니다.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
 }
 async function copyAiPrompt() {
   try {
@@ -294,14 +294,183 @@ function lab() {
   ${state.experiments.length ? `<div class="experiment-grid">${state.experiments.map((item, index) => `<article class="experiment-card" data-presence-id="${escapeHtml(item.id)}"><div class="card-top"><span class="index-label">EXPERIMENT ${String(index + 1).padStart(2, "0")}</span><span class="status ${item.status === "검토 완료" ? "done" : item.status === "보류" ? "paused" : "in-progress"}">${escapeHtml(item.status)}</span></div><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.question || "검증할 질문을 적어 주세요.")}</p><div class="card-actions">${validUrl(item.url) ? `<a href="${escapeHtml(validUrl(item.url))}" target="_blank" rel="noopener noreferrer">참고 링크 ↗</a>` : ""}<button data-action="edit-experiment" data-id="${escapeHtml(item.id)}">편집</button><button data-action="delete-experiment" data-id="${escapeHtml(item.id)}">삭제</button></div></article>`).join("")}</div>` : empty("⌁", "첫 실험을 준비해 볼까요?", "기능이나 화면의 가설을 적어 두면 실험실 카드로 쌓입니다.", "add-experiment", "+ 첫 실험 추가")}`;
 }
 function sectionLines(screen) { return String(screen.sections || "").split("\n").map((value) => value.trim()).filter(Boolean); }
+// ── ChatGPT(MCP) 목업 ───────────────────────────────────────────────
+// 정보 블록 줄 앞에 [사용자] [도구] [AI] [inline] [carousel] [fullscreen] [pip] [버튼] 머리표를 붙이면
+// 그 화면은 폰 목업 대신 ChatGPT 대화 화면으로 그려진다. 데이터 형식(sections 문자열)은 그대로라
+// 서버·board-ops.js를 바꾸지 않고, 팀원이 편집 창에서 함께 고칠 수 있다.
+const CHAT_TAGS = { "사용자": "user", "user": "user", "ai": "ai", "chatgpt": "ai", "도구": "tool", "tool": "tool", "inline": "inline", "인라인": "inline", "carousel": "carousel", "캐러셀": "carousel", "fullscreen": "fullscreen", "전체화면": "fullscreen", "pip": "pip", "버튼": "button", "button": "button" };
+const WIDGET_KINDS = { inline: "Inline 카드", carousel: "Inline 캐러셀", fullscreen: "Fullscreen", pip: "PiP" };
+const CHAT_BLOCKS = {
+  user: { label: "사용자 말", text: "[사용자] 오늘 공부 시작할래" },
+  tool: { label: "도구 호출", text: "[도구] StudyMeta 사용 중" },
+  ai: { label: "AI 답변", text: "[AI] 시험까지 할 일을 정리했어요." },
+  inline: { label: "Inline 카드", text: "[inline] 할 일 체크리스트\n- [x] 극한의 정의 복습 | AI 제안\n- [ ] 교수님 강조 부분 | 내가 추가\n[버튼] 학습 시작 | 수정하기" },
+  carousel: { label: "캐러셀", text: "[carousel] 오늘 공부할 범위\n- 2장 연속 | 개념 3개\n- 3장 미분 | 개념 4개\n- 1장 극한 | 복습\n[버튼] 이 범위로 시작" },
+  fullscreen: { label: "Fullscreen", text: "[fullscreen] 오늘 공부한 내용\n- 2장 연속\n-- [x] 연속의 정의\n-- [ ] 중간값 정리\n[버튼] 내 상태 보기" },
+  pip: { label: "PiP", text: "[pip] 내 계획\n- [x] 극한의 정의 복습 | 완료\n- [ ] 연속 예제 5개 | 학습 중" },
+  button: { label: "버튼", text: "[버튼] 버튼 1 | 버튼 2" },
+};
+const CHAT_STARTER = [CHAT_BLOCKS.user.text, CHAT_BLOCKS.tool.text, CHAT_BLOCKS.ai.text, CHAT_BLOCKS.inline.text].join("\n");
+const CHAT_RULES = "[사용자] [AI] [도구] 한 줄씩 · [inline] [carousel] [fullscreen] [pip] 제목 줄 아래에 '- 항목 | 배지', 한 단계 아래는 '-- 항목' · 체크박스는 '[ ]' '[x]' · 위젯 버튼은 [버튼] A | B";
+
+const chatTag = (line) => { const match = /^\[([^\]]+)\]\s*(.*)$/.exec(line); const tag = match && CHAT_TAGS[match[1].trim().toLowerCase()]; return tag ? { tag, text: match[2].trim() } : null; };
+const isChatScreen = (screen) => sectionLines(screen).some((line) => chatTag(line));
+function parseChat(screen) {
+  const blocks = [];
+  let widget = null;
+  const addText = (text) => {
+    const last = blocks[blocks.length - 1];
+    if (last?.type === "ai") last.lines.push(text); else blocks.push({ type: "ai", lines: [text] });
+  };
+  for (const line of sectionLines(screen)) {
+    const tagged = chatTag(line);
+    if (tagged && WIDGET_KINDS[tagged.tag]) { widget = { type: "widget", kind: tagged.tag, title: tagged.text, items: [], body: [], buttons: [] }; blocks.push(widget); continue; }
+    if (tagged?.tag === "button") {
+      const labels = tagged.text.split("|").map((label) => label.trim()).filter(Boolean);
+      if (widget) widget.buttons.push(...labels); else blocks.push({ type: "buttons", labels });
+      continue;
+    }
+    if (tagged) { widget = null; if (tagged.tag === "ai") blocks.push({ type: "ai", lines: [tagged.text] }); else blocks.push({ type: tagged.tag, text: tagged.text }); continue; }
+    const item = /^(-+)\s*(.*)$/.exec(line);
+    if (item) {
+      const [text, ...badges] = item[2].split("|").map((part) => part.trim());
+      if (widget) widget.items.push({ depth: Math.min(3, item[1].length), text, badge: badges.join(" · ") });
+      else addText(`• ${item[2]}`);
+      continue;
+    }
+    if (widget) widget.body.push(line); else addText(line);
+  }
+  return blocks;
+}
+// Apps SDK 디자인 가이드라인에 맞춰 설계 중에 바로 알 수 있도록 짧은 경고를 붙인다.
+function chatLint(widget, counts) {
+  const notes = [];
+  if (widget.kind === "inline" && widget.buttons.length > 2) notes.push("Inline 카드 버튼은 2개까지 권장");
+  if (widget.kind === "inline" && (widget.items.length > 6 || widget.items.some((item) => item.depth > 1))) notes.push("내용이 길거나 위계가 깊으면 Fullscreen을 고려");
+  if (widget.kind === "carousel" && (widget.items.length < 3 || widget.items.length > 8)) notes.push("캐러셀은 카드 3~8개 권장");
+  if (widget.kind === "carousel" && widget.buttons.length > 1) notes.push("캐러셀 카드마다 버튼은 1개");
+  if ((widget.kind === "fullscreen" || widget.kind === "pip") && counts[widget.kind] > 1) notes.push(`${WIDGET_KINDS[widget.kind]}는 한 화면에 1개만 보여요`);
+  return notes.length ? `<div class="cg-lint">⚠ ${notes.map(escapeHtml).join(" · ")}</div>` : "";
+}
+const chatCheck = (text) => String(text).replace(/^\[\s\]\s*/, "☐ ").replace(/^\[[xX✓]\]\s*/, "☑ ");
+const chatBadge = (badge) => badge ? `<b class="cg-badge${/AI/.test(badge) ? " ai" : /내가|사용자/.test(badge) ? " mine" : ""}">${escapeHtml(badge)}</b>` : "";
+function chatWidget(widget, counts) {
+  const head = `<div class="cg-widget-head"><span class="cg-app-icon">S</span><strong>${escapeHtml(widget.title || "StudyMeta")}</strong><em>${WIDGET_KINDS[widget.kind]}</em>${widget.kind === "inline" || widget.kind === "carousel" ? "" : '<span class="cg-close">✕</span>'}</div>`;
+  const body = widget.body.map((text) => `<p class="cg-widget-text">${escapeHtml(chatCheck(text))}</p>`).join("");
+  const buttons = (labels) => labels.length ? `<div class="cg-widget-buttons">${labels.map((label, index) => `<span class="cg-button${index ? "" : " primary"}">${escapeHtml(label)}</span>`).join("")}</div>` : "";
+  if (widget.kind === "carousel") {
+    const cards = widget.items.map((item) => `<div class="cg-slide"><div class="cg-slide-art"></div><strong>${escapeHtml(chatCheck(item.text))}</strong>${item.badge ? `<small>${escapeHtml(item.badge)}</small>` : ""}${buttons(widget.buttons.slice(0, 1))}</div>`).join("");
+    return `<div class="cg-carousel"><div class="cg-carousel-head"><strong>${escapeHtml(widget.title || "StudyMeta")}</strong><em>${WIDGET_KINDS.carousel}</em></div><div class="cg-slides">${cards || '<div class="cg-slide"><strong>- 항목을 추가해 주세요</strong></div>'}</div>${chatLint(widget, counts)}</div>`;
+  }
+  const items = widget.items.map((item) => `<div class="cg-item depth-${item.depth}"><span>${item.depth > 1 ? "└ " : ""}${escapeHtml(chatCheck(item.text))}</span>${chatBadge(item.badge)}</div>`).join("");
+  return `<div class="cg-widget ${widget.kind}">${head}<div class="cg-widget-body">${body}${items}</div>${buttons(widget.buttons)}${chatLint(widget, counts)}</div>`;
+}
+function chatScreen(screen) {
+  const blocks = parseChat(screen);
+  const counts = blocks.reduce((total, block) => (block.type === "widget" ? { ...total, [block.kind]: (total[block.kind] || 0) + 1 } : total), {});
+  const thread = [], overlays = [];
+  for (const block of blocks) {
+    if (block.type === "user") thread.push(`<div class="cg-user">${escapeHtml(block.text)}</div>`);
+    if (block.type === "tool") thread.push(`<div class="cg-tool"><span class="cg-app-icon">S</span>${escapeHtml(block.text || "StudyMeta 사용 중")}</div>`);
+    if (block.type === "ai") thread.push(`<div class="cg-ai">${block.lines.map((text) => escapeHtml(text)).join("<br>")}</div>`);
+    if (block.type === "buttons") thread.push(`<div class="cg-widget-buttons loose">${block.labels.map((label) => `<span class="cg-button">${escapeHtml(label)}</span>`).join("")}</div><div class="cg-lint">⚠ 버튼은 위젯 안에서만 쓸 수 있어요</div>`);
+    if (block.type === "widget" && (block.kind === "inline" || block.kind === "carousel")) thread.push(chatWidget(block, counts));
+    // Fullscreen·PiP는 대화 위에 겹쳐 뜬다. 여러 개면 마지막 것만 보인다.
+    if (block.type === "widget" && (block.kind === "fullscreen" || block.kind === "pip")) overlays[block.kind === "pip" ? 1 : 0] = chatWidget(block, counts);
+  }
+  return `<div class="cg-app${overlays[0] ? " has-fullscreen" : ""}"><div class="cg-header"><strong>ChatGPT</strong><span>StudyMeta 연결됨</span></div><div class="cg-thread">${thread.join("") || '<div class="cg-empty">대화 블록을 추가해 주세요</div>'}</div>${overlays.filter(Boolean).join("")}<div class="cg-composer"><span>무엇이든 물어보세요</span><b>⬆</b></div></div>`;
+}
+function chatPhone(screen, footer) {
+  return `<div class="phone-frame flow-phone cg-phone"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div>${chatScreen(screen)}${footer}</div><div class="phone-home"></div></div>`;
+}
+function insertChatBlock(kind) {
+  const textarea = $("#editor-fields textarea[name='sections']");
+  const block = CHAT_BLOCKS[kind];
+  if (!textarea || !block) return;
+  const start = textarea.selectionStart ?? textarea.value.length, end = textarea.selectionEnd ?? start;
+  const before = textarea.value.slice(0, start), after = textarea.value.slice(end);
+  const text = `${before && !before.endsWith("\n") ? "\n" : ""}${block.text}${after && !after.startsWith("\n") ? "\n" : ""}`;
+  textarea.setRangeText(text, start, end, "end");
+  textarea.focus();
+  updateChatPreview();
+}
+function updateChatPreview() {
+  const preview = $("#cg-preview");
+  const sections = $("#editor-fields textarea[name='sections']")?.value || "";
+  if (!preview) return;
+  const draft = { sections };
+  preview.innerHTML = isChatScreen(draft) ? chatPhone(draft, "") : `<p class="cg-preview-empty">위 버튼으로 ChatGPT 블록을 추가하면 여기에 미리보기가 나타나요.</p>`;
+}
+function chatEditorTools() {
+  return `<div class="cg-tools"><div class="cg-toolbar" role="group" aria-label="ChatGPT 블록 추가"><span>ChatGPT 블록 추가</span>${Object.entries(CHAT_BLOCKS).map(([kind, block]) => `<button type="button" class="${WIDGET_KINDS[kind] ? "widget" : ""}" data-action="insert-chat-block" data-id="${kind}">＋ ${escapeHtml(block.label)}</button>`).join("")}</div><small class="cg-rules">${escapeHtml(CHAT_RULES)}</small><div class="cg-preview-wrap"><span>미리보기</span><div id="cg-preview" aria-live="polite"></div></div></div>`;
+}
+function injectChatStyles() {
+  if (document.getElementById("cg-styles")) return;
+  const style = document.createElement("style");
+  style.id = "cg-styles";
+  style.textContent = `
+.cg-phone .phone-screen{display:flex;flex-direction:column}
+.cg-app{position:relative;flex:1 1 0;min-height:340px;display:flex;flex-direction:column;overflow:hidden;background:#fff;color:#0d0d0d;font:10px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;text-align:left}
+.cg-header{display:flex;align-items:baseline;justify-content:space-between;gap:6px;padding:6px 10px;border-bottom:1px solid #ececec}
+.cg-header strong{font-size:11px}.cg-header span{color:#8e8e8e;font-size:8.5px}
+.cg-thread{flex:1 1 0;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:8px;overflow:hidden}
+.cg-user{align-self:flex-end;max-width:82%;padding:5px 9px;border-radius:12px;background:#f0f0f0;white-space:pre-wrap}
+.cg-ai{max-width:100%;padding:0 2px}
+.cg-tool{display:flex;align-items:center;gap:5px;color:#8e8e8e;font-size:9px}
+.cg-app-icon{display:inline-grid;place-items:center;flex:none;width:14px;height:14px;border-radius:4px;background:#7c6cd8;color:#fff;font-size:8px;font-weight:700;font-style:normal}
+.cg-widget,.cg-carousel{border:1px solid #e3e3e3;border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.cg-widget-head,.cg-carousel-head{display:flex;align-items:center;gap:5px;padding:6px 8px;border-bottom:1px solid #f0f0f0}
+.cg-widget-head strong,.cg-carousel-head strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cg-widget-head em,.cg-carousel-head em{flex:none;padding:1px 5px;border-radius:6px;background:#f1efff;color:#5b4bc4;font-size:7.5px;font-style:normal;font-weight:700}
+.cg-close{color:#8e8e8e}
+.cg-widget-body{padding:5px 8px;display:grid;gap:3px}
+.cg-widget-text{margin:0;color:#444}
+.cg-item{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.cg-item span{min-width:0}.cg-item.depth-2{padding-left:10px}.cg-item.depth-3{padding-left:20px}.cg-item.depth-1+.cg-item.depth-1{border-top:1px dashed #f0f0f0;padding-top:3px}
+.cg-badge{flex:none;padding:1px 5px;border-radius:6px;background:#f2f2f2;color:#555;font-size:7.5px}
+.cg-badge.ai{background:#f1efff;color:#5b4bc4}.cg-badge.mine{background:#e8f6ee;color:#1f7a4a}
+.cg-widget-buttons{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px 7px}.cg-widget-buttons.loose{padding:0}
+.cg-button{padding:3px 8px;border:1px solid #d9d9d9;border-radius:999px;font-size:8.5px;font-weight:600}
+.cg-button.primary{border-color:#0d0d0d;background:#0d0d0d;color:#fff}
+.cg-slides{display:flex;gap:6px;padding:7px 8px;overflow:hidden}
+.cg-slide{flex:0 0 62%;display:grid;gap:3px;padding:6px;border:1px solid #ececec;border-radius:10px}
+.cg-slide small{color:#8e8e8e}.cg-slide .cg-widget-buttons{padding:2px 0 0}
+.cg-slide-art{height:30px;border-radius:7px;background:linear-gradient(135deg,#efedff,#f7f7f7)}
+.cg-widget.fullscreen{position:absolute;top:0;left:0;right:0;bottom:34px;z-index:2;display:flex;flex-direction:column;border:0;border-radius:0;box-shadow:none}
+.cg-widget.fullscreen .cg-widget-body{flex:1;align-content:start;overflow:hidden}
+.cg-widget.pip{position:absolute;top:30px;right:7px;z-index:3;width:64%;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.cg-lint{margin:0 8px 6px;padding:3px 6px;border-radius:6px;background:#fff6e5;color:#9a5b00;font-size:8px}
+.cg-thread>.cg-lint{margin:0}
+.cg-composer{display:flex;align-items:center;justify-content:space-between;margin:0 8px 8px;padding:6px 6px 6px 10px;border:1px solid #e3e3e3;border-radius:999px;color:#8e8e8e;position:relative;z-index:4;background:#fff}
+.cg-composer b{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#0d0d0d;color:#fff;font-size:9px}
+.cg-empty{margin:auto;color:#b0b0b0}
+.cg-tools{display:grid;gap:8px;margin:-4px 0 14px}
+.cg-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.cg-toolbar span{width:100%;font-size:12px;font-weight:700}
+.cg-toolbar button{padding:5px 10px;border:1px solid #d9d9d9;border-radius:999px;background:#fff;color:#333;font:inherit;font-size:12px;cursor:pointer}
+.cg-toolbar button.widget{border-color:#c9c1f3;background:#f5f3ff;color:#4a3ab0}
+.cg-toolbar button:hover{border-color:#7c6cd8}
+.cg-toolbar button:focus-visible{outline:2px solid #7c6cd8;outline-offset:2px}
+.cg-rules{color:#777;font-size:11px;line-height:1.5}
+.cg-preview-wrap{display:grid;gap:6px;padding:10px;border-radius:12px;background:#f6f6f8}
+.cg-preview-wrap>span{font-size:12px;font-weight:700}
+#cg-preview{display:flex;justify-content:center}
+#cg-preview .cg-phone{width:248px;max-width:100%}
+#cg-preview .cg-app{min-height:380px}
+.cg-preview-empty{margin:0;color:#888;font-size:12px}
+`;
+  document.head.append(style);
+}
 function phoneContent(screen, interactive = false, action = "go-screen") {
   const blocks = sectionLines(screen);
   const links = state.links.filter((link) => link.from === screen.id).map((link) => ({ link, target: state.screens.find((item) => item.id === link.to) })).filter((entry) => entry.target);
-  return `<div class="phone-frame"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="phone-body"><div class="phone-kicker">${escapeHtml(state.projectName)}</div><h3>${escapeHtml(screen.title)}</h3><p class="phone-purpose">${escapeHtml(screen.purpose || "이 화면의 목적을 적어 주세요.")}</p><div class="wire-blocks">${blocks.length ? blocks.map((block, index) => `<div class="wire-block"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(block)}</div>`).join("") : `<div class="wire-placeholder">+ 정보 블록을 추가해 주세요</div>`}</div></div><div class="phone-footer">${interactive && links.length ? links.map(({ link, target }) => `<button class="phone-cta" data-action="${action}" data-id="${escapeHtml(target.id)}">${escapeHtml(link.label || target.title)} →</button>`).join("") : `<div class="phone-cta muted">${escapeHtml(screen.actionLabel || "주요 버튼")}</div>`}</div></div><div class="phone-home"></div></div>`;
+  const footer = `<div class="phone-footer">${interactive && links.length ? links.map(({ link, target }) => `<button class="phone-cta" data-action="${action}" data-id="${escapeHtml(target.id)}">${escapeHtml(link.label || target.title)} →</button>`).join("") : `<div class="phone-cta muted">${escapeHtml(screen.actionLabel || "주요 버튼")}</div>`}</div>`;
+  if (isChatScreen(screen)) return chatPhone(screen, footer);
+  return `<div class="phone-frame"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="phone-body"><div class="phone-kicker">${escapeHtml(state.projectName)}</div><h3>${escapeHtml(screen.title)}</h3><p class="phone-purpose">${escapeHtml(screen.purpose || "이 화면의 목적을 적어 주세요.")}</p><div class="wire-blocks">${blocks.length ? blocks.map((block, index) => `<div class="wire-block"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(block)}</div>`).join("") : `<div class="wire-placeholder">+ 정보 블록을 추가해 주세요</div>`}</div></div>${footer}</div><div class="phone-home"></div></div>`;
 }
 function wireframe() {
-  const button = `<button class="primary-button" data-action="add-screen">+ 화면 추가</button>`;
-  return `${pageHeader("ROOM 02 / STRUCTURE", "와이어프레임", "화면별 목적과 정보의 순서를 잡습니다. 이 목록이 흐름도와 프로토타입의 공통 원본입니다.", button)}
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
+  return `${pageHeader("ROOM 02 / STRUCTURE", "와이어프레임", "화면별 목적과 정보의 순서를 잡습니다. 이 목록이 흐름도와 프로토타입의 공통 원본입니다. 정보 블록에 ChatGPT 블록(Inline 카드 · 캐러셀 · Fullscreen · PiP)을 넣으면 ChatGPT 대화 목업으로 그려집니다.", button)}
   ${state.screens.length ? `<div class="wire-grid">${state.screens.map((screen, index) => `<article class="wire-card" data-presence-id="${escapeHtml(screen.id)}"><div class="wire-heading"><span class="index-label">SCREEN ${String(index + 1).padStart(2, "0")}</span><span class="status ${screen.status === "확정" ? "done" : "in-progress"}">${escapeHtml(screen.status)}</span></div>${phoneContent(screen)}<div class="wire-meta"><h2>${escapeHtml(screen.title)}</h2><p>${escapeHtml(screen.purpose || "목적 미입력")}</p><div class="card-actions"><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">편집</button><button data-action="delete-screen" data-id="${escapeHtml(screen.id)}">삭제</button></div></div></article>`).join("")}</div>` : empty("▦", "아직 화면이 없습니다", "첫 화면을 추가하면 흐름도와 프로토타입에도 자동으로 나타납니다.", "add-screen", "+ 첫 화면 추가")}`;
 }
 // 흐름도에서는 설명 목록 대신 실제 화면 구조를 닮은 작은 폰 목업을 보여 준다.
@@ -313,6 +482,8 @@ function flowPhoneContent(screen, action = "focus-flow-screen") {
     .map(({ link, target }) => `<button class="flow-phone-action" data-action="${action}" data-id="${escapeHtml(target.id)}">${escapeHtml(link.label || target.title)} <span>→</span></button>`).join("");
   const url = validUrl(screen.url);
   if (url) return `<div class="phone-frame flow-phone"><div class="phone-island"></div><div class="phone-screen"><iframe class="flow-live-frame" title="${escapeHtml(screen.title)} 미리보기" src="${escapeHtml(url)}"></iframe><div class="flow-phone-footer">${linkButtons}</div></div><div class="phone-home"></div></div>`;
+  // ChatGPT 블록이 있는 화면은 아래 고정 목업보다 우선한다. 정보 블록을 고치면 흐름도에도 바로 반영된다.
+  if (isChatScreen(screen)) return chatPhone(screen, `<div class="flow-phone-footer">${linkButtons || `<span class="flow-no-link">연결된 화면이 없어요</span>`}</div>`);
   const field = (label, value = "입력해 주세요") => `<div class="mock-field"><span>${label}</span><strong>${value}</strong></div>`;
   const chip = (text, active = false) => `<span class="mock-chip${active ? " active" : ""}">${text}</span>`;
   const card = (title, text, badge = "") => `<div class="mock-card"><div><strong>${title}</strong>${badge ? `<b>${badge}</b>` : ""}</div><p>${text}</p></div>`;
@@ -335,7 +506,7 @@ function flowPhoneContent(screen, action = "focus-flow-screen") {
   return `<div class="phone-frame flow-phone"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="mock-body"><div class="mock-brand">StudyMeta <span>설계 목업</span></div>${views[screen.id]}</div><div class="flow-phone-footer">${linkButtons || `<span class="flow-no-link">연결된 화면이 없어요</span>`}</div></div><div class="phone-home"></div></div>`;
 }
 function flow() {
-  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-screen">+ 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
   return `${pageHeader("ROOM 03 / CONNECT", "흐름도", "화면을 보며 동선을 확인하세요. 폰 속 버튼을 누르면 연결된 화면으로 이동합니다.", button)}
   ${state.screens.length ? `<div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => `<div class="flow-node${flowFocus === screen.id ? " focused" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3>${escapeHtml(screen.title)}</h3><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></div>${flowPhoneContent(screen)}<div class="flow-node-caption">${escapeHtml(screen.purpose || "화면 목적 미입력")}</div></div>`).join("")}</div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
 }
@@ -422,19 +593,25 @@ const screenPayload = (source) => ({ title: String(source.title || "").trim(), p
 const experimentPayload = (source) => ({ title: String(source.title || "").trim(), question: String(source.question || "").trim(), url: validUrl(source.url), status: ["진행 중", "검토 완료", "보류"].includes(source.status) ? source.status : "진행 중" });
 // 편집 창을 연 뒤 내가 바꾼 칸만 보낸다. 같은 항목의 다른 칸을 팀원이 동시에 고쳐도 서로 덮어쓰지 않는다.
 const changedFields = (next, before) => Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== before[key]));
-function openEditor(kind, item = null) {
+function openEditor(kind, item = null, preset = {}) {
   const original = kind === "screen" && item ? screenPayload(item) : kind === "experiment" && item ? experimentPayload(item) : null;
   editContext = { kind, id: item?.id || null, original };
   const titles = { project: "프로젝트 이름", screen: item ? "화면 편집" : "화면 추가", experiment: item ? "실험 편집" : "실험 추가", link: "화면 연결", nickname: "내 이름" };
   $("#editor-title").textContent = titles[kind];
   let html = "";
   if (kind === "project") html = field("프로젝트 이름", "projectName", state.projectName);
-  if (kind === "screen") html = field("화면 이름", "title", item?.title || "") + field("이 화면의 목적", "purpose", item?.purpose || "", "textarea") + field("정보 블록", "sections", item?.sections || "", "textarea", "한 줄에 하나씩 적어 주세요.") + field("기본 버튼 문구", "actionLabel", item?.actionLabel || "") + field("실제 화면 URL (선택)", "url", item?.url || "", "input", "URL을 넣으면 프로토타입에서 해당 페이지를 폰에 표시합니다.") + `<label class="form-field"><span>진행 상태</span><select name="status"><option ${item?.status !== "확정" ? "selected" : ""}>작업 중</option><option ${item?.status === "확정" ? "selected" : ""}>확정</option></select></label>`;
+  if (kind === "screen") html = field("화면 이름", "title", item?.title || "") + field("이 화면의 목적", "purpose", item?.purpose || "", "textarea") + field("정보 블록", "sections", item?.sections ?? preset.sections ?? "", "textarea", "한 줄에 하나씩 적어 주세요. ChatGPT 블록을 넣으면 ChatGPT 대화 목업으로 그려집니다.") + chatEditorTools() + field("기본 버튼 문구", "actionLabel", item?.actionLabel || "") + field("실제 화면 URL (선택)", "url", item?.url || "", "input", "URL을 넣으면 프로토타입에서 해당 페이지를 폰에 표시합니다.") + `<label class="form-field"><span>진행 상태</span><select name="status"><option ${item?.status !== "확정" ? "selected" : ""}>작업 중</option><option ${item?.status === "확정" ? "selected" : ""}>확정</option></select></label>`;
   if (kind === "experiment") html = field("실험 이름", "title", item?.title || "") + field("확인할 질문", "question", item?.question || "", "textarea") + field("참고 URL (선택)", "url", item?.url || "") + `<label class="form-field"><span>상태</span><select name="status">${["진행 중", "검토 완료", "보류"].map((status) => `<option ${item?.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>`;
   if (kind === "link") html = `<label class="form-field"><span>출발 화면</span><select name="from">${state.screens.map((screen) => `<option value="${escapeHtml(screen.id)}">${escapeHtml(screen.title)}</option>`).join("")}</select></label><label class="form-field"><span>도착 화면</span><select name="to">${state.screens.map((screen, index) => `<option value="${escapeHtml(screen.id)}" ${index === 1 ? "selected" : ""}>${escapeHtml(screen.title)}</option>`).join("")}</select></label>${field("버튼 문구", "label", "", "input", "비우면 도착 화면 이름이 표시됩니다.")}`;
   if (kind === "nickname") html = field("팀원에게 보일 이름", "nickname", collab.me.name, "input", "작업판을 함께 보는 사람들에게 이 이름으로 표시됩니다.");
   if (item) html = `<p id="collab-notice" class="collab-notice" role="status" hidden></p>${html}`;
   $("#editor-fields").innerHTML = html;
+  if (kind === "screen") {
+    const sections = $("#editor-fields textarea[name='sections']");
+    sections.rows = 12;
+    sections.addEventListener("input", updateChatPreview);
+    updateChatPreview();
+  }
   $("#editor").showModal();
   $("#editor-fields input, #editor-fields select")?.focus();
   if (item) setEditing(item.id);
@@ -522,6 +699,8 @@ document.addEventListener("click", (event) => {
   const action = target.dataset.action, itemId = target.dataset.id;
   if (action === "edit-project") openEditor("project");
   if (action === "add-screen") openEditor("screen");
+  if (action === "add-chat-screen") openEditor("screen", null, { sections: CHAT_STARTER });
+  if (action === "insert-chat-block") insertChatBlock(itemId);
   if (action === "edit-screen") { const item = state.screens.find((screen) => screen.id === itemId); if (item) openEditor("screen", item); }
   if (action === "delete-screen") remove("screen", itemId);
   if (action === "add-experiment") openEditor("experiment");
@@ -606,6 +785,7 @@ document.addEventListener("pointerup", endDrag);
 document.addEventListener("pointercancel", endDrag);
 
 // 처음 들어오면 팀원에게 보일 이름을 정한다.
+injectChatStyles();
 render();
 renderPresence();
 connect();
