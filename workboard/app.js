@@ -31,7 +31,7 @@ let toastTimer;
 // 흐름도 확대·축소. 트랙패드 핀치(ctrlKey가 붙은 wheel), 버튼, 전체 맞춤을 지원한다.
 const NODE_W = 248, NODE_H = 542, SCALE_MIN = .25, SCALE_MAX = 2, SCALE_KEY = "workboard-flow-scale";
 const stageSize = (board = state) => ({
-  width: Math.max(1930, ...board.screens.map((screen) => (Number.isFinite(screen.x) ? screen.x : 0) + nodeWidth(screen) + 70)),
+  width: Math.max(1930, ...board.screens.map((screen) => flowX(screen, board) + nodeWidth(screen) + 70)),
   height: Math.max(1230, ...board.screens.map((screen) => (Number.isFinite(screen.y) ? screen.y : 0) + NODE_H + 70)),
 });
 const clampScale = (value) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, value));
@@ -68,7 +68,7 @@ function setScale(next, anchor) {
 function fitScale() {
   const scroll = document.querySelector(".flow-scroll");
   if (!scroll || !state.screens.length) return;
-  const right = Math.max(...state.screens.map((item) => (Number.isFinite(item.x) ? item.x : 0) + nodeWidth(item) + 30));
+  const right = Math.max(...state.screens.map((item) => flowX(item) + nodeWidth(item) + 30));
   const bottom = Math.max(...state.screens.map((item) => (Number.isFinite(item.y) ? item.y : 0) + NODE_H + 30));
   flowScale = clampScale(Math.min((scroll.clientWidth - 24) / right, (scroll.clientHeight - 24) / bottom, 1));
   applyScale();
@@ -153,7 +153,7 @@ function receiveOp({ rev, op, by, name }) {
   applyOp(viewing ? liveState : state, op, { trusted: true });
   if (viewing) return; // 저장된 버전을 보는 동안에는 실시간 변경을 뒤에서만 반영한다.
   if (op.type === "screen.move") { moveNode(op.id, by); return; }
-  if (op.type === "comment.add" && by !== clientId) { const screen = state.screens.find((item) => item.id === op.screenId); if (screen) toast(`${name}님이 "${screen.title}"에 코멘트를 남겼어요.`); }
+  if (op.type === "comment.add" && by !== clientId) { const target = op.experimentId ? state.experiments.find((item) => item.id === op.experimentId) : state.screens.find((item) => item.id === op.screenId); if (target) toast(`${name}님이 ${op.experimentId ? "가설 " : ""}"${target.title}"에 코멘트를 남겼어요.`); }
   // 그림 저장이 서버에서 빠졌다면 서버가 예전 board-ops.js를 쓰고 있다는 뜻이다.
   if (by === clientId && op.type === "screen.update" && drawSaveCheck?.id === op.id) {
     const sentFrame = drawSaveCheck.frame;
@@ -179,7 +179,7 @@ function moveNode(screenId, by) {
   const screen = state.screens.find((item) => item.id === screenId);
   const node = [...document.querySelectorAll(".flow-node")].find((element) => element.dataset.id === screenId);
   if (!screen || !node || (dragging && dragging.node === node)) return;
-  node.style.left = `${screen.x}px`;
+  node.style.left = `${flowX(screen)}px`;
   node.style.top = `${screen.y}px`;
   applyScale();
   drawLines();
@@ -319,7 +319,7 @@ function lab() {
   const button = `<button class="primary-button" data-action="add-experiment">+ 실험 추가</button>`;
   return `${pageHeader("ROOM 01 / EXPLORE", "실험실", "새로운 화면, 인터랙션, 가설을 독립적으로 시험하는 공간입니다.", button)}
   <div class="room-hint"><strong>실험실 사용법</strong><span>무엇을 확인하려는지 한 문장으로 적고, 결과가 정해지면 화면 목록에 반영하세요.</span></div>
-  ${state.experiments.length ? `<div class="experiment-grid">${state.experiments.map((item, index) => `<article class="experiment-card" data-presence-id="${escapeHtml(item.id)}"><div class="card-top"><span class="index-label">EXPERIMENT ${String(index + 1).padStart(2, "0")}</span><span class="status ${item.status === "검토 완료" ? "done" : item.status === "보류" ? "paused" : "in-progress"}">${escapeHtml(item.status)}</span></div><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.question || "검증할 질문을 적어 주세요.")}</p><div class="card-actions">${validUrl(item.url) ? `<a href="${escapeHtml(validUrl(item.url))}" target="_blank" rel="noopener noreferrer">참고 링크 ↗</a>` : ""}<button data-action="edit-experiment" data-id="${escapeHtml(item.id)}">편집</button><button data-action="delete-experiment" data-id="${escapeHtml(item.id)}">삭제</button></div></article>`).join("")}</div>` : empty("⌁", "첫 실험을 준비해 볼까요?", "기능이나 화면의 가설을 적어 두면 실험실 카드로 쌓입니다.", "add-experiment", "+ 첫 실험 추가")}`;
+  ${state.experiments.length ? `<div class="experiment-grid">${state.experiments.map((item, index) => `<article class="experiment-card" data-presence-id="${escapeHtml(item.id)}"><div class="card-top"><span class="index-label">EXPERIMENT ${String(index + 1).padStart(2, "0")}</span><span class="status ${item.status === "검토 완료" ? "done" : item.status === "보류" ? "paused" : "in-progress"}">${escapeHtml(item.status)}</span></div><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.question || "검증할 질문을 적어 주세요.")}</p>${voteBar(item)}<div class="card-actions">${validUrl(item.url) ? `<a href="${escapeHtml(validUrl(item.url))}" target="_blank" rel="noopener noreferrer">참고 링크 ↗</a>` : ""}<button data-action="edit-experiment" data-id="${escapeHtml(item.id)}">편집</button><button data-action="delete-experiment" data-id="${escapeHtml(item.id)}">삭제</button>${commentToggle(item, "experiment")}</div>${commentPanel(item, "experiment")}</article>`).join("")}</div>` : empty("⌁", "첫 실험을 준비해 볼까요?", "기능이나 화면의 가설을 적어 두면 실험실 카드로 쌓입니다.", "add-experiment", "+ 첫 실험 추가")}`;
 }
 function sectionLines(screen) { return String(screen.sections || "").split("\n").map((value) => value.trim()).filter(Boolean); }
 // ── ChatGPT(MCP) 목업 ───────────────────────────────────────────────
@@ -345,7 +345,13 @@ const CHAT_RULES = "[틀] 웹 을 넣으면 ChatGPT 웹(데스크톱) 화면 · 
 const chatTag = (line) => { const match = /^\[([^\]]+)\]\s*(.*)$/.exec(line); const tag = match && CHAT_TAGS[match[1].trim().toLowerCase()]; return tag ? { tag, text: match[2].trim() } : null; };
 const isChatScreen = (screen) => sectionLines(screen).some((line) => chatTag(line));
 // [틀] 웹 이 있으면 ChatGPT 웹(데스크톱) 화면으로 그린다. 흐름도에서는 웹 화면처럼 폰 두 칸 너비.
-const isChatWebScreen = (screen) => sectionLines(screen).some((line) => { const tagged = chatTag(line); return tagged?.tag === "frame" && /웹|web|desktop|데스크톱|pc/i.test(tagged.text); });
+const isChatWebNative = (screen) => sectionLines(screen).some((line) => { const tagged = chatTag(line); return tagged?.tag === "frame" && /웹|web|desktop|데스크톱|pc/i.test(tagged.text); });
+// ChatGPT 보기 전환: 화면대로(auto) · 폰(phone) · 웹(web). 파일은 하나로 두고 보는 틀만 바꾼다.
+// 팀원마다 이 브라우저에만 저장되어서, 한 사람이 바꿔도 다른 사람 화면은 그대로다.
+const VIEW_KEY = "workboard-chat-view";
+const CHAT_VIEWS = [["auto", "화면대로"], ["phone", "폰"], ["web", "웹"]];
+let chatView = ["phone", "web"].includes(storage.get(VIEW_KEY)) ? storage.get(VIEW_KEY) : "auto";
+const isChatWebScreen = (screen) => (chatView === "auto" ? isChatWebNative(screen) : chatView === "web");
 function parseChat(screen) {
   const blocks = [];
   let widget = null;
@@ -771,9 +777,68 @@ const FONT_MIN = 8, FONT_MAX = 120;
 const sizePx = (size) => (typeof size === "number" ? size : FONT_SIZE[size] || FONT_SIZE.m);
 const clampFont = (value) => Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(Number(value) || FONT_SIZE.m)));
 const LINE_TYPES = new Set(["line", "arrow"]);
-const drawingOf = (screen) => (screen?.drawing && Array.isArray(screen.drawing.shapes) ? screen.drawing : null);
-const hasDrawing = (screen) => (drawingOf(screen)?.shapes.length || 0) > 0;
-const isWideScreen = (screen) => (hasDrawing(screen) ? WIDE_FRAMES.has(screen.drawing.frame) : isWebScreen(screen) || isChatWebScreen(screen));
+const rawDrawing = (screen) => (screen?.drawing && Array.isArray(screen.drawing.shapes) ? screen.drawing : null);
+// 보기 전환 중이면 ChatGPT 그림을 보는 틀(모바일 ↔ 웹)로 옮겨서 돌려준다. 저장된 그림은 바꾸지 않는다.
+const drawingOf = (screen) => { const raw = rawDrawing(screen); return raw ? viewDrawing(raw, screen) : null; };
+const hasDrawing = (screen) => (rawDrawing(screen)?.shapes.length || 0) > 0;
+const isWideScreen = (screen) => (hasDrawing(screen) ? WIDE_FRAMES.has(drawingOf(screen).frame) : isWebScreen(screen) || (isChatScreen(screen) && isChatWebScreen(screen)));
+// 보기 전환과 상관없이 원래 저장된 모양이 넓은지(흐름도 간격을 맞출 때 쓴다).
+const isWideNative = (screen) => (hasDrawing(screen) ? WIDE_FRAMES.has(screen.drawing.frame) : isWebScreen(screen) || (isChatScreen(screen) && isChatWebNative(screen)));
+const isChatLike = (screen) => (hasDrawing(screen) ? CHAT_FRAMES.has(screen.drawing.frame) : isChatScreen(screen));
+// ChatGPT 모바일 ↔ 웹 그림 옮기기. 대화 그림은 웹의 가운데 대화 칸으로, Fullscreen 그림은 웹의 넓은 영역으로 옮긴다.
+// 넓은 도형(폭 200 이상) · 선 · 글상자는 칸 폭에 맞춰 늘리고, 배지 · 버튼 같은 작은 도형은 크기를 두고 가운데 위치만 옮긴다.
+// 폰 화면 밖에 치워 둔 도형은 웹에서도 화면 밖에 둔다. 모바일 → 웹 → 모바일로 옮겨도 제자리로 돌아온다.
+const viewCache = new WeakMap();
+function isFullscreenDrawing(drawing, screen) {
+  if (sectionLines(screen).some((line) => chatTag(line)?.tag === "fullscreen") || /fullscreen|전체\s*화면/i.test(screen.title || "")) return true;
+  const area = CHAT_LAYOUT[drawing.frame].full;
+  return drawing.shapes.some((shape) => shape.type === "rect" && Math.abs(shape.w) >= area.w * .9 && Math.abs(shape.h) >= 500);
+}
+function convertChatDrawing(drawing, target, full) {
+  const phone = CHAT_LAYOUT.chatgpt, web = CHAT_LAYOUT["chatgpt-web"];
+  const from = full ? phone.full : { ...phone.column, y: phone.top }, to = full ? web.full : { ...web.column, y: web.top };
+  const k = to.w / from.w, ky = full ? 1 : (web.bottom - web.top) / (phone.bottom - phone.top);
+  const toWeb = target === "chatgpt-web";
+  const mapX = (x) => (toWeb ? to.x + (x - from.x) * k : from.x + (x - to.x) / k);
+  const mapY = (y) => (toWeb ? to.y + (y - from.y) * ky : from.y + (y - to.y) / ky);
+  const scaleW = (w) => (toWeb ? w * k : w / k);
+  const shapes = drawing.shapes.map((shape) => {
+    const box = boxOf(shape), next = { ...shape, y: Math.round(mapY(shape.y)) };
+    if (toWeb && (box.x + box.w <= 0 || box.x >= 390)) { next.x = shape.x + (box.x + box.w <= 0 ? -1500 : 1500); return next; }
+    const wide = LINE_TYPES.has(shape.type) || (shape.type !== "text" && Math.abs(toWeb ? shape.w : shape.w / k) >= 200);
+    if (wide) { next.x = Math.round(mapX(shape.x)); next.w = Math.round(scaleW(shape.w)); }
+    else if (shape.type === "text") { next.x = Math.round(mapX(shape.x)); next.w = Math.round(scaleW(shape.w)); } // 글상자는 칸 폭만큼 넓혀 줄바꿈을 맞춘다
+    else next.x = Math.round(mapX(shape.x + shape.w / 2) - shape.w / 2);
+    return next;
+  });
+  return { ...drawing, frame: target, shapes };
+}
+function viewDrawing(drawing, screen) {
+  if (chatView === "auto" || !CHAT_FRAMES.has(drawing.frame)) return drawing;
+  const target = chatView === "web" ? "chatgpt-web" : "chatgpt";
+  if (drawing.frame === target) return drawing;
+  const full = isFullscreenDrawing(drawing, screen), key = `${target}|${full}`;
+  const cached = viewCache.get(drawing);
+  if (cached?.key === key) return cached.drawing;
+  const converted = convertChatDrawing(drawing, target, full);
+  viewCache.set(drawing, { key, drawing: converted });
+  return converted;
+}
+// 폰으로 배치한 흐름도를 웹 보기로 보면 카드가 두 배로 넓어지므로 가로 간격도 두 배로 벌린다(반대도 마찬가지).
+// 저장된 x는 그대로 두고, 화면에 그릴 때와 옮긴 위치를 저장할 때만 이 배율을 쓴다.
+function flowXScale(board = state) {
+  if (chatView === "auto") return 1;
+  const chats = board.screens.filter(isChatLike);
+  if (!chats.length) return 1;
+  const wide = chats.filter(isWideNative).length;
+  if (chatView === "web" && wide * 2 < chats.length) return (WEB_W + 62) / (NODE_W + 62);
+  if (chatView === "phone" && wide * 2 > chats.length) return (NODE_W + 62) / (WEB_W + 62);
+  return 1;
+}
+const flowX = (screen, board = state) => (Number.isFinite(screen.x) ? screen.x : 0) * flowXScale(board);
+function viewSwitch() {
+  return `<div class="vw-switch" role="group" aria-label="ChatGPT 화면 보기"><span>ChatGPT 보기</span>${CHAT_VIEWS.map(([value, label]) => `<button type="button" data-action="chat-view" data-view="${value}" aria-pressed="${chatView === value}">${label}</button>`).join("")}</div>`;
+}
 const shapeId = () => `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const boxOf = (shape) => ({ x: Math.min(shape.x, shape.x + shape.w), y: Math.min(shape.y, shape.y + shape.h), w: Math.abs(shape.w), h: Math.abs(shape.h) });
 // 상자 도형 안에 완전히 들어 있고 그 위에 그려진 도형들. 상자를 옮기거나 복제·복사할 때 함께 다룬다.
@@ -1049,7 +1114,9 @@ function openDraw(screenId) {
   const dialog = drawDialog();
   dialog.querySelector(".dw-title").value = screen.title;
   const notice = dialog.querySelector(".dw-notice");
-  notice.hidden = !converted;
+  const viewed = saved && saved.frame !== screen.drawing.frame;
+  notice.hidden = !converted && !viewed;
+  if (viewed) notice.textContent = `지금 ChatGPT ${chatView === "web" ? "웹" : "폰"} 보기라서 이 그림을 ${DRAW_FRAME_SIZE[saved.frame].label} 틀로 옮겨 열었어요. 저장하면 이 틀로 저장되고, 다른 보기에서는 다시 자동으로 맞춰져요.`;
   if (converted) notice.innerHTML = `지금 화면을 도형 ${converted}개로 옮겨 왔어요. 이어서 고치고 저장하면 이 화면은 그림으로 보여요. <button type="button" data-dw="clear">빈 그림판으로 시작</button>`;
   dialog.showModal();
   renderDrawUi();
@@ -1537,7 +1604,7 @@ function phoneContent(screen, interactive = false, action = "go-screen") {
   return `<div class="phone-frame"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="phone-body"><div class="phone-kicker">${escapeHtml(state.projectName)}</div><h3>${escapeHtml(screen.title)}</h3><p class="phone-purpose">${escapeHtml(screen.purpose || "이 화면의 목적을 적어 주세요.")}</p><div class="wire-blocks">${blocks.length ? blocks.map((block, index) => `<div class="wire-block"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(block)}</div>`).join("") : `<div class="wire-placeholder">+ 정보 블록을 추가해 주세요</div>`}</div></div>${footer}</div><div class="phone-home"></div></div>`;
 }
 function wireframe() {
-  const button = `<div class="intro-buttons"><button class="outline-button" data-action="save-version">버전 저장</button><button class="outline-button" data-action="export-pdf">PDF 내보내기</button><button class="outline-button" data-action="import-merge">파일 합쳐 불러오기</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
+  const button = `<div class="intro-buttons">${viewSwitch()}<button class="outline-button" data-action="save-version">버전 저장</button><button class="outline-button" data-action="export-pdf">PDF 내보내기</button><button class="outline-button" data-action="import-merge">파일 합쳐 불러오기</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
   return `${pageHeader("ROOM 02 / STRUCTURE", "와이어프레임", "화면별 목적과 정보의 순서를 잡습니다. 이 목록이 흐름도와 프로토타입의 공통 원본입니다. 정보 블록에 ChatGPT 블록을 넣으면 ChatGPT 대화 목업으로, 웹 블록을 넣으면 브라우저 목업으로 그려집니다. 원하는 모양이 있으면 그리기로 네모·원·선을 직접 그리세요.", button)}
   ${state.screens.length ? `<div class="wire-grid">${state.screens.map((screen, index) => `<article class="wire-card${isWideScreen(screen) ? " wb-wire-card" : ""}" data-presence-id="${escapeHtml(screen.id)}"><div class="wire-heading"><span class="index-label">SCREEN ${String(index + 1).padStart(2, "0")}</span><span class="status ${screen.status === "확정" ? "done" : "in-progress"}">${escapeHtml(screen.status)}</span></div>${phoneContent(screen)}<div class="wire-meta"><h2>${escapeHtml(screen.title)}</h2><p>${escapeHtml(screen.purpose || "목적 미입력")}</p><div class="card-actions"><button data-action="draw-screen" data-id="${escapeHtml(screen.id)}">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">편집</button><button data-action="delete-screen" data-id="${escapeHtml(screen.id)}">삭제</button>${commentToggle(screen)}</div>${commentPanel(screen)}</div></article>`).join("")}</div>` : empty("▦", "아직 화면이 없습니다", "첫 화면을 추가하면 흐름도와 프로토타입에도 자동으로 나타납니다.", "add-screen", "+ 첫 화면 추가")}`;
 }
@@ -1581,19 +1648,19 @@ function flowNodeHtml(screen, index, print = false) {
   const wide = isWideScreen(screen);
   const unresolved = (screen.comments || []).filter((item) => !item.resolved).length;
   const actions = print ? "" : `<span class="dw-node-actions">${unresolved ? `<button class="cm-count" data-action="open-comments" data-id="${escapeHtml(screen.id)}" aria-label="코멘트 ${unresolved}개 보기">💬 ${unresolved}</button>` : ""}<button data-action="draw-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 그리기">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></span>`;
-  return `<div class="flow-node${!print && flowFocus === screen.id ? " focused" : ""}${wide ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${wide ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3 title="${escapeHtml(screen.purpose || "")}">${escapeHtml(screen.title)}</h3>${actions}</div>${flowPhoneContent(screen)}</div>`;
+  return `<div class="flow-node${!print && flowFocus === screen.id ? " focused" : ""}${wide ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? flowX(screen) : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${wide ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3 title="${escapeHtml(screen.purpose || "")}">${escapeHtml(screen.title)}</h3>${actions}</div>${flowPhoneContent(screen)}</div>`;
 }
 function flow() {
   const button = `<div class="intro-buttons"><button class="outline-button" data-action="save-version">버전 저장</button><button class="outline-button" data-action="export-pdf">PDF 내보내기</button><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
   return `${pageHeader("ROOM 03 / CONNECT", "흐름도", "화면을 보며 동선을 확인하세요. 폰 속 버튼을 누르면 연결된 화면으로 이동합니다.", button)}
-  ${state.screens.length ? `<div class="flow-board"><div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => flowNodeHtml(screen, index)).join("")}</div></div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
+  ${state.screens.length ? `<div class="flow-board"><div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span>${viewSwitch()}<div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => flowNodeHtml(screen, index)).join("")}</div></div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
 }
 function prototype() {
   if (!state.screens.length) return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "화면을 폰 프레임에서 눌러보며 동선을 확인합니다.")}${empty("▶", "아직 눌러볼 화면이 없습니다", "와이어프레임에서 화면을 추가하면 이곳에서 바로 확인할 수 있습니다.", "add-screen", "+ 첫 화면 추가")}`;
   if (!state.screens.some((item) => item.id === selectedScreen)) selectedScreen = state.screens[0].id;
   const screen = state.screens.find((item) => item.id === selectedScreen);
   const url = validUrl(screen.url);
-  return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "왼쪽에서 화면을 고르거나 폰 안의 이동 버튼을 눌러 실제 흐름처럼 확인하세요.")}
+  return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "왼쪽에서 화면을 고르거나 폰 안의 이동 버튼을 눌러 실제 흐름처럼 확인하세요.", `<div class="intro-buttons">${viewSwitch()}</div>`)}
   <div class="prototype-layout"><aside class="screen-rail"><div class="rail-heading"><span class="eyebrow">SCREENS</span><strong>${state.screens.length}개 화면</strong></div>${state.screens.map((item, index) => `<button class="rail-item ${item.id === screen.id ? "selected" : ""}" data-action="go-screen" data-id="${escapeHtml(item.id)}" data-presence-id="${escapeHtml(item.id)}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(item.title)}</strong><i>↗</i></button>`).join("")}<div class="rail-note">흐름도에서 연결한 화면은 폰 안의 버튼으로 이동할 수 있습니다.</div></aside><div class="preview-area"><div class="preview-toolbar"><span class="live-dot"></span><span>${url ? "실제 화면 미리보기" : "설계 목업"}</span><span class="spacer"></span>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">새 탭에서 열기 ↗</a>` : `<button data-action="draw-screen" data-id="${escapeHtml(screen.id)}">이 화면 그리기 ✎</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">이 화면 편집 ↗</button>`}</div><div class="preview-center">${url ? `<div class="phone-frame live-phone"><div class="phone-island"></div><iframe title="${escapeHtml(screen.title)} 미리보기" src="${escapeHtml(url)}"></iframe><div class="phone-home"></div></div>` : flowPhoneContent(screen, "go-screen")}<div class="preview-caption"><strong>${escapeHtml(screen.title)}</strong><p>${escapeHtml(screen.purpose || "화면 목적 미입력")}</p>${url ? "<small>외부 사이트는 임베드를 차단할 수 있습니다. 이 경우 새 탭에서 여세요.</small>" : ""}</div></div></div></div>`;
 }
 function drawLines(root = document, board = state) {
@@ -1753,27 +1820,57 @@ function versionsRoom() {
 }
 
 // ── 코멘트 ─────────────────────────────────────────────────────────
-function commentToggle(screen) {
-  const comments = screen.comments || [];
-  const open = unresolvedCount(screen);
-  return `<button class="cm-toggle${open ? " has-open" : ""}" data-action="toggle-comments" data-id="${escapeHtml(screen.id)}" aria-expanded="${openComments.has(screen.id)}">코멘트${comments.length ? ` ${open}/${comments.length}` : ""}</button>`;
+// 와이어프레임 화면(kind "screen")과 실험실 가설(kind "experiment")에 같은 코멘트 칸을 쓴다.
+const commentWhere = (kind, targetId) => (kind === "experiment" ? { experimentId: targetId } : { screenId: targetId });
+const commentTarget = (kind, targetId) => (kind === "experiment" ? state.experiments : state.screens).find((item) => item.id === targetId);
+const STANCE_LABEL = { agree: "찬성", disagree: "반대" };
+function commentToggle(item, kind = "screen") {
+  const comments = item.comments || [];
+  const open = unresolvedCount(item);
+  return `<button class="cm-toggle${open ? " has-open" : ""}" data-action="toggle-comments" data-id="${escapeHtml(item.id)}" aria-expanded="${openComments.has(item.id)}">코멘트${comments.length ? ` ${open}/${comments.length}` : ""}</button>`;
 }
-const unresolvedCount = (screen) => (screen.comments || []).filter((item) => !item.resolved).length;
-function commentPanel(screen) {
-  if (!openComments.has(screen.id)) return "";
-  const comments = [...(screen.comments || [])].sort((a, b) => Number(a.resolved) - Number(b.resolved));
-  const list = comments.map((item) => `<li class="cm-item${item.resolved ? " resolved" : ""}"><div class="cm-meta"><b style="color:${escapeHtml(item.color)}">${escapeHtml(item.by)}</b><time>${escapeHtml(shortDate(item.at))}</time>${item.resolved ? "<em>해결됨</em>" : ""}</div><p>${escapeHtml(item.text)}</p>${viewing ? "" : `<div class="cm-actions"><button data-action="resolve-comment" data-id="${escapeHtml(item.id)}" data-screen="${escapeHtml(screen.id)}">${item.resolved ? "다시 열기" : "해결"}</button><button data-action="delete-comment" data-id="${escapeHtml(item.id)}" data-screen="${escapeHtml(screen.id)}">삭제</button></div>`}</li>`).join("");
-  const form = viewing ? "" : `<form class="cm-form" data-screen="${escapeHtml(screen.id)}"><label class="cm-label" for="cm-${escapeHtml(screen.id)}">${escapeHtml(collab.me.name)}(으)로 코멘트 남기기</label><textarea id="cm-${escapeHtml(screen.id)}" data-keep-focus="cm-${escapeHtml(screen.id)}" data-comment-input="${escapeHtml(screen.id)}" rows="2" maxlength="1000" placeholder="의견을 남겨 주세요 (⌘/Ctrl+Enter로 등록)">${escapeHtml(commentDrafts.get(screen.id) || "")}</textarea><button type="submit">등록</button></form>`;
-  return `<div class="cm-panel" aria-label="${escapeHtml(screen.title)} 코멘트">${list ? `<ul class="cm-list">${list}</ul>` : `<p class="cm-empty">아직 코멘트가 없어요.</p>`}${form}</div>`;
+const unresolvedCount = (item) => (item.comments || []).filter((comment) => !comment.resolved).length;
+function commentPanel(target, kind = "screen") {
+  if (!openComments.has(target.id)) return "";
+  const key = `data-target="${escapeHtml(target.id)}" data-kind="${kind}"`;
+  const comments = [...(target.comments || [])].sort((a, b) => Number(a.resolved) - Number(b.resolved));
+  const list = comments.map((item) => `<li class="cm-item${item.resolved ? " resolved" : ""}"><div class="cm-meta"><b style="color:${escapeHtml(item.color)}">${escapeHtml(item.by)}</b>${item.stance ? `<span class="cm-stance ${item.stance}">${STANCE_LABEL[item.stance]}</span>` : ""}<time>${escapeHtml(shortDate(item.at))}</time>${item.resolved ? "<em>해결됨</em>" : ""}</div><p>${escapeHtml(item.text)}</p>${viewing ? "" : `<div class="cm-actions"><button data-action="resolve-comment" data-id="${escapeHtml(item.id)}" ${key}>${item.resolved ? "다시 열기" : "해결"}</button><button data-action="delete-comment" data-id="${escapeHtml(item.id)}" ${key}>삭제</button></div>`}</li>`).join("");
+  const stance = kind === "experiment" ? myVote(target) : "";
+  const label = `${escapeHtml(collab.me.name)}(으)로 ${kind === "experiment" ? "의견" : "코멘트"} 남기기${stance ? ` · 내 표 <span class="cm-stance ${stance}">${STANCE_LABEL[stance]}</span>가 함께 붙어요` : ""}`;
+  const form = viewing ? "" : `<form class="cm-form" ${key}><label class="cm-label" for="cm-${escapeHtml(target.id)}">${label}</label><textarea id="cm-${escapeHtml(target.id)}" data-keep-focus="cm-${escapeHtml(target.id)}" data-comment-input="${escapeHtml(target.id)}" rows="2" maxlength="1000" placeholder="${kind === "experiment" ? "찬성 · 반대 이유나 보완할 점을 남겨 주세요" : "의견을 남겨 주세요"} (⌘/Ctrl+Enter로 등록)">${escapeHtml(commentDrafts.get(target.id) || "")}</textarea><button type="submit">등록</button></form>`;
+  return `<div class="cm-panel" aria-label="${escapeHtml(target.title)} 코멘트">${list ? `<ul class="cm-list">${list}</ul>` : `<p class="cm-empty">아직 코멘트가 없어요.</p>`}${form}</div>`;
 }
-function addComment(screenId) {
-  const text = String(commentDrafts.get(screenId) || $(`[data-comment-input="${CSS.escape(screenId)}"]`)?.value || "").trim();
+function addComment(targetId, kind = "screen") {
+  const text = String(commentDrafts.get(targetId) || $(`[data-comment-input="${CSS.escape(targetId)}"]`)?.value || "").trim();
   if (!text) return;
-  if (commit({ type: "comment.add", screenId, item: { id: id(), text, by: collab.me.name, color: collab.me.color, at: new Date().toISOString() } })) {
-    commentDrafts.delete(screenId);
+  const target = commentTarget(kind, targetId);
+  const stance = kind === "experiment" && target ? myVote(target) : "";
+  if (commit({ type: "comment.add", ...commentWhere(kind, targetId), item: { id: id(), text, by: collab.me.name, color: collab.me.color, at: new Date().toISOString(), ...(stance ? { stance } : {}) } })) {
+    commentDrafts.delete(targetId);
     refresh();
-    $(`[data-comment-input="${CSS.escape(screenId)}"]`)?.focus();
+    $(`[data-comment-input="${CSS.escape(targetId)}"]`)?.focus();
   }
+}
+
+// ── 실험실 가설 찬반 ── 브라우저마다 투표자 id를 하나 두고, 같은 버튼을 다시 누르면 표를 거둔다.
+const VOTER_KEY = "workboard-voter-id";
+const voterId = storage.get(VOTER_KEY) || (() => { const value = `voter-${id()}`; storage.set(VOTER_KEY, value); return value; })();
+const myVote = (experiment) => (experiment.votes || []).find((vote) => vote.id === voterId)?.value || "";
+function voteBar(experiment) {
+  const votes = experiment.votes || [], mine = myVote(experiment);
+  const group = (value) => votes.filter((vote) => vote.value === value);
+  const agree = group("agree").length, disagree = group("disagree").length;
+  const button = (value, icon) => `<button type="button" class="xp-vote-btn ${value}" data-action="vote" data-id="${escapeHtml(experiment.id)}" data-value="${value}" aria-pressed="${mine === value}">${icon} ${STANCE_LABEL[value]} <b>${group(value).length}</b></button>`;
+  const names = (value) => group(value).map((vote) => `<span style="color:${escapeHtml(vote.color)}">${escapeHtml(vote.by)}</span>`).join(", ");
+  const who = votes.length ? `<p class="xp-voters">${agree ? `<span class="cm-stance agree">찬성</span> ${names("agree")}` : ""}${agree && disagree ? "　" : ""}${disagree ? `<span class="cm-stance disagree">반대</span> ${names("disagree")}` : ""}</p>` : `<p class="xp-voters empty">아직 표가 없어요. 이 가설에 찬성하는지 먼저 알려 주세요.</p>`;
+  const meter = votes.length ? `<div class="xp-meter" role="img" aria-label="찬성 ${agree}표, 반대 ${disagree}표"><i class="agree" style="width:${(agree / votes.length) * 100}%"></i><i class="disagree" style="width:${(disagree / votes.length) * 100}%"></i></div>` : "";
+  return `<div class="xp-votes"><div class="xp-vote-row" role="group" aria-label="이 가설에 대한 찬반">${button("agree", "👍")}${button("disagree", "👎")}</div>${meter}${who}</div>`;
+}
+function castVote(experimentId, value) {
+  const experiment = state.experiments.find((item) => item.id === experimentId);
+  if (!experiment) return;
+  const next = myVote(experiment) === value ? "" : value;
+  commit({ type: "vote.set", experimentId, vote: next ? { id: voterId, value: next, by: collab.me.name, color: collab.me.color } : { id: voterId } });
 }
 
 // ── PDF 내보내기 ────────────────────────────────────────────────────
@@ -1820,7 +1917,7 @@ function exportPdf(label = "현재 작업판", board = state) {
     const { width, height } = stageSize(board);
     const cards = board.screens.map((screen, index) => `<article class="pr-card${isWideScreen(screen) ? " wide" : ""}"><div class="pr-card-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}</span><b>${escapeHtml(screen.status)}</b></div><h3>${escapeHtml(screen.title)}</h3>${screen.purpose ? `<p class="pr-purpose">${escapeHtml(screen.purpose)}</p>` : ""}<div class="pr-mock">${phoneContent(screen)}</div>${(screen.comments || []).length ? `<div class="pr-comments"><strong>코멘트 ${screen.comments.length}개</strong><ul>${screen.comments.map((item) => `<li class="${item.resolved ? "resolved" : ""}"><b>${escapeHtml(item.by)}</b> · ${escapeHtml(shortDate(item.at))} — ${escapeHtml(item.text)}</li>`).join("")}</ul></div>` : ""}</article>`).join("");
     html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(board.projectName)} - ${escapeHtml(label)}</title>${links}<style>${styles}</style><style>${PRINT_CSS}</style></head><body class="pr-body">
-      <section class="pr-page pr-cover"><div class="pr-kicker">WORKBOARD EXPORT</div><h1>${escapeHtml(board.projectName)}</h1><p>${escapeHtml(label)} · ${escapeHtml(new Date().toLocaleString("ko-KR"))}</p><p>화면 ${board.screens.length}개 · 연결 ${board.links.length}개 · 코멘트 ${commentCount}개 · 실험 ${board.experiments.length}개</p><ol class="pr-toc">${board.screens.map((screen) => `<li>${escapeHtml(screen.title)}</li>`).join("")}</ol></section>
+      <section class="pr-page pr-cover"><div class="pr-kicker">WORKBOARD EXPORT</div><h1>${escapeHtml(board.projectName)}</h1><p>${escapeHtml(label)}${chatView === "auto" ? "" : ` · ChatGPT ${chatView === "web" ? "웹" : "폰"} 보기`} · ${escapeHtml(new Date().toLocaleString("ko-KR"))}</p><p>화면 ${board.screens.length}개 · 연결 ${board.links.length}개 · 코멘트 ${commentCount}개 · 실험 ${board.experiments.length}개</p><ol class="pr-toc">${board.screens.map((screen) => `<li>${escapeHtml(screen.title)}</li>`).join("")}</ol></section>
       <section class="pr-page pr-flow"><h2>흐름도</h2><div class="pr-flow-frame"><div class="flow-stage" id="flow-stage" style="width:${width}px;height:${height}px"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${board.screens.map((screen, index) => flowNodeHtml(screen, index, true)).join("")}</div></div></section>
       <section class="pr-wires"><h2>와이어프레임</h2><div class="pr-grid">${cards}</div></section></body></html>`;
   } finally { state = previous; }
@@ -1837,7 +1934,7 @@ function exportPdf(label = "현재 작업판", board = state) {
     const stage = doc.getElementById("flow-stage"), holder = doc.querySelector(".pr-flow-frame");
     if (stage && holder) {
       const { width, height } = stageSize(board);
-      const used = board.screens.reduce((box, screen) => ({ right: Math.max(box.right, (screen.x || 0) + nodeWidth(screen) + 30), bottom: Math.max(box.bottom, (screen.y || 0) + NODE_H + 30) }), { right: 0, bottom: 0 });
+      const used = board.screens.reduce((box, screen) => ({ right: Math.max(box.right, flowX(screen, board) + nodeWidth(screen) + 30), bottom: Math.max(box.bottom, (screen.y || 0) + NODE_H + 30) }), { right: 0, bottom: 0 });
       const scale = Math.min(holder.clientWidth / Math.min(width, used.right || width), holder.clientHeight / Math.min(height, used.bottom || height), 1);
       stage.style.transform = `scale(${scale})`;
     }
@@ -1888,6 +1985,28 @@ body.flow-expanded .flow-board .flow-scroll{flex:1 1 auto;min-height:0;width:100
 .cm-form textarea{min-width:0;padding:6px 8px;border:1px solid #d5d8e1;border-radius:8px;font:inherit;font-size:13px;resize:vertical}
 .cm-form button{padding:7px 12px;border:0;border-radius:8px;background:#6a58d6;color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .cm-panel button:focus-visible,.cm-form textarea:focus-visible,.vr-banner a:focus-visible,.vr-banner button:focus-visible{outline:2px solid #7c6cd8;outline-offset:2px}
+.cm-stance{display:inline-block;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.5}
+.cm-stance.agree{background:#e7f6ee;color:#1f7a4a}
+.cm-stance.disagree{background:#fdecea;color:#b3261e}
+.xp-votes{display:grid;gap:6px;margin:10px 0 4px}
+.xp-vote-row{display:flex;flex-wrap:wrap;gap:6px}
+.xp-vote-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:1px solid #d5d8e1;border-radius:999px;background:#fff;color:#1d2330;font:inherit;font-size:13px;cursor:pointer}
+.xp-vote-btn b{font-weight:700}
+.xp-vote-btn.agree[aria-pressed="true"]{border-color:#2e9d6a;background:#e7f6ee;color:#1f7a4a}
+.xp-vote-btn.disagree[aria-pressed="true"]{border-color:#d9534f;background:#fdecea;color:#b3261e}
+.xp-vote-btn:focus-visible,.vw-switch button:focus-visible{outline:2px solid #7c6cd8;outline-offset:2px}
+.xp-meter{display:flex;height:6px;overflow:hidden;border-radius:999px;background:#eceef3}
+.xp-meter .agree{background:#2e9d6a}
+.xp-meter .disagree{background:#d9534f}
+.xp-voters{margin:0;color:#4b5563;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.xp-voters.empty{color:#8e8e8e}
+.experiment-card .cm-panel{margin-top:10px}
+.vw-switch{display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid #d5d8e1;border-radius:10px;background:#fff;font-size:12px}
+.vw-switch span{padding:0 6px;color:#6b7280;white-space:nowrap}
+.vw-switch button{padding:5px 10px;border:0;border-radius:7px;background:transparent;color:#374151;font:inherit;cursor:pointer;white-space:nowrap}
+.vw-switch button[aria-pressed="true"]{background:#1d2330;color:#fff;font-weight:700}
+.flow-toolbar .vw-switch{margin-left:auto;margin-right:8px}
+@media (prefers-reduced-motion:no-preference){.xp-meter i{transition:width .2s ease}}
 .cm-count{padding:1px 6px;border:1px solid #c9c1f3;border-radius:999px;background:#f5f3ff;color:#4a3ab0;font:inherit;font-size:11px;cursor:pointer}
 `;
   document.head.append(style);
@@ -2025,7 +2144,7 @@ function remove(kind, itemId) {
   if (!confirm(`${label}을 삭제할까요? 모든 팀원의 작업판에서 함께 삭제됩니다.`)) return;
   if (commit({ type: `${kind}.delete`, id: itemId })) toast("삭제했습니다.");
 }
-const READ_ONLY_ACTIONS = new Set(["edit-project", "add-screen", "add-chat-screen", "add-web-screen", "add-draw-screen", "edit-screen", "delete-screen", "draw-screen", "add-experiment", "edit-experiment", "delete-experiment", "add-link", "delete-link", "import-merge", "import", "save-version", "resolve-comment", "delete-comment"]);
+const READ_ONLY_ACTIONS = new Set(["edit-project", "add-screen", "add-chat-screen", "add-web-screen", "add-draw-screen", "edit-screen", "delete-screen", "draw-screen", "add-experiment", "edit-experiment", "delete-experiment", "add-link", "delete-link", "import-merge", "import", "save-version", "resolve-comment", "delete-comment", "vote"]);
 document.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action]");
   if (!target) return;
@@ -2040,8 +2159,10 @@ document.addEventListener("click", (event) => {
   if (action === "version-pdf") versionPdf(itemId);
   if (action === "toggle-comments") { if (openComments.has(itemId)) openComments.delete(itemId); else openComments.add(itemId); refresh(); }
   if (action === "open-comments") { openComments.add(itemId); location.hash = "#wireframe"; setTimeout(() => [...document.querySelectorAll(".wire-card")].find((card) => card.dataset.presenceId === itemId)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); }
-  if (action === "resolve-comment") { const comment = state.screens.find((item) => item.id === target.dataset.screen)?.comments?.find((item) => item.id === itemId); if (comment) commit({ type: "comment.resolve", screenId: target.dataset.screen, id: itemId, resolved: !comment.resolved }); }
-  if (action === "delete-comment" && confirm("이 코멘트를 삭제할까요? 모든 팀원에게서 함께 사라져요.")) commit({ type: "comment.delete", screenId: target.dataset.screen, id: itemId });
+  if (action === "resolve-comment") { const comment = commentTarget(target.dataset.kind, target.dataset.target)?.comments?.find((item) => item.id === itemId); if (comment) commit({ type: "comment.resolve", ...commentWhere(target.dataset.kind, target.dataset.target), id: itemId, resolved: !comment.resolved }); }
+  if (action === "delete-comment" && confirm("이 코멘트를 삭제할까요? 모든 팀원에게서 함께 사라져요.")) commit({ type: "comment.delete", ...commentWhere(target.dataset.kind, target.dataset.target), id: itemId });
+  if (action === "vote") castVote(itemId, target.dataset.value);
+  if (action === "chat-view") { chatView = target.dataset.view; storage.set(VIEW_KEY, chatView); refresh(); }
   if (action === "edit-project") openEditor("project");
   if (action === "add-screen") openEditor("screen");
   if (action === "add-chat-screen") openEditor("screen", null, { sections: CHAT_STARTER });
@@ -2083,7 +2204,7 @@ document.addEventListener("submit", (event) => {
   const form = event.target.closest?.(".cm-form");
   if (!form) return;
   event.preventDefault();
-  addComment(form.dataset.screen);
+  addComment(form.dataset.target, form.dataset.kind);
 });
 document.addEventListener("input", (event) => { if (event.target.matches?.("[data-comment-input]")) commentDrafts.set(event.target.dataset.commentInput, event.target.value); });
 document.addEventListener("keydown", (event) => {
@@ -2127,12 +2248,12 @@ document.addEventListener("pointermove", (event) => {
     return;
   }
   if (!dragging) return;
-  dragging.node.style.left = `${Math.max(0, Math.min(5000, dragging.left + (event.clientX - dragging.startX) / flowScale))}px`;
+  dragging.node.style.left = `${Math.max(0, Math.min(5000 * flowXScale(), dragging.left + (event.clientX - dragging.startX) / flowScale))}px`;
   dragging.node.style.top = `${Math.max(0, Math.min(5000, dragging.top + (event.clientY - dragging.startY) / flowScale))}px`;
   applyScale();
   drawLines();
   // 옮기는 동안에도 팀원 화면에서 카드가 따라 움직인다.
-  commit({ type: "screen.move", id: dragging.node.dataset.id, x: parseFloat(dragging.node.style.left), y: parseFloat(dragging.node.style.top) }, { quiet: true, rerender: false });
+  commit({ type: "screen.move", id: dragging.node.dataset.id, x: parseFloat(dragging.node.style.left) / flowXScale(), y: parseFloat(dragging.node.style.top) }, { quiet: true, rerender: false });
 });
 function endDrag() {
   if (panning) { panning.scroll.classList.remove("panning"); panning = null; }
@@ -2140,7 +2261,7 @@ function endDrag() {
   const node = dragging.node, moved = parseFloat(node.style.left) !== dragging.left || parseFloat(node.style.top) !== dragging.top;
   node.classList.remove("dragging");
   dragging = null;
-  if (moved) commit({ type: "screen.move", id: node.dataset.id, x: parseFloat(node.style.left), y: parseFloat(node.style.top), final: true }, { quiet: true, rerender: false });
+  if (moved) commit({ type: "screen.move", id: node.dataset.id, x: parseFloat(node.style.left) / flowXScale(), y: parseFloat(node.style.top), final: true }, { quiet: true, rerender: false });
   setEditing(null);
   if (collab.pendingRender) { collab.pendingRender = false; refresh(); }
 }

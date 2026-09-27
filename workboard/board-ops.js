@@ -39,8 +39,12 @@ export function drawingField(value) {
     })),
   };
 }
-// 와이어프레임 카드에 팀원이 남기는 코멘트. screen.update로는 바뀌지 않고 comment.* op로만 더하고 지운다.
+// 와이어프레임 카드와 실험실 가설에 팀원이 남기는 코멘트. screen.update · experiment.update로는 바뀌지 않고
+// comment.* op로만 더하고 지운다. 가설 코멘트에는 남길 때의 찬반(stance)이 붙을 수 있다.
 const COMMENT_MAX = 200;
+export const VOTE_VALUES = ["agree", "disagree"];
+const VOTE_MAX = 100;
+const colorField = (value) => (/^#[0-9a-f]{6}$/i.test(String(value)) ? value : "#7c6cd8");
 function commentFields(source = {}) {
   const body = text(source.text, 1000).trim();
   if (!isId(source.id) || !body) return null;
@@ -48,12 +52,27 @@ function commentFields(source = {}) {
     id: source.id,
     text: body,
     by: text(source.by, 20).trim() || "팀원",
-    color: /^#[0-9a-f]{6}$/i.test(String(source.color)) ? source.color : "#7c6cd8",
+    color: colorField(source.color),
     at: text(source.at, 40),
     resolved: source.resolved === true,
+    ...(VOTE_VALUES.includes(source.stance) ? { stance: source.stance } : {}),
   };
 }
 const commentList = (list) => (Array.isArray(list) ? list.map(commentFields).filter(Boolean).slice(-COMMENT_MAX) : []);
+// 실험실 가설의 찬반. 팀원(브라우저)마다 한 표이고, id는 그 브라우저의 투표자 id다.
+function voteFields(source = {}) {
+  if (!isId(source.id) || !VOTE_VALUES.includes(source.value)) return null;
+  return { id: source.id, value: source.value, by: text(source.by, 20).trim() || "팀원", color: colorField(source.color) };
+}
+function voteList(list) {
+  const byVoter = new Map();
+  for (const vote of Array.isArray(list) ? list.map(voteFields).filter(Boolean) : []) { byVoter.delete(vote.id); byVoter.set(vote.id, vote); }
+  return [...byVoter.values()].slice(-VOTE_MAX);
+}
+const feedback = (item) => ({
+  ...(Array.isArray(item.comments) && item.comments.length ? { comments: commentList(item.comments) } : {}),
+  ...(Array.isArray(item.votes) && item.votes.length ? { votes: voteList(item.votes) } : {}),
+});
 function screenFields(source = {}) {
   const out = {};
   if ("title" in source) out.title = text(source.title, 200).trim();
@@ -88,7 +107,7 @@ export function normalizeBoard(data) {
     version: 1,
     projectName: text(data.projectName, 200).trim() || "새 프로젝트",
     screens: data.screens.map((item) => ({ id: item.id, title: "", purpose: "", sections: "", actionLabel: "", url: "", status: SCREEN_STATUS[0], ...screenFields(item), ...(Array.isArray(item.comments) && item.comments.length ? { comments: commentList(item.comments) } : {}) })),
-    experiments: data.experiments.map((item) => ({ id: item.id, title: "", question: "", url: "", status: EXPERIMENT_STATUS[0], ...experimentFields(item) })),
+    experiments: data.experiments.map((item) => ({ id: item.id, title: "", question: "", url: "", status: EXPERIMENT_STATUS[0], ...experimentFields(item), ...feedback(item) })),
     links: data.links.map((link) => ({ id: link.id, from: link.from, to: link.to, label: text(link.label, 200) })),
   };
 }
@@ -106,28 +125,42 @@ export function applyOp(board, op, { trusted = false } = {}) {
   const list = collection && board[collection];
   const find = (itemId) => list.find((item) => item.id === itemId);
 
+  // 코멘트는 화면(screenId) 또는 실험실 가설(experimentId)에 단다.
   if (op.type.startsWith("comment.")) {
-    const screen = isId(op.screenId) && board.screens.find((item) => item.id === op.screenId);
-    if (!screen) return trusted ? { ok: true, op } : MISSING();
-    screen.comments ||= [];
+    const onExperiment = isId(op.experimentId);
+    const where = onExperiment ? { experimentId: op.experimentId } : { screenId: op.screenId };
+    const target = onExperiment ? board.experiments.find((item) => item.id === op.experimentId) : isId(op.screenId) && board.screens.find((item) => item.id === op.screenId);
+    if (!target) return trusted ? { ok: true, op } : MISSING();
+    target.comments ||= [];
     if (op.type === "comment.add") {
       const comment = commentFields(op.item);
       if (!comment) return INVALID();
-      if (!screen.comments.some((item) => item.id === comment.id)) screen.comments.push(comment);
-      if (screen.comments.length > COMMENT_MAX) screen.comments.splice(0, screen.comments.length - COMMENT_MAX);
-      return { ok: true, op: { type: op.type, screenId: op.screenId, item: comment } };
+      if (!target.comments.some((item) => item.id === comment.id)) target.comments.push(comment);
+      if (target.comments.length > COMMENT_MAX) target.comments.splice(0, target.comments.length - COMMENT_MAX);
+      return { ok: true, op: { type: op.type, ...where, item: comment } };
     }
     if (!isId(op.id)) return INVALID();
     if (op.type === "comment.delete") {
-      screen.comments = screen.comments.filter((item) => item.id !== op.id);
-      return { ok: true, op: { type: op.type, screenId: op.screenId, id: op.id } };
+      target.comments = target.comments.filter((item) => item.id !== op.id);
+      return { ok: true, op: { type: op.type, ...where, id: op.id } };
     }
     if (op.type === "comment.resolve") {
-      const comment = screen.comments.find((item) => item.id === op.id);
+      const comment = target.comments.find((item) => item.id === op.id);
       if (comment) comment.resolved = op.resolved === true;
-      return { ok: true, op: { type: op.type, screenId: op.screenId, id: op.id, resolved: op.resolved === true } };
+      return { ok: true, op: { type: op.type, ...where, id: op.id, resolved: op.resolved === true } };
     }
     return INVALID();
+  }
+  // 가설 찬반: 같은 투표자의 이전 표를 지우고 새 표를 넣는다. value가 없으면 표를 거둔다.
+  if (op.type === "vote.set") {
+    const experiment = isId(op.experimentId) && board.experiments.find((item) => item.id === op.experimentId);
+    if (!experiment) return trusted ? { ok: true, op } : MISSING();
+    if (!isId(op.vote?.id)) return INVALID();
+    const vote = voteFields(op.vote);
+    experiment.votes = (experiment.votes || []).filter((item) => item.id !== op.vote.id);
+    if (vote) experiment.votes.push(vote);
+    if (experiment.votes.length > VOTE_MAX) experiment.votes.splice(0, experiment.votes.length - VOTE_MAX);
+    return { ok: true, op: { type: op.type, experimentId: op.experimentId, vote: vote || { id: op.vote.id } } };
   }
   switch (op.type) {
     case "project": {
