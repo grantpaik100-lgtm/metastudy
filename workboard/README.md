@@ -7,6 +7,7 @@
 |---|---|
 | `workboard-project.json` | 폰 앱 버전 작업판. 화면 10개 · 연결 15개 · 실험 5개 |
 | `workboard-project.chatgpt.json` | 같은 10개 화면을 ChatGPT(MCP) 대화 화면으로 바꾼 작업판. 실험 7개 |
+| `workboard-project.study-modes.json` | 「계획 · 학습 · 정리 모드 텍스트 와이어프레임 v0.3」을 옮긴 작업판. H-01 · P-01~06 · L-01~04 · S-01~02 (P-05는 inline/fullscreen, S-02는 위젯/웹으로 나눠 15개 화면) · 연결 22개 · 실험 7개 |
 | `workboard-project.web.json` | 웹 화면 6개 (홈 · 과목 대시보드 → 과목 등록 / 과목 계획 → 학습 → 정리 → 근거). **합쳐 불러오기**용 |
 | `app.js` | 작업판 앱. 폰 · ChatGPT · 웹 목업, 그리기 도구, 편집 창의 블록 추가 버튼, 합쳐 불러오기, 흐름도 연결선 배치 규칙 |
 | `board-ops.js` | 작업판 데이터 규칙(브라우저와 서버가 함께 씀). 화면의 `drawing`(그림) 필드를 검사해 저장하도록 추가 |
