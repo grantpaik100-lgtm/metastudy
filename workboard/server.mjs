@@ -9,7 +9,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renam
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { applyOp, blank, normalizeBoard } from "./board-ops.js";
+import { ANONYMOUS, applyOp, blank, isAnonymousOp, normalizeBoard } from "./board-ops.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 4173;
@@ -199,8 +199,10 @@ async function receiveOp(req, res) {
   if (result.error) return sendJson(res, 409, result);
   rev += 1;
   scheduleSave();
-  logChange(name, result.op);
-  broadcast("op", { rev, op: result.op, by: clientId, name });
+  // 실험실 가설의 코멘트 · 찬반은 익명이라 기록에도, 다른 팀원에게 보내는 알림에도 누가 했는지 넣지 않는다.
+  const anonymous = isAnonymousOp(result.op);
+  logChange(anonymous ? ANONYMOUS : name, result.op);
+  broadcast("op", { rev, op: result.op, by: anonymous ? "" : clientId, name: anonymous ? ANONYMOUS : name });
   sendJson(res, 200, { ok: true, rev });
 }
 

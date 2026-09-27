@@ -45,6 +45,11 @@ const COMMENT_MAX = 200;
 export const VOTE_VALUES = ["agree", "disagree"];
 const VOTE_MAX = 100;
 const colorField = (value) => (/^#[0-9a-f]{6}$/i.test(String(value)) ? value : "#7c6cd8");
+// 실험실 가설의 코멘트와 찬반은 익명이다. 보내는 쪽이 이름을 넣어도 여기서 지우고, 서버도 누가 보냈는지 알리지 않는다.
+export const ANONYMOUS = "익명";
+const ANONYMOUS_COLOR = "#6b7280";
+export const isAnonymousOp = (op) => op?.type === "vote.set" || (typeof op?.type === "string" && op.type.startsWith("comment.") && isId(op.experimentId));
+const anonymize = (comment) => (comment ? { ...comment, by: ANONYMOUS, color: ANONYMOUS_COLOR } : null);
 function commentFields(source = {}) {
   const body = text(source.text, 1000).trim();
   if (!isId(source.id) || !body) return null;
@@ -59,10 +64,11 @@ function commentFields(source = {}) {
   };
 }
 const commentList = (list) => (Array.isArray(list) ? list.map(commentFields).filter(Boolean).slice(-COMMENT_MAX) : []);
-// 실험실 가설의 찬반. 팀원(브라우저)마다 한 표이고, id는 그 브라우저의 투표자 id다.
+// 실험실 가설의 찬반. 팀원(브라우저)마다 가설 하나에 한 표이고, id는 그 브라우저가 가설마다 따로 만든 무작위 id다.
+// 이름 · 색은 저장하지 않는다.
 function voteFields(source = {}) {
   if (!isId(source.id) || !VOTE_VALUES.includes(source.value)) return null;
-  return { id: source.id, value: source.value, by: text(source.by, 20).trim() || "팀원", color: colorField(source.color) };
+  return { id: source.id, value: source.value };
 }
 function voteList(list) {
   const byVoter = new Map();
@@ -70,7 +76,7 @@ function voteList(list) {
   return [...byVoter.values()].slice(-VOTE_MAX);
 }
 const feedback = (item) => ({
-  ...(Array.isArray(item.comments) && item.comments.length ? { comments: commentList(item.comments) } : {}),
+  ...(Array.isArray(item.comments) && item.comments.length ? { comments: commentList(item.comments).map(anonymize) } : {}),
   ...(Array.isArray(item.votes) && item.votes.length ? { votes: voteList(item.votes) } : {}),
 });
 function screenFields(source = {}) {
@@ -133,7 +139,7 @@ export function applyOp(board, op, { trusted = false } = {}) {
     if (!target) return trusted ? { ok: true, op } : MISSING();
     target.comments ||= [];
     if (op.type === "comment.add") {
-      const comment = commentFields(op.item);
+      const comment = onExperiment ? anonymize(commentFields(op.item)) : commentFields(op.item);
       if (!comment) return INVALID();
       if (!target.comments.some((item) => item.id === comment.id)) target.comments.push(comment);
       if (target.comments.length > COMMENT_MAX) target.comments.splice(0, target.comments.length - COMMENT_MAX);

@@ -1,7 +1,7 @@
 // Independent workboard UI. Screens are shared by wireframes, the flow map, and the prototype.
 // 실시간 공동 작업: 작업판 원본은 서버(server.mjs → data/board.json)에 있다.
 // 이 브라우저의 변경은 op 하나씩 서버로 보내고, 서버가 정한 순서의 op를 모든 사람이 똑같이 적용한다.
-import { applyOp, blank, normalizeBoard, validUrl } from "./board-ops.js";
+import { ANONYMOUS, applyOp, blank, normalizeBoard, validUrl } from "./board-ops.js";
 
 const KEY = "workboard-template-v1"; // 공동 작업 전 이 브라우저에만 저장하던 작업판. 서버로 옮길 때만 읽는다.
 const NAME_KEY = "workboard-collab-name";
@@ -153,7 +153,8 @@ function receiveOp({ rev, op, by, name }) {
   applyOp(viewing ? liveState : state, op, { trusted: true });
   if (viewing) return; // 저장된 버전을 보는 동안에는 실시간 변경을 뒤에서만 반영한다.
   if (op.type === "screen.move") { moveNode(op.id, by); return; }
-  if (op.type === "comment.add" && by !== clientId) { const target = op.experimentId ? state.experiments.find((item) => item.id === op.experimentId) : state.screens.find((item) => item.id === op.screenId); if (target) toast(`${name}님이 ${op.experimentId ? "가설 " : ""}"${target.title}"에 코멘트를 남겼어요.`); }
+  if (op.type === "comment.add" && op.experimentId) { const target = state.experiments.find((item) => item.id === op.experimentId); if (target && !myAnonymousComments.delete(op.item?.id)) toast(`가설 "${target.title}"에 익명 의견이 달렸어요.`); }
+  else if (op.type === "comment.add" && by !== clientId) { const target = state.screens.find((item) => item.id === op.screenId); if (target) toast(`${name}님이 "${target.title}"에 코멘트를 남겼어요.`); }
   // 그림 저장이 서버에서 빠졌다면 서버가 예전 board-ops.js를 쓰고 있다는 뜻이다.
   if (by === clientId && op.type === "screen.update" && drawSaveCheck?.id === op.id) {
     const sentFrame = drawSaveCheck.frame;
@@ -1836,7 +1837,7 @@ function commentPanel(target, kind = "screen") {
   const comments = [...(target.comments || [])].sort((a, b) => Number(a.resolved) - Number(b.resolved));
   const list = comments.map((item) => `<li class="cm-item${item.resolved ? " resolved" : ""}"><div class="cm-meta"><b style="color:${escapeHtml(item.color)}">${escapeHtml(item.by)}</b>${item.stance ? `<span class="cm-stance ${item.stance}">${STANCE_LABEL[item.stance]}</span>` : ""}<time>${escapeHtml(shortDate(item.at))}</time>${item.resolved ? "<em>해결됨</em>" : ""}</div><p>${escapeHtml(item.text)}</p>${viewing ? "" : `<div class="cm-actions"><button data-action="resolve-comment" data-id="${escapeHtml(item.id)}" ${key}>${item.resolved ? "다시 열기" : "해결"}</button><button data-action="delete-comment" data-id="${escapeHtml(item.id)}" ${key}>삭제</button></div>`}</li>`).join("");
   const stance = kind === "experiment" ? myVote(target) : "";
-  const label = `${escapeHtml(collab.me.name)}(으)로 ${kind === "experiment" ? "의견" : "코멘트"} 남기기${stance ? ` · 내 표 <span class="cm-stance ${stance}">${STANCE_LABEL[stance]}</span>가 함께 붙어요` : ""}`;
+  const label = kind === "experiment" ? `익명으로 의견 남기기 — 이름은 저장되지 않아요${stance ? ` · 내 표 <span class="cm-stance ${stance}">${STANCE_LABEL[stance]}</span>가 함께 붙어요` : ""}` : `${escapeHtml(collab.me.name)}(으)로 코멘트 남기기`;
   const form = viewing ? "" : `<form class="cm-form" ${key}><label class="cm-label" for="cm-${escapeHtml(target.id)}">${label}</label><textarea id="cm-${escapeHtml(target.id)}" data-keep-focus="cm-${escapeHtml(target.id)}" data-comment-input="${escapeHtml(target.id)}" rows="2" maxlength="1000" placeholder="${kind === "experiment" ? "찬성 · 반대 이유나 보완할 점을 남겨 주세요" : "의견을 남겨 주세요"} (⌘/Ctrl+Enter로 등록)">${escapeHtml(commentDrafts.get(target.id) || "")}</textarea><button type="submit">등록</button></form>`;
   return `<div class="cm-panel" aria-label="${escapeHtml(target.title)} 코멘트">${list ? `<ul class="cm-list">${list}</ul>` : `<p class="cm-empty">아직 코멘트가 없어요.</p>`}${form}</div>`;
 }
@@ -1844,25 +1845,39 @@ function addComment(targetId, kind = "screen") {
   const text = String(commentDrafts.get(targetId) || $(`[data-comment-input="${CSS.escape(targetId)}"]`)?.value || "").trim();
   if (!text) return;
   const target = commentTarget(kind, targetId);
-  const stance = kind === "experiment" && target ? myVote(target) : "";
-  if (commit({ type: "comment.add", ...commentWhere(kind, targetId), item: { id: id(), text, by: collab.me.name, color: collab.me.color, at: new Date().toISOString(), ...(stance ? { stance } : {}) } })) {
+  const anonymous = kind === "experiment";
+  const stance = anonymous && target ? myVote(target) : "";
+  const commentId = id();
+  if (anonymous) myAnonymousComments.add(commentId);
+  if (commit({ type: "comment.add", ...commentWhere(kind, targetId), item: { id: commentId, text, by: anonymous ? ANONYMOUS : collab.me.name, color: anonymous ? "#6b7280" : collab.me.color, at: new Date().toISOString(), ...(stance ? { stance } : {}) } })) {
     commentDrafts.delete(targetId);
     refresh();
     $(`[data-comment-input="${CSS.escape(targetId)}"]`)?.focus();
   }
 }
 
-// ── 실험실 가설 찬반 ── 브라우저마다 투표자 id를 하나 두고, 같은 버튼을 다시 누르면 표를 거둔다.
-const VOTER_KEY = "workboard-voter-id";
-const voterId = storage.get(VOTER_KEY) || (() => { const value = `voter-${id()}`; storage.set(VOTER_KEY, value); return value; })();
-const myVote = (experiment) => (experiment.votes || []).find((vote) => vote.id === voterId)?.value || "";
+// ── 실험실 가설 찬반 (익명) ── 이 브라우저가 가설마다 무작위 투표자 id를 따로 만들어 둔다.
+// 가설끼리 id가 달라서 한 사람의 표를 여러 가설에 걸쳐 이어 볼 수 없다. 같은 버튼을 다시 누르면 표를 거둔다.
+const VOTER_IDS_KEY = "workboard-voter-ids", LEGACY_VOTER_KEY = "workboard-voter-id";
+const myAnonymousComments = new Set(); // 내가 방금 단 익명 코멘트(내 코멘트 알림을 나에게 띄우지 않으려고)
+function voterFor(experiment, create = false) {
+  let ids = {};
+  try { ids = JSON.parse(storage.get(VOTER_IDS_KEY) || "{}") || {}; } catch { ids = {}; }
+  if (ids[experiment.id]) return ids[experiment.id];
+  const legacy = storage.get(LEGACY_VOTER_KEY); // 익명 전환 전에 던진 표는 그 id로 계속 알아본다
+  if (legacy && (experiment.votes || []).some((vote) => vote.id === legacy)) return legacy;
+  if (!create) return "";
+  ids[experiment.id] = `v-${id()}`;
+  storage.set(VOTER_IDS_KEY, JSON.stringify(ids));
+  return ids[experiment.id];
+}
+const myVote = (experiment) => { const voter = voterFor(experiment); return voter ? (experiment.votes || []).find((vote) => vote.id === voter)?.value || "" : ""; };
 function voteBar(experiment) {
   const votes = experiment.votes || [], mine = myVote(experiment);
   const group = (value) => votes.filter((vote) => vote.value === value);
   const agree = group("agree").length, disagree = group("disagree").length;
   const button = (value, icon) => `<button type="button" class="xp-vote-btn ${value}" data-action="vote" data-id="${escapeHtml(experiment.id)}" data-value="${value}" aria-pressed="${mine === value}">${icon} ${STANCE_LABEL[value]} <b>${group(value).length}</b></button>`;
-  const names = (value) => group(value).map((vote) => `<span style="color:${escapeHtml(vote.color)}">${escapeHtml(vote.by)}</span>`).join(", ");
-  const who = votes.length ? `<p class="xp-voters">${agree ? `<span class="cm-stance agree">찬성</span> ${names("agree")}` : ""}${agree && disagree ? "　" : ""}${disagree ? `<span class="cm-stance disagree">반대</span> ${names("disagree")}` : ""}</p>` : `<p class="xp-voters empty">아직 표가 없어요. 이 가설에 찬성하는지 먼저 알려 주세요.</p>`;
+  const who = `<p class="xp-voters${votes.length ? "" : " empty"}">${votes.length ? `${votes.length}명 참여 · ` : "아직 표가 없어요 · "}익명 투표라 누가 어느 쪽인지는 보이지 않아요${mine ? ` · 내 표: ${STANCE_LABEL[mine]}` : ""}</p>`;
   const meter = votes.length ? `<div class="xp-meter" role="img" aria-label="찬성 ${agree}표, 반대 ${disagree}표"><i class="agree" style="width:${(agree / votes.length) * 100}%"></i><i class="disagree" style="width:${(disagree / votes.length) * 100}%"></i></div>` : "";
   return `<div class="xp-votes"><div class="xp-vote-row" role="group" aria-label="이 가설에 대한 찬반">${button("agree", "👍")}${button("disagree", "👎")}</div>${meter}${who}</div>`;
 }
@@ -1870,7 +1885,8 @@ function castVote(experimentId, value) {
   const experiment = state.experiments.find((item) => item.id === experimentId);
   if (!experiment) return;
   const next = myVote(experiment) === value ? "" : value;
-  commit({ type: "vote.set", experimentId, vote: next ? { id: voterId, value: next, by: collab.me.name, color: collab.me.color } : { id: voterId } });
+  const voter = voterFor(experiment, true);
+  commit({ type: "vote.set", experimentId, vote: next ? { id: voter, value: next } : { id: voter } });
 }
 
 // ── PDF 내보내기 ────────────────────────────────────────────────────
