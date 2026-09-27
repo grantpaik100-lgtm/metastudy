@@ -1,0 +1,1449 @@
+{
+  "version": 1,
+  "projectName": "StudyMeta 계획 · 학습 · 정리 모드 · ChatGPT 모바일",
+  "screens": [
+    {
+      "id": "H-01",
+      "title": "H-01 홈 · 과목별 현황 (웹)",
+      "purpose": "채팅 밖에서 과목별 상태와 오늘 할 일을 한 번에 본다. 과목끼리 합산하지 않고 탭으로 분리. [ChatGPT에서 학습 시작]은 시작 문구를 복사하고 ChatGPT를 연다. 예외: 과목 0개 → 'ChatGPT에서 계획을 먼저 만들어보세요'.",
+      "sections": "[web] 홈 · 과목별 현황\n[메뉴] *홈 | 정리 노트 | 내 정보\n[탭] *미적분학 | 화학 | 경제학원론\n[배너] 미적분학 · 중간고사 D-12 (범위 1~4단원) · 예상한 것과 실제 결과가 꽤 잘 맞고 있어요\n[목록] 오늘 할 일 (체크리스트 중 오늘 배정분)\n- [ ] 연쇄법칙 복습 | AI · 복습 추천\n- [ ] 극한의 정의 개념 확인 | AI · 확인 필요\n- [x] 2단원 예제 풀기 | 내가 추가\n[버튼] ChatGPT에서 학습 시작 →\n[카드] 연쇄법칙\n- 풀이 과정이 능숙해지고 있어요 | 복습 추천\n[카드] 극한의 정의\n- 헷갈리는 부분이 있는 것 같아요 | 확인 필요\n[사이드] 최근 정리 노트\n- 9/25 연쇄법칙 정리 노트 | 열기\n[사이드] 보기\n- 약한 스킬 먼저 보기 | 꺼짐",
+      "actionLabel": "ChatGPT에서 학습 시작",
+      "url": "",
+      "status": "확정",
+      "drawing": {
+        "frame": "web",
+        "shapes": [
+          {
+            "id": "smujalxxhsxgg",
+            "type": "text",
+            "x": 28,
+            "y": 21,
+            "w": 134,
+            "h": 36,
+            "text": "StudyMeta",
+            "tone": "accent",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxh8k8s",
+            "type": "rect",
+            "x": 16,
+            "y": 79,
+            "w": 173,
+            "h": 50,
+            "text": "홈",
+            "tone": "accent",
+            "size": "l",
+            "round": true
+          },
+          {
+            "id": "smujalxxhhrqa",
+            "type": "text",
+            "x": 16,
+            "y": 134,
+            "w": 115,
+            "h": 36,
+            "text": "정리 노트",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhnuej",
+            "type": "text",
+            "x": 16,
+            "y": 188,
+            "w": 91,
+            "h": 36,
+            "text": "내 정보",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhr515",
+            "type": "line",
+            "x": 233,
+            "y": 71,
+            "w": 704,
+            "h": 0,
+            "text": "",
+            "tone": "soft",
+            "size": "s",
+            "round": false
+          },
+          {
+            "id": "smujalxxhj87d",
+            "type": "text",
+            "x": 233,
+            "y": 23,
+            "w": 100,
+            "h": 36,
+            "text": "미적분학",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxh55wn",
+            "type": "text",
+            "x": 350,
+            "y": 23,
+            "w": 52,
+            "h": 36,
+            "text": "화학",
+            "tone": "soft",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhg5de",
+            "type": "text",
+            "x": 429,
+            "y": 23,
+            "w": 124,
+            "h": 36,
+            "text": "경제학원론",
+            "tone": "soft",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxh8a80",
+            "type": "rect",
+            "x": 233,
+            "y": 197,
+            "w": 704,
+            "h": 96,
+            "text": "",
+            "tone": "accent",
+            "size": "l",
+            "round": true
+          },
+          {
+            "id": "smujalxxhlicl",
+            "type": "text",
+            "x": 253,
+            "y": 213,
+            "w": 686,
+            "h": 67,
+            "text": "미적분학 · 중간고사 D-12 (범위 1~4단원) · 예상한 것과\n실제 결과가 꽤 잘 맞고 있어요",
+            "tone": "accent",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxh6mcq",
+            "type": "rect",
+            "x": 233,
+            "y": 309,
+            "w": 704,
+            "h": 277,
+            "text": "",
+            "tone": "line",
+            "size": "l",
+            "round": true
+          },
+          {
+            "id": "smujalxxhbbxh",
+            "type": "text",
+            "x": 256,
+            "y": 329,
+            "w": 480,
+            "h": 36,
+            "text": "오늘 할 일 (체크리스트 중 오늘 배정분)",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhvgfz",
+            "type": "text",
+            "x": 256,
+            "y": 372,
+            "w": 192,
+            "h": 36,
+            "text": "☐ 연쇄법칙 복습",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhp4nr",
+            "type": "rect",
+            "x": 780,
+            "y": 372,
+            "w": 134,
+            "h": 31,
+            "text": "AI · 복습 추천",
+            "tone": "accent",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujalxxhmtea",
+            "type": "line",
+            "x": 256,
+            "y": 413,
+            "w": 658,
+            "h": 0,
+            "text": "",
+            "tone": "soft",
+            "size": "s",
+            "round": false
+          },
+          {
+            "id": "smujalxxh3u2t",
+            "type": "text",
+            "x": 256,
+            "y": 422,
+            "w": 292,
+            "h": 36,
+            "text": "☐ 극한의 정의 개념 확인",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhekxx",
+            "type": "rect",
+            "x": 780,
+            "y": 422,
+            "w": 134,
+            "h": 31,
+            "text": "AI · 확인 필요",
+            "tone": "soft",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujalxxhp4sr",
+            "type": "line",
+            "x": 256,
+            "y": 463,
+            "w": 658,
+            "h": 0,
+            "text": "",
+            "tone": "soft",
+            "size": "s",
+            "round": false
+          },
+          {
+            "id": "smujalxxhkz6p",
+            "type": "text",
+            "x": 256,
+            "y": 472,
+            "w": 220,
+            "h": 36,
+            "text": "☑ 2단원 예제 풀기",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhdbzs",
+            "type": "rect",
+            "x": 817,
+            "y": 472,
+            "w": 97,
+            "h": 31,
+            "text": "내가 추가",
+            "tone": "soft",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujalxxhn6dq",
+            "type": "rect",
+            "x": 256,
+            "y": 518,
+            "w": 272,
+            "h": 47,
+            "text": "ChatGPT에서 학습 시작 →",
+            "tone": "dark",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujalxxhzgub",
+            "type": "rect",
+            "x": 233,
+            "y": 601,
+            "w": 345,
+            "h": 147,
+            "text": "",
+            "tone": "line",
+            "size": "l",
+            "round": true
+          },
+          {
+            "id": "smujalxxhhm5n",
+            "type": "text",
+            "x": 256,
+            "y": 622,
+            "w": 100,
+            "h": 36,
+            "text": "연쇄법칙",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhz687",
+            "type": "text",
+            "x": 256,
+            "y": 665,
+            "w": 211,
+            "h": 67,
+            "text": "풀이 과정이\n능숙해지고 있어요",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhza1y",
+            "type": "rect",
+            "x": 458,
+            "y": 691,
+            "w": 97,
+            "h": 31,
+            "text": "복습 추천",
+            "tone": "accent",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujalxxhg3vv",
+            "type": "rect",
+            "x": 592,
+            "y": 601,
+            "w": 345,
+            "h": 147,
+            "text": "",
+            "tone": "line",
+            "size": "l",
+            "round": true
+          },
+          {
+            "id": "smujalxxhkz0x",
+            "type": "text",
+            "x": 615,
+            "y": 622,
+            "w": 139,
+            "h": 36,
+            "text": "극한의 정의",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhy5a2",
+            "type": "text",
+            "x": 615,
+            "y": 665,
+            "w": 187,
+            "h": 67,
+            "text": "헷갈리는 부분이\n있는 것 같아요",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhph3x",
+            "type": "rect",
+            "x": 817,
+            "y": 681,
+            "w": 97,
+            "h": 31,
+            "text": "확인 필요",
+            "tone": "soft",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujalxxh69j5",
+            "type": "rect",
+            "x": 962,
+            "y": 23,
+            "w": 297,
+            "h": 147,
+            "text": "",
+            "tone": "line",
+            "size": "l",
+            "round": true
+          },
+          {
+            "id": "smujalxxhpsnd",
+            "type": "text",
+            "x": 985,
+            "y": 44,
+            "w": 177,
+            "h": 36,
+            "text": "최근 정리 노트",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxh05hq",
+            "type": "text",
+            "x": 985,
+            "y": 86,
+            "w": 172,
+            "h": 67,
+            "text": "9/25 연쇄법칙\n정리 노트",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhf869",
+            "type": "rect",
+            "x": 1177,
+            "y": 102,
+            "w": 59,
+            "h": 31,
+            "text": "열기",
+            "tone": "soft",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujalxxh4jt9",
+            "type": "rect",
+            "x": 962,
+            "y": 187,
+            "w": 297,
+            "h": 116,
+            "text": "",
+            "tone": "line",
+            "size": "l",
+            "round": true
+          },
+          {
+            "id": "smujalxxhoond",
+            "type": "text",
+            "x": 985,
+            "y": 207,
+            "w": 52,
+            "h": 36,
+            "text": "보기",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhfrbm",
+            "type": "text",
+            "x": 985,
+            "y": 250,
+            "w": 240,
+            "h": 36,
+            "text": "약한 스킬 먼저 보기",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smujalxxhfj5s",
+            "type": "rect",
+            "x": 1177,
+            "y": 250,
+            "w": 59,
+            "h": 31,
+            "text": "꺼짐",
+            "tone": "soft",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujan63bfswn",
+            "type": "ellipse",
+            "x": 250,
+            "y": 100,
+            "w": 80,
+            "h": 80,
+            "text": "프로필",
+            "tone": "line",
+            "size": "m",
+            "round": false
+          },
+          {
+            "id": "smujaqkfbj2ti",
+            "type": "text",
+            "x": 370,
+            "y": 120,
+            "w": 235,
+            "h": 36,
+            "text": "벅님, 좋은 학습...",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          }
+        ]
+      },
+      "x": 36.9627,
+      "y": 117.594
+    },
+    {
+      "id": "P-01",
+      "title": "P-01 계획 시작 · 사용자 입력",
+      "purpose": "대화로 빠진 정보만 묻는다. 한 번에 다 말하면 바로 P-02으로. 수집: 과목명(필수) · 시험 이름·날짜(과목당 여러 개) · 시험마다 범위 · PDF(선택). \n자료는 ChatGPT 채팅 첨부로 받는다. 구현 확인 필요:  P-02 카드에 '찾은 목차'를 보여준다.",
+      "sections": "[사용자] StudyMeta로 미적분 중간고사 계획 짜줘\n[도구] StudyMeta · 등록된 과목 확인\n[AI] 좋아요. 몇 가지만 알려주세요.\n- 1. 시험 날짜가 언제예요?\n- 2. 시험범위는 어디까지예요? (단원이나 교재 페이지)\n- 3. 강의자료 PDF가 있으면 올려주세요. 없어도 괜찮아요.\n[사용자] 10월 8일, 1~4단원. 퀴즈도 10/1에 있어 2단원까지\n\n[AI] 강의자료 PDF가 있으면 여기에 올려주세요.\n[사용자] 📎 3주차_연쇄법칙.pdf · 📎 교재_4장.pdf\n[도구] StudyMeta 사용 중\n[AI] 자료 2개를 받았어요. 목차를 살펴볼게요.",
+      "actionLabel": "정보 보내기",
+      "url": "",
+      "status": "작업 중",
+      "drawing": {
+        "frame": "chatgpt",
+        "shapes": [
+          {
+            "id": "smujcurtrorph",
+            "type": "rect",
+            "x": 80,
+            "y": 140,
+            "w": 293,
+            "h": 70,
+            "text": "StudyMeta로 미적분 중간고사 계획 짜줘",
+            "tone": "soft",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smujcurtr30vg",
+            "type": "rect",
+            "x": 17,
+            "y": 253,
+            "w": 29,
+            "h": 29,
+            "text": "S",
+            "tone": "accent",
+            "size": "m",
+            "round": false
+          },
+          {
+            "id": "smujcurtrbpv7",
+            "type": "text",
+            "x": 56,
+            "y": 254,
+            "w": 251,
+            "h": 25,
+            "text": "StudyMeta · 등록된 과목 확인",
+            "tone": "soft",
+            "size": "m",
+            "round": false
+          },
+          {
+            "id": "smujcurtrbguu",
+            "type": "text",
+            "x": 17,
+            "y": 314,
+            "w": 248,
+            "h": 129,
+            "text": "좋아요. 몇 가지만 알려주세요.\n• 1. 시험 날짜가 언제예요?\n• 2. 시험범위는 어디까지예요?\n(단원이나 교재 페이지)\n• 3. 강의자료 PDF가 있으면\n올려주세요. 없어도 괜찮아요.",
+            "tone": "line",
+            "size": "m",
+            "round": false
+          },
+          {
+            "id": "smujcurtrzvcn",
+            "type": "rect",
+            "x": 71,
+            "y": 448,
+            "w": 292,
+            "h": 81,
+            "text": "10월 8일, 1~4단원. 퀴즈도 10/1에 있어 2단원까지",
+            "tone": "soft",
+            "size": "m",
+            "round": true
+          }
+        ]
+      },
+      "x": 1040.06,
+      "y": 105.13,
+      "comments": [
+        {
+          "id": "21afb550-8702-4ede-b975-8939f893989b",
+          "text": "와 개구려",
+          "by": "벅",
+          "color": "#d9973a",
+          "at": "2026-09-27T06:54:19.397Z",
+          "resolved": false
+        },
+        {
+          "id": "5e163d85-293b-4add-9f71-a7f7d3cd987f",
+          "text": "개구리다능!",
+          "by": "벅",
+          "color": "#d9973a",
+          "at": "2026-09-27T06:54:25.043Z",
+          "resolved": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "title": "P-03 입력 확인 카드 (inline)",
+      "purpose": "계획을 만들기 전에 AI가 이해한 내용을 한 장으로 보여주고 고칠 기회를 준다. [수정] · [목차에서 범위 고르기]는 카드 안에서 바로 편집. 대화로 '퀴즈 날짜 10/2로 바꿔줘'라고 해도 같은 카드가 갱신된다. MCP: preview_study_plan(신규).",
+      "sections": "[도구] StudyMeta · 계획 미리보기\n[inline] 계획 만들기 전에 확인해주세요\n- 과목 | 미적분학\n- 퀴즈 10/1 · 범위 1~2단원 | 수정\n- 중간고사 10/8 · 범위 1~4단원 | 수정\n- 자료 · 3주차_연쇄법칙.pdf · 교재_4장.pdf | 50p\n- 찾은 목차 · 극한 / 연속 / 미분법 / 적분 | 모두 범위에 포함\n[버튼] 이대로 계획 만들기 | + 시험 추가",
+      "actionLabel": "이대로 계획 만들기",
+      "url": "",
+      "status": "작업 중",
+      "x": 1358.18,
+      "y": 31.1257
+    },
+    {
+      "id": "P-04",
+      "title": "P-04 분석 중 (inline)",
+      "purpose": "자료를 읽고 개념을 찾아 날짜에 배치하는 동안 진행 상태를 보여준다. 예외: 실패 → '자료를 읽지 못했어요. [다시 시도] [범위 텍스트로만 만들기]'. MCP: create_study_plan(신규).",
+      "sections": "[사용자] 이대로 만들어줘\n[도구] StudyMeta · 계획 만드는 중\n[inline] 계획을 만들고 있어요\n- 자료 읽는 중 | 완료\n- 개념 찾는 중 | 개념 11개\n- 날짜에 배치하는 중 | 대기",
+      "actionLabel": "완료",
+      "url": "",
+      "status": "작업 중",
+      "x": 1600,
+      "y": 70
+    },
+    {
+      "id": "P-05",
+      "title": "P-05 할 일 체크리스트 (inline 요약)",
+      "purpose": "시험범위를 단원 > 개념 단위 할 일로 쪼개고 날짜에 배치한다. 항목마다 출처([AI]/[나]/[AI·수정됨]) · 완료(사용자 체크, State 불변) · AI 판단(학습 기록 기반 배지, 사용자가 끌 수 없음)을 따로 갖는다. MCP: get_study_plan(신규).",
+      "sections": "[inline] 미적분학 계획\n퀴즈 D-5 · 중간고사 D-12 · 할 일 14개\n- [ ] 오늘 · 연쇄법칙 개념 이해 | AI · 복습 추천\n- [ ] 오늘 · 극한의 정의 확인 | AI · 확인 필요\n- [ ] 10/1 퀴즈 · 연속 개념 정리 | AI\n[버튼] 오늘 것부터 시작 | 전체 보기·편집 ⤢\n[AI] 미적분학 계획을 만들었어요.",
+      "actionLabel": "오늘 것부터 시작",
+      "url": "",
+      "status": "확정",
+      "x": 1708.06,
+      "y": 695.488
+    },
+    {
+      "id": "P-05F",
+      "title": "P-05 할 일 체크리스트 (fullscreen 편집)",
+      "purpose": "체크 · 날짜 이동 · 편집 · 추가를 위젯에서 바로 저장한다(update_study_plan, 신규). AI 항목 삭제는 'AI 제안 숨김'(되살리기 가능). 날짜별 보기는 드래그 또는 ◀▶로 하루씩 이동, 시험일 이후 칸은 잠김. [이 항목으로 학습] → L-02.",
+      "sections": "[AI] 전체 계획을 열었어요.\n[fullscreen] 미적분학 계획 · 편집\n시험: 전체 · 퀴즈 10/1 · 중간고사 10/8  |  보기: 목록 · 날짜별\n- 3단원 미분법\n-- [ ] 연쇄법칙 개념 이해 · 10/1 | AI · 복습 추천\n-- [ ] 연쇄법칙 문제 풀이 · 10/2 | AI\n-- [x] 교재 3장 예제 다시 보기 · 9/30 | 내가 추가\n- 4단원 적분\n-- [ ] 치환적분 · 10/3 | AI · 수정됨\n-- [ ] 부분적분 · 10/4 | AI · 확인 필요\n범례: AI = AI가 만든 할 일 · 내가 추가 = 내가 추가한 할 일 · 오른쪽 배지 = 학습 기록을 보고 AI가 판단한 상태\n[버튼] + 할 일 추가 | 닫기",
+      "actionLabel": "닫기",
+      "url": "",
+      "status": "작업 중",
+      "x": 2104.94,
+      "y": 689.155,
+      "drawing": {
+        "frame": "chatgpt",
+        "shapes": [
+          {
+            "id": "smujh4f5nja0a",
+            "type": "text",
+            "x": 17,
+            "y": 649,
+            "w": 231,
+            "h": 32,
+            "text": "전체 계획을 열었어요.",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5nxvxv",
+            "type": "line",
+            "x": 0,
+            "y": 106,
+            "w": 390,
+            "h": 0,
+            "text": "",
+            "tone": "soft",
+            "size": "s",
+            "round": false
+          },
+          {
+            "id": "smujh4f5nhg65",
+            "type": "text",
+            "x": 17,
+            "y": 61,
+            "w": 24,
+            "h": 32,
+            "text": "✕",
+            "tone": "soft",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5nsrlg",
+            "type": "text",
+            "x": 43,
+            "y": 61,
+            "w": 223,
+            "h": 32,
+            "text": "미적분학 계획 · 편집",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5no45f",
+            "type": "rect",
+            "x": 266,
+            "y": 62,
+            "w": 108,
+            "h": 27,
+            "text": "Fullscreen",
+            "tone": "accent",
+            "size": 16,
+            "round": true
+          },
+          {
+            "id": "smujh4f5nhw2o",
+            "type": "text",
+            "x": 17,
+            "y": 116,
+            "w": 324,
+            "h": 86,
+            "text": "시험: 전체 · 퀴즈 10/1 ·\n중간고사 10/8 | 보기: 목록 ·\n날짜별",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5nbdrq",
+            "type": "text",
+            "x": 17,
+            "y": 203,
+            "w": 250,
+            "h": 82,
+            "text": "범례: AI = AI가 만든 할 일 ·\n내가 추가 = 내가 추가한 할 일 ·\n오른쪽 배지 = 학습 기록을 보고\nAI가 판단한 상태",
+            "tone": "line",
+            "size": 15,
+            "round": false
+          },
+          {
+            "id": "smujh4f5n1kxp",
+            "type": "text",
+            "x": 17,
+            "y": 281,
+            "w": 135,
+            "h": 32,
+            "text": "3단원 미분법",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5nghl2",
+            "type": "text",
+            "x": 38,
+            "y": 317,
+            "w": 193,
+            "h": 59,
+            "text": "└ ☐ 연쇄법칙 개념\n이해 · 10/1",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5ndr1n",
+            "type": "rect",
+            "x": 261,
+            "y": 334,
+            "w": 112,
+            "h": 27,
+            "text": "AI · 복습 추천",
+            "tone": "accent",
+            "size": 16,
+            "round": true
+          },
+          {
+            "id": "smujh4f5negv1",
+            "type": "text",
+            "x": 38,
+            "y": 385,
+            "w": 336,
+            "h": 32,
+            "text": "└ ☐ 연쇄법칙 문제 풀이 · 10/2",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5nurid",
+            "type": "rect",
+            "x": 335,
+            "y": 386,
+            "w": 38,
+            "h": 27,
+            "text": "AI",
+            "tone": "accent",
+            "size": 16,
+            "round": true
+          },
+          {
+            "id": "smujh4f5nka13",
+            "type": "text",
+            "x": 38,
+            "y": 421,
+            "w": 252,
+            "h": 59,
+            "text": "└ ☑ 교재 3장 예제 다시\n보기 · 9/30",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5nvyk8",
+            "type": "rect",
+            "x": 293,
+            "y": 438,
+            "w": 80,
+            "h": 27,
+            "text": "내가 추가",
+            "tone": "soft",
+            "size": 16,
+            "round": true
+          },
+          {
+            "id": "smujh4f5n7bk8",
+            "type": "text",
+            "x": 17,
+            "y": 488,
+            "w": 114,
+            "h": 32,
+            "text": "4단원 적분",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5nza5d",
+            "type": "text",
+            "x": 38,
+            "y": 525,
+            "w": 227,
+            "h": 32,
+            "text": "└ ☐ 치환적분 · 10/3",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5n6qqt",
+            "type": "rect",
+            "x": 279,
+            "y": 527,
+            "w": 94,
+            "h": 27,
+            "text": "AI · 수정됨",
+            "tone": "accent",
+            "size": 16,
+            "round": true
+          },
+          {
+            "id": "smujh4f5nbrq6",
+            "type": "text",
+            "x": 38,
+            "y": 562,
+            "w": 227,
+            "h": 32,
+            "text": "└ ☐ 부분적분 · 10/4",
+            "tone": "line",
+            "size": 21,
+            "round": false
+          },
+          {
+            "id": "smujh4f5n6hpj",
+            "type": "rect",
+            "x": 261,
+            "y": 563,
+            "w": 112,
+            "h": 27,
+            "text": "AI · 확인 필요",
+            "tone": "accent",
+            "size": 16,
+            "round": true
+          },
+          {
+            "id": "smujh4f5n4z1f",
+            "type": "rect",
+            "x": 17,
+            "y": 632,
+            "w": 127,
+            "h": 43,
+            "text": "+ 할 일 추가",
+            "tone": "brand",
+            "size": 18,
+            "round": true
+          },
+          {
+            "id": "smujh4f5n1i3w",
+            "type": "rect",
+            "x": 152,
+            "y": 632,
+            "w": 69,
+            "h": 43,
+            "text": "닫기",
+            "tone": "line",
+            "size": 18,
+            "round": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "L-01",
+      "title": "L-01 학습 시작",
+      "purpose": "진입: 홈의 시작 문구, P-05 [오늘 것부터 시작], '공부 시작할래'. 예외: 계획 없음 → P-01 또는 L-02 / 지난 세션 정리 안 함 → '지난번 공부한 것부터 5분 정리할까요?' → S-01. MCP: get_my_learner_context(기존) + get_study_plan(신규).",
+      "sections": "[사용자] StudyMeta로 미적분학 오늘 할 일 시작할래\n[도구] StudyMeta · 학습 기록 · 계획 불러오기\n[AI] 좋아요! 퀴즈까지 5일, 중간고사까지 12일 남았어요.\n[AI] 오늘 할 일 중에서 골라주세요.",
+      "actionLabel": "범위 고르기",
+      "url": "",
+      "status": "작업 중",
+      "x": 1313.64,
+      "y": 749.949
+    },
+    {
+      "id": "L-02",
+      "title": "L-02 학습 범위 선택 (inline)",
+      "purpose": "체크리스트 항목 = 개념 단위. 단원을 고르면 그 아래 개념이 모두 선택된다. 여러 개 선택 가능. 대화로 '1번이랑 3단원 전체'라고 해도 같은 선택이 반영된다. 시작하면 P-06 PiP를 띄울지 한 번 묻는다. MCP: start_study_session(신규).",
+      "sections": "[inline] 오늘 공부할 범위 · 예상 30~40분\n- [x] 연쇄법칙 개념 이해 | 복습 추천\n- [ ] 극한의 정의 확인 | 확인 필요\n- [ ] 3단원 미분법 전체 (곱 · 몫 · 연쇄법칙) | 다른 범위\n- [ ] 4단원 적분 | 다른 범위\n[버튼] 이 범위로 시작 | 계획 띄워두기\n[AI] 오늘 할 일 중에서 골라주세요.",
+      "actionLabel": "이 범위로 시작",
+      "url": "",
+      "status": "작업 중",
+      "x": 842.728,
+      "y": 718.507
+    },
+    {
+      "id": "L-03",
+      "title": "L-03 학습 진행 (대화)",
+      "purpose": "설명 → 문제 → 피드백을 반복하며 문제마다 Evidence를 기록한다(한 풀이에서 여러 Evidence). 대화가 State를 직접 바꾸지 않는다(대화 → Evidence → State). 매 턴 위젯을 띄우지 않고 기록은 한 줄 텍스트로. MCP: record_learning_event(기존).",
+      "sections": "[AI] 문제 2. f(x) = sin(3x²) 를 미분해 볼까요?\n[AI] 풀기 전에, 얼마나 자신 있어요? (1 전혀 ~ 5 확실)\n[사용자] 4 · 6x·cos(3x²)?\n[AI] 맞아요! 바깥 함수와 안쪽 함수를 잘 나눴어요. 이번엔 힌트 없이 풀었네요. 다음은 조금 비튼 문제로 가볼까요?\n[도구] StudyMeta 기록: 정답 · 혼자 힘으로 해결",
+      "actionLabel": "계속 풀기",
+      "url": "",
+      "status": "확정",
+      "x": 405.867,
+      "y": 717.602
+    },
+    {
+      "id": "P-06",
+      "title": "P-06 체크리스트 상시 열람 (PiP)",
+      "purpose": "학습모드 내내 계획을 띄워둔다. 진입: L-02 확정 시 PiP 제안, '계획 띄워줘'. 현재 학습 중 항목에 ▶, 체크 가능. PiP 미지원 환경: '계획 보여줘' → P-05 inline 카드 재호출.",
+      "sections": "[AI] 문제 1. f(x) = (2x+1)³ 을 미분해 볼까요?\n[사용자] 6(2x+1)²\n[AI] 맞아요! 안쪽 함수 미분을 잘 곱했어요.\n[pip] 오늘 할 일 · 퀴즈 D-5\n- ▶ 연쇄법칙 개념 이해 | 진행 중\n- [ ] 극한의 정의 확인\n- [x] 교재 3장 예제 | 완료",
+      "actionLabel": "학습 계속",
+      "url": "",
+      "status": "작업 중",
+      "x": 50,
+      "y": 670
+    },
+    {
+      "id": "L-04",
+      "title": "L-04 학습 마무리 감지 (inline)",
+      "purpose": "학습이 끝나는 시점을 잡아 정리모드로 넘긴다. 강제하지 않고 제안. 신호: '그만할래' 등 / 선택 범위 개념을 모두 다룸 / 예상 시간 +50% / 대화 없이 이탈(→ '정리 안 됨' 저장). [완료]는 사용자가 누를 때만 체크리스트에 반영. MCP: end_study_session(신규).",
+      "sections": "[사용자] 오늘은 여기까지 할래\n[도구] StudyMeta · 세션 마무리\n[inline] 오늘 학습 마무리\n오늘 고른 범위를 다 한 번씩 다뤘어요 · 푼 문제 6개 · 약 35분\n- [x] 연쇄법칙 개념 이해 → 체크리스트에서 완료할까요? | 완료\n[버튼] 5분 정리하기 | 조금 더 풀기 | 오늘은 그만",
+      "actionLabel": "5분 정리하기",
+      "url": "",
+      "status": "작업 중",
+      "x": 1618.08,
+      "y": 1852.57
+    },
+    {
+      "id": "S-01",
+      "title": "S-01 구조화 정리 + 다음 계획 제안 (inline)",
+      "purpose": "이번 세션 내용을 단원 > 개념 > 핵심 포인트 위계로 정리한다(새로 가르치지 않음, 개념 트리만, 이해 자기평가 없음). 다음 계획은 풀이 기록(AI 판단)만으로 제안하고 [내일 계획에 반영]을 누를 때만 반영(update_study_plan). MCP: save_session_summary(신규) → 웹 정리 노트.",
+      "sections": "[inline] 오늘 공부한 내용 · 3단원 미분법\n- 곱의 미분\n-- (fg)' = f'g + fg'\n- 몫의 미분\n-- 분모 제곱, 순서 주의 (f'g − fg')\n- 연쇄법칙 | ★ 가장 많이 다룸\n-- 바깥 함수 미분 × 안쪽 함수 미분\n- 아직 안 다룬 것 · 몫의 미분 응용 | 체크리스트에 남김\n- 내일 복습 · 몫의 미분 (순서 실수 1번) | AI · 확인 필요\n- 힌트 없이 재도전 · 연쇄법칙 | AI · 도움이 필요해요\n[버튼] 내일 계획에 반영 | 근거 자세히 보기 ⤢\n[AI] 오늘 공부한 내용을 정리했어요.",
+      "actionLabel": "내일 계획에 반영",
+      "url": "",
+      "status": "작업 중",
+      "x": 2388.73,
+      "y": 1807.56
+    },
+    {
+      "id": "S-02",
+      "title": "S-02 근거 화면 (fullscreen · 학생용)",
+      "purpose": "'왜 이런 판단이 나왔는지'를 학생이 확인한다. ① 지금 상태: 학생 문구 + 방향, 근거 없는 항목은 '변화 없음' / ② 도움 받은 횟수: 횟수만, 합산 점수 없음 / ③ 근거: 문제마다 Evidence 칩 → 영향 준 상태를 문장으로(연결선 없음). 내부 id · 원시 수치 · intervention_response 비노출.",
+      "sections": "[AI] 연쇄법칙을 왜 이렇게 판단했는지 보여드릴게요.\n[fullscreen] 연쇄법칙 · 9/30 학습 근거\n이번 세션 · 전체 기록\n- ① 지금 상태\n-- 개념 이해 | 좋아지고 있어요 ↑\n-- 풀이 과정 | 변화 없음 –\n-- 기억 | 잘 기억하고 있어요 ↑\n-- 필요한 도움 | 늘고 있어요 ↓\n-- 헷갈리는 부분 | 없음 –\n- ② 도움 받은 횟수 (이번 세션)\n-- 힌트 요청 2 · 힌트 받고 해결 1 · 설명 듣고 해결 1 · 혼자 해결 3\n- ③ 이렇게 판단한 근거\n-- 문제 2 · 정답 · 혼자 힘으로 해결 | 개념 이해 ↑\n-- 문제 4 · 오답 · 힌트 요청 → 힌트 받고 해결 | 필요한 도움 ↓\n[버튼] 닫기 | 더 보기: 응용력 · 판단 확실도",
+      "actionLabel": "닫기",
+      "url": "",
+      "status": "작업 중",
+      "x": 2972.13,
+      "y": 1698.62
+    },
+    {
+      "id": "S-02W",
+      "title": "S-02 근거 화면 (웹 · 전체 기록)",
+      "purpose": "채팅 밖에서 근거와 정리 노트를 한눈에 본다. 진입: 웹 홈의 정리 노트, S-01 [근거 자세히 보기]. 표시 규칙은 S-02와 같다.",
+      "sections": "[web] 정리 노트 · 학습 근거\n[메뉴] 홈 | *정리 노트 | 내 정보\n[탭] 이번 세션 | *전체 기록\n[제목] 연쇄법칙 · 학습 근거\n[카드] 지금 상태\n- 개념 이해 | 좋아지고 있어요 ↑\n- 풀이 과정 | 변화 없음\n- 기억 | 잘 기억하고 있어요 ↑\n- 필요한 도움 | 늘고 있어요 ↓\n[카드] 도움 받은 횟수\n- 힌트 요청 | 2회\n- 힌트 받고 해결 | 1회\n- 설명 듣고 해결 | 1회\n- 혼자 힘으로 해결 | 3회\n[목록] 이렇게 판단한 근거\n- 9/30 문제 2 · 정답 · 혼자 힘으로 해결 | 개념 이해 ↑\n- 9/30 문제 4 · 오답 · 힌트 받고 해결 | 필요한 도움 ↓\n[사이드] 정리 노트\n- 9/30 3단원 미분법 | 열기\n- 9/25 연쇄법칙 | 열기\n[버튼] 홈으로",
+      "actionLabel": "홈으로",
+      "url": "",
+      "status": "작업 중",
+      "x": 421.372,
+      "y": 1919.99
+    },
+    {
+      "id": "e113bcf6-90cf-4dbc-baaa-6981a6d22f25",
+      "title": "P-00 최초 연결",
+      "purpose": "",
+      "sections": "[도구] StudyMeta 사용 중\n[inline] 대시보드\n- [x] 극한의 정의 복습 | AI 제안\n- [ ] 교수님 강조 부분 | 내가 추가\n[버튼] 계획모드 | 학습하기 | 정리하기\n[AI] studymeta와 오늘도 공부하세요",
+      "actionLabel": "",
+      "url": "",
+      "status": "작업 중",
+      "drawing": {
+        "frame": "chatgpt",
+        "shapes": [
+          {
+            "id": "smuj88zeb32w4",
+            "type": "rect",
+            "x": 17,
+            "y": 59,
+            "w": 29,
+            "h": 29,
+            "text": "S",
+            "tone": "accent",
+            "size": "m",
+            "round": false
+          },
+          {
+            "id": "smuj88zebv823",
+            "type": "text",
+            "x": 57,
+            "y": 62,
+            "w": 158,
+            "h": 25,
+            "text": "StudyMeta 사용 중",
+            "tone": "soft",
+            "size": "m",
+            "round": false
+          },
+          {
+            "id": "smuj88zebpdvm",
+            "type": "text",
+            "x": 17,
+            "y": 91,
+            "w": 379,
+            "h": 36,
+            "text": "studymeta와 오늘도 공부하세요",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smuj88zebhczr",
+            "type": "rect",
+            "x": 17,
+            "y": 134,
+            "w": 343,
+            "h": 486,
+            "text": "",
+            "tone": "line",
+            "size": "l",
+            "round": true
+          },
+          {
+            "id": "smuj88zebnkxv",
+            "type": "line",
+            "x": 19,
+            "y": 194,
+            "w": 352,
+            "h": 0,
+            "text": "",
+            "tone": "soft",
+            "size": "s",
+            "round": false
+          },
+          {
+            "id": "smuj88zeb8ibr",
+            "type": "rect",
+            "x": 36,
+            "y": 149,
+            "w": 29,
+            "h": 29,
+            "text": "S",
+            "tone": "accent",
+            "size": "m",
+            "round": false
+          },
+          {
+            "id": "smuj88zeb1ctc",
+            "type": "text",
+            "x": 75,
+            "y": 149,
+            "w": 100,
+            "h": 36,
+            "text": "대시보드",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smuj88zebz2m6",
+            "type": "rect",
+            "x": 256,
+            "y": 151,
+            "w": 99,
+            "h": 27,
+            "text": "Inline 카드",
+            "tone": "accent",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smuj88zeb57a6",
+            "type": "text",
+            "x": 36,
+            "y": 204,
+            "w": 230,
+            "h": 36,
+            "text": "☑ 극한의 정의 복습",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smuj88zeb7j9k",
+            "type": "rect",
+            "x": 284,
+            "y": 206,
+            "w": 70,
+            "h": 27,
+            "text": "AI 제안",
+            "tone": "accent",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smuj88zebaoob",
+            "type": "line",
+            "x": 36,
+            "y": 241,
+            "w": 319,
+            "h": 0,
+            "text": "",
+            "tone": "soft",
+            "size": "s",
+            "round": false
+          },
+          {
+            "id": "smuj88zebylu7",
+            "type": "text",
+            "x": 36,
+            "y": 249,
+            "w": 230,
+            "h": 36,
+            "text": "☐ 교수님 강조 부분",
+            "tone": "line",
+            "size": "l",
+            "round": false
+          },
+          {
+            "id": "smuj88zebtpc4",
+            "type": "rect",
+            "x": 274,
+            "y": 251,
+            "w": 80,
+            "h": 27,
+            "text": "내가 추가",
+            "tone": "soft",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smuj88zebxvgz",
+            "type": "rect",
+            "x": 143,
+            "y": 290,
+            "w": 99,
+            "h": 43,
+            "text": "학습하기",
+            "tone": "line",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smuj88zeb2tvm",
+            "type": "rect",
+            "x": 251,
+            "y": 290,
+            "w": 99,
+            "h": 43,
+            "text": "정리하기",
+            "tone": "line",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smuj8a7t5851y",
+            "type": "rect",
+            "x": 36,
+            "y": 366,
+            "w": 134,
+            "h": 144,
+            "text": "",
+            "tone": "line",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smuj8a7t58f9u",
+            "type": "image",
+            "x": -272,
+            "y": 448,
+            "w": 146,
+            "h": 60,
+            "text": "",
+            "tone": "line",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smuj8a7t5ilc9",
+            "type": "rect",
+            "x": 58,
+            "y": 468,
+            "w": 90,
+            "h": 28,
+            "text": "선택",
+            "tone": "dark",
+            "size": "s",
+            "round": true
+          },
+          {
+            "id": "smuj8a7t5u3nb",
+            "type": "rect",
+            "x": 180,
+            "y": 370,
+            "w": 120,
+            "h": 140,
+            "text": "",
+            "tone": "line",
+            "size": "m",
+            "round": true
+          },
+          {
+            "id": "smuj8a7t5zmwk",
+            "type": "rect",
+            "x": 198,
+            "y": 468,
+            "w": 90,
+            "h": 28,
+            "text": "선택",
+            "tone": "dark",
+            "size": "s",
+            "round": true
+          },
+          {
+            "id": "smuj8b8s615p1",
+            "type": "rect",
+            "x": 50,
+            "y": 380,
+            "w": 100,
+            "h": 30,
+            "text": "계획하기",
+            "tone": "dark",
+            "size": "m",
+            "round": false
+          },
+          {
+            "id": "smuj8bheulo9m",
+            "type": "rect",
+            "x": 190,
+            "y": 380,
+            "w": 100,
+            "h": 30,
+            "text": "학습하기",
+            "tone": "dark",
+            "size": "m",
+            "round": false
+          }
+        ]
+      },
+      "x": 689.137,
+      "y": 11.2309
+    },
+    {
+      "id": "702907ac-ad2d-4884-9670-790bd136502b",
+      "title": "ㄷ",
+      "purpose": "",
+      "sections": "[web] 홈 · 과목 대시보드\n[메뉴] *홈 | 계획 | 학습 | 정리 | 설정\n[제목] 안녕하세요! 오늘은 무엇부터 해볼까요?\n[배너] 가장 가까운 시험은 일반물리학 퀴즈예요 (D-9)\n[버튼] 오늘 학습 시작\n[카드] 미적분학\n- 중간고사 | D-25\n- 할 일 | 3 / 7\n- 중간값 정리 | 도움이 필요해요\n[버튼] 과목 열기\n[카드] 일반물리학\n- 퀴즈 | D-9\n- 할 일 | 1 / 4\n- 운동 법칙 | 복습 추천\n[버튼] 과목 열기\n[카드] ＋ 과목 추가\n과목 · 일정 · 시험범위 · PDF를 등록해요\n[버튼] 등록하기\n[목록] 오늘 할 일\n- [ ] 연속 · 예제 5개 | AI 제안\n- [ ] 교수님 강조 부분 정리 | 내가 추가\n- [x] 극한의 정의 복습 | AI 제안\n[사이드] 다가오는 시험\n- 일반물리학 퀴즈 | D-9\n- 미적분학 중간고사 | D-25",
+      "actionLabel": "",
+      "url": "",
+      "status": "작업 중",
+      "x": 60,
+      "y": 1800
+    }
+  ],
+  "experiments": [
+    {
+      "id": "exp-sm-pip-mobile",
+      "title": "모바일 PiP 지원 확인 (P-06)",
+      "question": "ChatGPT 모바일에서 PiP가 어떻게 동작하는지 구현 전에 확인한다. 안 되면 '계획 보여줘' → P-05 inline 카드 재호출로 대체.",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-sm-pdf",
+      "title": "PDF 전달 방식 (P-02 · 열린 질문 2)",
+      "question": "첨부 PDF를 MCP 서버로 파일째 넘길지, 모델이 읽은 목차·개념만 넘길지. 와이어프레임은 어느 쪽이든 P-03에 '찾은 목차'를 보여준다.",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-sm-home-widget",
+      "title": "홈을 채팅 위젯으로도? (열린 질문 1)",
+      "question": "'내 현황 보여줘'로 채팅 안에서도 홈을 볼지. 현재 초안은 웹 전용(H-01).",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-sm-l04-buttons",
+      "title": "L-04 버튼 3개 vs Inline 카드 가이드(2개)",
+      "question": "마무리 카드의 [5분 정리하기] [조금 더 풀기] [오늘은 그만] 3개가 Inline 카드 권장(버튼 2개)을 넘는다. 하나를 대화 제안 문장으로 뺄지 검토.",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-sm-s01-length",
+      "title": "S-01 정리 트리 길이 (inline vs fullscreen)",
+      "question": "단원 > 개념 > 핵심 포인트 + 다음 계획 제안까지 inline에 넣으면 길어진다. 모바일에서 단원 단위로 접어 시작하거나, 트리는 fullscreen으로 여는 안을 비교.",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-sm-checklist-rules",
+      "title": "체크리스트 3가지 값 분리 규칙 (P-05)",
+      "question": "출처(AI/나/AI·수정됨) · 완료(사용자) · AI 판단(배지)이 서로 덮어쓰지 않는지. 사용자 ☑는 State를 바꾸지 않는다(Raw Input ≠ State Update).",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-sm-mcp-tools",
+      "title": "신규 MCP 도구 7개 · 위젯 도입",
+      "question": "preview/create/get/update_study_plan, start/end_study_session, save_session_summary. 위젯 도입 시 docs/openai-plugin-submission.md의 'Custom MCP UI: none'과 CSP 항목 변경 필요.",
+      "url": "",
+      "status": "진행 중"
+    }
+  ],
+  "links": [
+    {
+      "id": "sm-link-01",
+      "from": "H-01",
+      "to": "P-01",
+      "label": "ChatGPT에서 계획 시작"
+    },
+    {
+      "id": "sm-link-02",
+      "from": "H-01",
+      "to": "L-01",
+      "label": "ChatGPT에서 학습 시작"
+    },
+    {
+      "id": "sm-link-03",
+      "from": "H-01",
+      "to": "S-02W",
+      "label": "정리 노트 열기"
+    },
+    {
+      "id": "sm-link-05",
+      "from": "P-01",
+      "to": "P-03",
+      "label": "PDF 없이 진행"
+    },
+    {
+      "id": "sm-link-07",
+      "from": "P-03",
+      "to": "P-04",
+      "label": "이대로 계획 만들기"
+    },
+    {
+      "id": "sm-link-08",
+      "from": "P-04",
+      "to": "P-05",
+      "label": "완료"
+    },
+    {
+      "id": "sm-link-09",
+      "from": "P-05",
+      "to": "P-05F",
+      "label": "전체 보기·편집"
+    },
+    {
+      "id": "sm-link-10",
+      "from": "P-05F",
+      "to": "P-05",
+      "label": "닫기"
+    },
+    {
+      "id": "sm-link-11",
+      "from": "P-05",
+      "to": "L-01",
+      "label": "오늘 것부터 시작"
+    },
+    {
+      "id": "sm-link-12",
+      "from": "L-01",
+      "to": "L-02",
+      "label": "범위 고르기"
+    },
+    {
+      "id": "sm-link-13",
+      "from": "L-02",
+      "to": "L-03",
+      "label": "이 범위로 시작"
+    },
+    {
+      "id": "sm-link-14",
+      "from": "L-03",
+      "to": "P-06",
+      "label": "계획 띄워줘"
+    },
+    {
+      "id": "sm-link-15",
+      "from": "P-06",
+      "to": "L-03",
+      "label": "학습 계속"
+    },
+    {
+      "id": "sm-link-16",
+      "from": "L-03",
+      "to": "L-04",
+      "label": "마무리 감지"
+    },
+    {
+      "id": "sm-link-17",
+      "from": "L-04",
+      "to": "L-03",
+      "label": "조금 더 풀기"
+    },
+    {
+      "id": "sm-link-18",
+      "from": "L-04",
+      "to": "S-01",
+      "label": "5분 정리하기"
+    },
+    {
+      "id": "sm-link-19",
+      "from": "S-01",
+      "to": "S-02",
+      "label": "근거 자세히 보기"
+    },
+    {
+      "id": "sm-link-20",
+      "from": "S-02",
+      "to": "S-01",
+      "label": "닫기"
+    },
+    {
+      "id": "sm-link-21",
+      "from": "S-01",
+      "to": "P-05",
+      "label": "내일 계획에 반영"
+    },
+    {
+      "id": "sm-link-22",
+      "from": "S-02W",
+      "to": "H-01",
+      "label": "홈으로"
+    },
+    {
+      "id": "9d35d0b5-9af9-4828-a968-2c5251b73326",
+      "from": "e113bcf6-90cf-4dbc-baaa-6981a6d22f25",
+      "to": "P-01",
+      "label": ""
+    },
+    {
+      "id": "fa7a423a-8caa-4dbb-a82b-8acd8dcada0b",
+      "from": "H-01",
+      "to": "e113bcf6-90cf-4dbc-baaa-6981a6d22f25",
+      "label": ""
+    }
+  ]
+}
