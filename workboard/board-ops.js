@@ -1,6 +1,6 @@
 // 작업판 데이터 규칙. 브라우저(app.js)와 공동 작업 서버(server.mjs)가 같은 파일을 쓴다.
 // 모든 변경은 작은 op 하나로 표현하고, 서버가 정한 순서대로 모든 사람에게 같은 op를 적용한다.
-export const blank = () => ({ version: 1, projectName: "새 프로젝트", screens: [], experiments: [], links: [] });
+export const blank = () => ({ version: 1, projectName: "새 프로젝트", screens: [], experiments: [], links: [], requests: [] });
 export const SCREEN_STATUS = ["작업 중", "확정"];
 export const EXPERIMENT_STATUS = ["진행 중", "검토 완료", "보류"];
 export const DRAW_FRAMES = ["phone", "web", "chatgpt", "chatgpt-web"];
@@ -100,6 +100,38 @@ function experimentFields(source = {}) {
   return out;
 }
 
+// 자료 요청 · 전달. 요청하는 사람 / 요청할 자료 / 형식 / 요청 받는 사람 / 메모와 올린 자료(items)를 둔다.
+// 파일 자료는 서버가 업로드를 받아 data/files/에 저장한 뒤 서버만 request.item.add op로 붙인다(브라우저는 링크만 붙일 수 있다).
+export const REQUEST_STATUS = ["요청", "전달됨", "완료"];
+const REQUEST_ITEM_MAX = 100;
+export const isFileId = (value) => typeof value === "string" && /^f-\d{13}-[a-z0-9]{6}$/.test(value);
+function requestFields(source = {}) {
+  const out = {};
+  for (const [key, max] of [["from", 40], ["to", 40], ["what", 300], ["format", 200], ["note", 2000], ["createdAt", 40]]) if (key in source) out[key] = text(source[key], max).trim();
+  if ("status" in source) out.status = REQUEST_STATUS.includes(source.status) ? source.status : REQUEST_STATUS[0];
+  return out;
+}
+function requestItem(source = {}) {
+  // 파일 이름에서는 경로 문자(/ \\)를 빼고, 링크 이름은 주소 모양 그대로 둔다.
+  const name = text(source.name, 200).replace(source.kind === "file" ? /[\u0000-\u001f\/\\]/g : /[\u0000-\u001f]/g, "").trim();
+  const base = { by: text(source.by, 20).trim() || "팀원", at: text(source.at, 40) };
+  if (source.kind === "file") {
+    if (!isFileId(source.id) || !name) return null;
+    const size = Number(source.size);
+    return { id: source.id, kind: "file", name, size: Number.isFinite(size) && size > 0 ? Math.round(size) : 0, type: text(source.type, 100), ...base };
+  }
+  if (source.kind === "link") {
+    const url = validUrl(text(source.url, 2000));
+    if (!isId(source.id) || !/^https?:/.test(url)) return null;
+    return { id: source.id, kind: "link", name: name || url, url, ...base };
+  }
+  return null;
+}
+const requestList = (list) => (Array.isArray(list) ? list : []).filter((item) => item && isId(item.id)).map((item) => ({
+  id: item.id, from: "", to: "", what: "", format: "", note: "", status: REQUEST_STATUS[0], createdAt: "", ...requestFields(item),
+  items: (Array.isArray(item.items) ? item.items.map(requestItem).filter(Boolean) : []).slice(-REQUEST_ITEM_MAX),
+})).filter((item) => item.what);
+
 // 가져오기 파일이나 서버 저장 파일을 검사하고, 알려진 필드만 남긴다. 올바르지 않으면 null.
 export function normalizeBoard(data) {
   if (data?.version !== 1 || typeof data.projectName !== "string" || !Array.isArray(data.screens) || !Array.isArray(data.experiments) || !Array.isArray(data.links)) return null;
@@ -115,6 +147,7 @@ export function normalizeBoard(data) {
     screens: data.screens.map((item) => ({ id: item.id, title: "", purpose: "", sections: "", actionLabel: "", url: "", status: SCREEN_STATUS[0], ...screenFields(item), ...(Array.isArray(item.comments) && item.comments.length ? { comments: commentList(item.comments) } : {}) })),
     experiments: data.experiments.map((item) => ({ id: item.id, title: "", question: "", url: "", status: EXPERIMENT_STATUS[0], ...experimentFields(item), ...feedback(item) })),
     links: data.links.map((link) => ({ id: link.id, from: link.from, to: link.to, label: text(link.label, 200) })),
+    requests: requestList(data.requests), // 예전 파일에는 없을 수 있다
   };
 }
 
@@ -168,6 +201,7 @@ export function applyOp(board, op, { trusted = false } = {}) {
     if (experiment.votes.length > VOTE_MAX) experiment.votes.splice(0, experiment.votes.length - VOTE_MAX);
     return { ok: true, op: { type: op.type, experimentId: op.experimentId, vote: vote || { id: op.vote.id } } };
   }
+  if (op.type.startsWith("request.")) return applyRequestOp(board, op, trusted);
   switch (op.type) {
     case "project": {
       const projectName = text(op.projectName, 200).trim();
@@ -236,6 +270,55 @@ export function applyOp(board, op, { trusted = false } = {}) {
       if (list.some((existing) => existing.from === link.from && existing.to === link.to)) return fail("duplicate", "이미 연결된 화면입니다.");
       list.push(link);
       return { ok: true, op: { type: "link.create", item: link } };
+    }
+    default:
+      return INVALID();
+  }
+}
+
+function applyRequestOp(board, op, trusted) {
+  board.requests ||= [];
+  const find = (itemId) => board.requests.find((item) => item.id === itemId);
+  switch (op.type) {
+    case "request.create": {
+      const fields = requestFields(op.item);
+      if (!isId(op.item?.id) || !fields.what) return INVALID();
+      const existing = find(op.item.id);
+      if (existing && !trusted) return INVALID();
+      if (existing) Object.assign(existing, fields);
+      else board.requests.push({ id: op.item.id, from: "", to: "", what: "", format: "", note: "", status: REQUEST_STATUS[0], createdAt: "", ...fields, items: [] });
+      return { ok: true, op: { type: op.type, item: { id: op.item.id, ...fields } } };
+    }
+    case "request.update": {
+      if (!isId(op.id)) return INVALID();
+      const fields = requestFields(op.fields);
+      if ("what" in fields && !fields.what) return INVALID();
+      const existing = find(op.id);
+      if (!existing) return trusted ? { ok: true, op } : MISSING();
+      Object.assign(existing, fields);
+      return { ok: true, op: { type: op.type, id: op.id, fields } };
+    }
+    case "request.delete": {
+      if (!isId(op.id)) return INVALID();
+      board.requests = board.requests.filter((item) => item.id !== op.id);
+      return { ok: true, op: { type: op.type, id: op.id } };
+    }
+    case "request.item.add": {
+      const request = isId(op.requestId) && find(op.requestId);
+      if (!request) return trusted ? { ok: true, op } : MISSING();
+      const item = requestItem(op.item);
+      if (!item) return INVALID();
+      if (!request.items.some((existing) => existing.id === item.id)) request.items.push(item);
+      if (request.items.length > REQUEST_ITEM_MAX) request.items.splice(0, request.items.length - REQUEST_ITEM_MAX);
+      if (request.status === "요청") request.status = "전달됨"; // 자료가 올라오면 전달됨으로
+      return { ok: true, op: { type: op.type, requestId: op.requestId, item } };
+    }
+    case "request.item.delete": {
+      const request = isId(op.requestId) && find(op.requestId);
+      if (!isId(op.id)) return INVALID();
+      if (!request) return trusted ? { ok: true, op } : MISSING();
+      request.items = request.items.filter((item) => item.id !== op.id);
+      return { ok: true, op: { type: op.type, requestId: op.requestId, id: op.id } };
     }
     default:
       return INVALID();

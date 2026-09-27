@@ -3,13 +3,14 @@
 // - 실시간 동기화: 브라우저는 /api/events(SSE)로 변경을 받고, /api/op(POST)로 변경을 보낸다.
 // - 저장: data/board.json. 백업은 data/backups/(최근 50개), 변경 기록은 data/changes.log.
 // - 버전 폴더: 버튼으로 저장한 작업판 스냅샷은 data/versions/에 한 파일씩 둔다(자동으로 지우지 않음).
+// - 자료 요청: 올린 파일은 data/files/에 둔다. 이름 · 크기 같은 정보만 작업판에 들어가고, 받기는 /api/files/<id>로만 한다.
 // 외부 패키지 없이 Node 기본 기능만 사용한다.
 import http from "node:http";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ANONYMOUS, applyOp, blank, isAnonymousOp, normalizeBoard } from "./board-ops.js";
+import { ANONYMOUS, applyOp, blank, isAnonymousOp, isFileId, normalizeBoard } from "./board-ops.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 4173;
@@ -18,6 +19,10 @@ const BOARD_FILE = path.join(DATA_DIR, "board.json");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 const LOG_FILE = path.join(DATA_DIR, "changes.log");
 const VERSION_DIR = path.join(DATA_DIR, "versions");
+const FILE_DIR = path.join(DATA_DIR, "files");
+const MAX_FILE = 50 * 1024 * 1024;
+// 브라우저 안에서 바로 보여 줘도 안전한 그림 형식(SVG · HTML 등은 내려받기로만).
+const INLINE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const BACKUP_KEEP = 50;
 const BACKUP_EVERY_MS = 5 * 60 * 1000;
 const SAVE_DELAY_MS = 400;
@@ -30,6 +35,7 @@ const STATIC_TYPES = {
 
 mkdirSync(BACKUP_DIR, { recursive: true });
 mkdirSync(VERSION_DIR, { recursive: true });
+mkdirSync(FILE_DIR, { recursive: true });
 
 // ── 저장 ────────────────────────────────────────────────────────────
 let board = blank();
@@ -194,9 +200,15 @@ async function receiveOp(req, res) {
   const body = await readBody(req);
   const clientId = cleanId(body.client);
   const name = clients.get(clientId)?.name || "팀원";
+  // 파일 자료는 업로드(/api/files)를 거쳐 서버만 붙인다. 브라우저가 보낼 수 있는 자료는 링크뿐이다.
+  if (body.op?.type === "request.item.add" && body.op.item?.kind !== "link") return sendJson(res, 403, { error: "invalid", message: "파일은 업로드로만 올릴 수 있어요." });
   if (body.op?.type === "replace") backupNow("before-import");
+  // 요청이나 파일 자료를 지우면 저장해 둔 파일도 함께 지운다.
+  const request = body.op?.type === "request.delete" || body.op?.type === "request.item.delete" ? board.requests?.find((item) => item.id === (body.op.requestId || body.op.id)) : null;
+  const doomed = request ? request.items.filter((item) => item.kind === "file" && (body.op.type === "request.delete" || item.id === body.op.id)).map((item) => item.id) : [];
   const result = applyOp(board, body.op);
   if (result.error) return sendJson(res, 409, result);
+  for (const fileId of doomed) if (isFileId(fileId)) { try { unlinkSync(path.join(FILE_DIR, fileId)); } catch { /* 이미 없음 */ } }
   rev += 1;
   scheduleSave();
   // 실험실 가설의 코멘트 · 찬반은 익명이라 기록에도, 다른 팀원에게 보내는 알림에도 누가 했는지 넣지 않는다.
@@ -216,6 +228,63 @@ async function receivePresence(req, res) {
   client.mode = body.mode === "move" ? "move" : body.mode === "edit" ? "edit" : null;
   broadcast("presence", { peers: peers() });
   sendJson(res, 200, { ok: true });
+}
+
+// ── 자료 요청 파일 ───────────────────────────────────────────────────
+// 올리기: POST /api/files?request=<요청 id>&client=<id>, 본문은 파일 그대로, 파일 이름은 X-File-Name(encodeURIComponent).
+function saveUpload(req, file) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const temp = `${file}.part`;
+    const out = createWriteStream(temp);
+    const fail = (error) => { out.destroy(); try { unlinkSync(temp); } catch { /* 없음 */ } reject(error); };
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > MAX_FILE) { req.destroy(); fail(Object.assign(new Error("too large"), { status: 413 })); return; }
+      if (!out.write(chunk)) { req.pause(); out.once("drain", () => req.resume()); }
+    });
+    req.on("end", () => out.end(() => { try { renameSync(temp, file); resolve(size); } catch (error) { fail(error); } }));
+    req.on("error", fail);
+    req.on("aborted", () => fail(Object.assign(new Error("aborted"), { status: 400 })));
+  });
+}
+async function receiveUpload(req, res, url) {
+  const clientId = cleanId(url.searchParams.get("client"));
+  const by = clients.get(clientId)?.name || "팀원";
+  const requestId = url.searchParams.get("request") || "";
+  if (!board.requests?.some((item) => item.id === requestId)) { req.resume(); return sendJson(res, 404, { error: "missing", message: "요청이 삭제됐어요. 새로고침해 주세요." }); }
+  if (Number(req.headers["content-length"]) > MAX_FILE) { req.resume(); return sendJson(res, 413, { message: "파일은 50MB까지 올릴 수 있어요." }); }
+  let name = "";
+  try { name = decodeURIComponent(String(req.headers["x-file-name"] || "")); } catch { name = ""; }
+  const fileId = `f-${Date.now()}-${Math.random().toString(36).slice(2, 8).padEnd(6, "0")}`;
+  let size;
+  try { size = await saveUpload(req, path.join(FILE_DIR, fileId)); }
+  catch (error) { return sendJson(res, error.status || 500, { message: error.status === 413 ? "파일은 50MB까지 올릴 수 있어요." : "파일을 받지 못했어요. 다시 올려 주세요." }); }
+  const type = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+  const result = applyOp(board, { type: "request.item.add", requestId, item: { id: fileId, kind: "file", name: name || "이름 없는 파일", size, type, by, at: new Date().toISOString() } }, { trusted: true });
+  if (result.error || !board.requests.some((item) => item.id === requestId)) { try { unlinkSync(path.join(FILE_DIR, fileId)); } catch { /* 없음 */ } return sendJson(res, 409, { message: "파일을 붙이지 못했어요." }); }
+  rev += 1;
+  scheduleSave();
+  logChange(by, { type: "request.file", id: fileId, title: result.op.item.name });
+  broadcast("op", { rev, op: result.op, by: clientId || "", name: by });
+  sendJson(res, 200, { ok: true, rev, item: result.op.item });
+}
+function serveUpload(req, res, url, fileId) {
+  const item = (board.requests || []).flatMap((request) => request.items).find((entry) => entry.id === fileId && entry.kind === "file");
+  const file = path.join(FILE_DIR, fileId);
+  if (!item || !existsSync(file)) return notFound(res);
+  const inline = url.searchParams.get("inline") === "1" && INLINE_TYPES.has(item.type);
+  const ascii = item.name.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  res.writeHead(200, {
+    ...baseHeaders,
+    "Content-Type": inline ? item.type : "application/octet-stream",
+    "Content-Length": statSync(file).size,
+    "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(item.name).replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)}`,
+    "Content-Security-Policy": "default-src 'none'; img-src 'self'; sandbox",
+    "Cache-Control": "private, no-cache",
+  });
+  if (req.method === "HEAD") return res.end();
+  createReadStream(file).pipe(res);
 }
 
 async function serveStatic(req, res, pathname) {
@@ -249,6 +318,9 @@ async function handle(req, res) {
       if (!versionPath[2] && req.method === "GET") { const version = readVersion(id); return version ? sendJson(res, 200, { version }) : sendJson(res, 404, { message: "버전을 찾을 수 없어요." }); }
       if (versionPath[2] && req.method === "POST") return await deleteVersion(req, res, id);
     }
+    if (url.pathname === "/api/files" && req.method === "POST") return await receiveUpload(req, res, url);
+    const filePath = /^\/api\/files\/([^/]+)$/.exec(url.pathname);
+    if (filePath && isFileId(filePath[1]) && (req.method === "GET" || req.method === "HEAD")) return serveUpload(req, res, url, filePath[1]);
     if (url.pathname.startsWith("/api/")) return notFound(res);
     if (url.pathname === "/favicon.ico" && !existsSync(path.join(ROOT, "favicon.ico"))) { res.writeHead(204, baseHeaders); return res.end(); }
     if (req.method === "GET" || req.method === "HEAD") return await serveStatic(req, res, url.pathname);

@@ -9,8 +9,8 @@ const MIGRATED_KEY = "workboard-collab-migrated";
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const id = () => globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const routeNames = { home: "작업판", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", versions: "버전 폴더" };
-const routeIcons = { home: "⌂", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", versions: "▤" };
+const routeNames = { home: "작업판", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", versions: "버전 폴더", requests: "자료 요청" };
+const routeIcons = { home: "⌂", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", versions: "▤", requests: "⇄" };
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { /* 저장소를 쓸 수 없어도 작업판은 열린다. */ } },
@@ -153,6 +153,8 @@ function receiveOp({ rev, op, by, name }) {
   applyOp(viewing ? liveState : state, op, { trusted: true });
   if (viewing) return; // 저장된 버전을 보는 동안에는 실시간 변경을 뒤에서만 반영한다.
   if (op.type === "screen.move") { moveNode(op.id, by); return; }
+  if (op.type === "request.create" && by !== clientId && op.item?.to === collab.me.name) toast(`${name}님이 자료를 요청했어요: ${op.item.what}`);
+  if (op.type === "request.item.add" && by !== clientId) { const request = (state.requests || []).find((item) => item.id === op.requestId); if (request?.from === collab.me.name) toast(`${name}님이 "${request.what}" 자료를 올렸어요.`); }
   if (op.type === "comment.add" && op.experimentId) { const target = state.experiments.find((item) => item.id === op.experimentId); if (target && !myAnonymousComments.delete(op.item?.id)) toast(`가설 "${target.title}"에 익명 의견이 달렸어요.`); }
   else if (op.type === "comment.add" && by !== clientId) { const target = state.screens.find((item) => item.id === op.screenId); if (target) toast(`${name}님이 "${target.title}"에 코멘트를 남겼어요.`); }
   // 그림 저장이 서버에서 빠졌다면 서버가 예전 board-ops.js를 쓰고 있다는 뜻이다.
@@ -1738,10 +1740,11 @@ document.addEventListener("fullscreenchange", () => { if (!document.fullscreenEl
 function render() {
   nav();
   const route = currentRoute();
-  $("#app").innerHTML = ready ? versionBanner() + ({ home, lab, wireframe, flow, prototype, versions: versionsRoom })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>작업판 서버가 켜져 있는지 확인해 주세요.</p></div>`;
+  $("#app").innerHTML = ready ? versionBanner() + ({ home, lab, wireframe, flow, prototype, versions: versionsRoom, requests: requestsRoom })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>작업판 서버가 켜져 있는지 확인해 주세요.</p></div>`;
   document.body.classList.toggle("flow-expanded", ready && route === "flow" && flowExpanded);
   if (ready && route === "flow") $(".zoom-controls")?.insertAdjacentHTML("beforeend", `<button class="zoom-button wide fullscreen-button" type="button" data-action="toggle-flow-fullscreen" aria-pressed="${flowExpanded}">${flowExpanded ? "전체화면 닫기" : "전체화면"}</button>`);
   if (ready && route === "flow") { applyScale(); drawLines(); }
+  if (ready && route === "requests") loadThumbs();
   decoratePresence();
 }
 
@@ -1889,6 +1892,153 @@ function castVote(experimentId, value) {
   commit({ type: "vote.set", experimentId, vote: next ? { id: voter, value: next } : { id: voter } });
 }
 
+// ── 자료 요청 · 전달 ────────────────────────────────────────────────
+// 요청하는 사람 / 요청할 자료 · 형식 / 요청 받는 사람을 적고, 받는 사람이 카드 안 업로드 칸에 파일이나 링크를 올린다.
+// 파일은 서버의 data/files/에 저장되고, 작업판에는 이름 · 크기만 남는다. 받기는 fetch로 해서 ngrok 경고 페이지를 피한다.
+const REQUEST_FORMATS = ["PDF", "이미지 (PNG · JPG)", "피그마 링크", "문서 (Word · 한글 · 구글 문서)", "엑셀 · CSV", "PPT · 키노트", "영상", "텍스트 · 메모", "기타"];
+const UPLOAD_MAX = 50 * 1024 * 1024;
+const THUMB_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const REQUEST_ORDER = { "요청": 0, "전달됨": 1, "완료": 2 };
+let requestFilter = "all";
+const uploads = new Map(); // 요청 id → { name, done, total, loaded, size }
+const thumbs = new Map(); // 파일 id → blob URL
+const requestPayload = (source) => ({ from: String(source.from || "").trim().slice(0, 40), to: String(source.to || "").trim().slice(0, 40), what: String(source.what || "").trim().slice(0, 300), format: String(source.format || "").trim().slice(0, 200), note: String(source.note || "").trim().slice(0, 2000) });
+const fileSize = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)}MB` : bytes >= 1024 ? `${Math.round(bytes / 1024)}KB` : `${bytes}B`);
+function teamNames() {
+  const names = new Set([collab.me.name, ...Object.values(collab.peers || {}).map((peer) => peer.name)]);
+  for (const request of state.requests || []) { if (request.from) names.add(request.from); if (request.to) names.add(request.to); }
+  return [...names].filter(Boolean);
+}
+function requestEditorFields(item) {
+  const list = (name, options) => `<datalist id="${name}">${options.map((option) => `<option value="${escapeHtml(option)}"></option>`).join("")}</datalist>`;
+  const input = (label, name, value, extra = "", help = "") => `<label class="form-field"><span>${label}</span><input name="${name}" value="${escapeHtml(value)}" ${extra} />${help ? `<small>${help}</small>` : ""}</label>`;
+  return input("요청하는 사람", "from", item?.from ?? collab.me.name, 'list="rq-names" maxlength="40"')
+    + input("요청할 자료", "what", item?.what || "", 'required maxlength="300" placeholder="예: 3주차 강의 자료, 로고 원본"')
+    + input("형식", "format", item?.format || "", 'list="rq-formats" maxlength="200" placeholder="예: PDF, 피그마 링크"', "목록에서 고르거나 직접 적어 주세요.")
+    + input("요청 받는 사람", "to", item?.to || "", 'list="rq-names" maxlength="40" placeholder="팀원 이름"', "받는 사람 이름이 작업판에서 쓰는 이름과 같으면 그 사람에게 알림이 떠요.")
+    + `<label class="form-field"><span>메모 (선택)</span><textarea name="note" rows="3" maxlength="2000" placeholder="언제까지, 어디에 쓸 자료인지 등">${escapeHtml(item?.note || "")}</textarea></label>`
+    + list("rq-names", teamNames()) + list("rq-formats", REQUEST_FORMATS);
+}
+function requestItemHtml(request, item) {
+  const meta = `<small>${item.kind === "file" ? `${fileSize(item.size)} · ` : ""}${escapeHtml(item.by)} · ${escapeHtml(shortDate(item.at))}</small>`;
+  const remove = viewing ? "" : `<button class="rq-item-delete" data-action="delete-request-item" data-id="${escapeHtml(item.id)}" data-request="${escapeHtml(request.id)}" aria-label="${escapeHtml(item.name)} 지우기">×</button>`;
+  if (item.kind === "link") return `<li class="rq-item"><span class="rq-item-icon" aria-hidden="true">🔗</span><div><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.name)} ↗</a>${meta}</div>${remove}</li>`;
+  const thumb = THUMB_TYPES.has(item.type) ? `<img class="rq-thumb" data-thumb="${escapeHtml(item.id)}" alt="" ${thumbs.has(item.id) ? `src="${thumbs.get(item.id)}"` : ""} />` : `<span class="rq-item-icon" aria-hidden="true">📄</span>`;
+  return `<li class="rq-item">${thumb}<div><button class="rq-file" data-action="download-file" data-id="${escapeHtml(item.id)}">${escapeHtml(item.name)} ↓</button>${meta}</div>${remove}</li>`;
+}
+function requestCard(request) {
+  const statusClass = request.status === "완료" ? "done" : request.status === "전달됨" ? "in-progress" : "paused";
+  const upload = uploads.get(request.id);
+  const drop = viewing ? "" : `<div class="rq-drop" data-request="${escapeHtml(request.id)}"><p>파일을 여기로 끌어다 놓거나 <label class="rq-pick">파일 선택<input type="file" multiple data-upload="${escapeHtml(request.id)}" /></label> <small>(파일당 50MB까지)</small></p><form class="rq-link" data-request="${escapeHtml(request.id)}"><input type="url" name="url" placeholder="또는 링크 붙여넣기 (피그마 · 드라이브 등)" aria-label="자료 링크" required /><button type="submit">링크 추가</button></form><p class="rq-progress" data-progress="${escapeHtml(request.id)}" aria-live="polite">${upload ? uploadText(upload) : ""}</p></div>`;
+  const statusButton = request.status === "완료" ? `<button data-action="request-status" data-id="${escapeHtml(request.id)}" data-status="${request.items.length ? "전달됨" : "요청"}">다시 열기</button>` : `<button data-action="request-status" data-id="${escapeHtml(request.id)}" data-status="완료">받았어요 · 완료</button>`;
+  return `<article class="rq-card" data-presence-id="${escapeHtml(request.id)}"><div class="card-top"><span class="status ${statusClass}">${escapeHtml(request.status)}</span><time>${escapeHtml(shortDate(request.createdAt))}</time></div>
+    <dl class="rq-people"><div><dt>요청하는 사람</dt><dd>${escapeHtml(request.from || "—")}</dd></div><span aria-hidden="true">→</span><div><dt>요청 받는 사람</dt><dd>${escapeHtml(request.to || "—")}</dd></div></dl>
+    <div class="rq-what"><span class="rq-label">요청할 자료</span><h2>${escapeHtml(request.what)}</h2>${request.format ? `<p><span class="rq-label">형식</span> ${escapeHtml(request.format)}</p>` : ""}${request.note ? `<p class="rq-note">${escapeHtml(request.note)}</p>` : ""}</div>
+    <section class="rq-box" aria-label="자료 올리는 곳"><h3>자료 올리는 곳 <span>${request.items.length}개</span></h3>${request.items.length ? `<ul class="rq-items">${request.items.map((item) => requestItemHtml(request, item)).join("")}</ul>` : `<p class="rq-empty">아직 올라온 자료가 없어요.</p>`}${drop}</section>
+    <div class="card-actions">${statusButton}<button data-action="edit-request" data-id="${escapeHtml(request.id)}">편집</button><button data-action="delete-request" data-id="${escapeHtml(request.id)}">삭제</button></div></article>`;
+}
+function requestsRoom() {
+  const me = collab.me.name, list = state.requests || [];
+  const tests = { all: () => true, "to-me": (request) => request.to === me, "from-me": (request) => request.from === me, open: (request) => request.status !== "완료" };
+  const filters = [["all", "전체"], ["to-me", "나에게 온 요청"], ["from-me", "내가 한 요청"], ["open", "안 끝난 요청"]];
+  const shown = list.filter(tests[requestFilter] || tests.all).sort((a, b) => REQUEST_ORDER[a.status] - REQUEST_ORDER[b.status] || String(b.createdAt).localeCompare(String(a.createdAt)));
+  const button = `<button class="primary-button" data-action="add-request">+ 자료 요청</button>`;
+  return `${pageHeader("ROOM 06 / SHARE", "자료 요청 · 전달", "필요한 자료를 누구에게, 어떤 형식으로 받을지 적어 두세요. 요청 받은 사람은 카드 안 칸에 파일이나 링크를 바로 올리면 됩니다.", button)}
+  ${list.length ? `<div class="rq-filters" role="group" aria-label="요청 거르기">${filters.map(([value, label]) => `<button type="button" data-action="request-filter" data-filter="${value}" aria-pressed="${requestFilter === value}">${label} <b>${list.filter(tests[value]).length}</b></button>`).join("")}<span class="rq-me">내 이름: <b>${escapeHtml(me)}</b></span></div>
+  ${shown.length ? `<div class="rq-grid">${shown.map(requestCard).join("")}</div>` : `<p class="subtle rq-none">이 조건에 맞는 요청이 없어요.</p>`}` : empty("⇄", "아직 자료 요청이 없어요", "필요한 자료와 형식, 받을 사람을 적으면 요청 카드가 생기고, 받는 사람이 그 카드에 자료를 올립니다.", "add-request", "+ 첫 자료 요청")}`;
+}
+const uploadText = (upload) => `${escapeHtml(upload.name)} 올리는 중… ${upload.size ? Math.round((upload.loaded / upload.size) * 100) : 0}%${upload.total > 1 ? ` (${upload.done + 1}/${upload.total})` : ""}`;
+function showUpload(requestId) {
+  const element = [...document.querySelectorAll("[data-progress]")].find((item) => item.dataset.progress === requestId);
+  const upload = uploads.get(requestId);
+  if (element) element.innerHTML = upload ? uploadText(upload) : "";
+}
+function uploadOne(requestId, file, upload) {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/files?request=${encodeURIComponent(requestId)}&client=${encodeURIComponent(clientId)}`);
+    xhr.setRequestHeader("X-File-Name", encodeURIComponent(file.name));
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.setRequestHeader("ngrok-skip-browser-warning", "1");
+    xhr.upload.onprogress = (event) => { upload.loaded = event.loaded; showUpload(requestId); };
+    xhr.onload = () => { if (xhr.status !== 200) { let message = "파일을 올리지 못했어요."; try { message = JSON.parse(xhr.responseText).message || message; } catch { /* 기본 문구 */ } toast(`${file.name}: ${message}`); } resolve(); };
+    xhr.onerror = () => { toast(`${file.name}: 연결이 끊겨 올리지 못했어요.`); resolve(); };
+    xhr.send(file);
+  });
+}
+async function uploadFiles(requestId, fileList) {
+  if (viewing) { toast(READ_ONLY_NOTICE); return; }
+  if (uploads.has(requestId)) { toast("앞의 파일을 올리는 중이에요. 끝나면 다시 올려 주세요."); return; }
+  const files = [...fileList].filter((file) => { if (file.size > UPLOAD_MAX) { toast(`${file.name}은(는) 50MB가 넘어서 올릴 수 없어요. 링크로 올려 주세요.`); return false; } return true; });
+  if (!files.length) return;
+  const upload = { name: "", done: 0, total: files.length, loaded: 0, size: 0 };
+  uploads.set(requestId, upload);
+  for (const file of files) {
+    Object.assign(upload, { name: file.name, loaded: 0, size: file.size });
+    showUpload(requestId);
+    await uploadOne(requestId, file, upload);
+    upload.done += 1;
+  }
+  uploads.delete(requestId);
+  showUpload(requestId);
+}
+function addRequestLink(form) {
+  const url = validUrl(form.elements.url.value);
+  if (!/^https?:/.test(url)) { toast("http 또는 https로 시작하는 링크를 넣어 주세요."); return; }
+  let name = url;
+  try { const parsed = new URL(url); name = `${parsed.hostname.replace(/^www\./, "")}${parsed.pathname.length > 1 ? parsed.pathname.slice(0, 40) : ""}`; } catch { /* 주소 그대로 */ }
+  if (commit({ type: "request.item.add", requestId: form.dataset.request, item: { id: id(), kind: "link", name, url, by: collab.me.name, at: new Date().toISOString() } })) form.reset();
+}
+async function fetchFile(fileId, inline = false) {
+  const response = await fetch(`/api/files/${encodeURIComponent(fileId)}${inline ? "?inline=1" : ""}`, { headers: { "ngrok-skip-browser-warning": "1" } });
+  if (!response.ok) throw new Error("missing file");
+  return response.blob();
+}
+async function downloadFile(fileId) {
+  const item = (state.requests || []).flatMap((request) => request.items).find((entry) => entry.id === fileId);
+  if (!item) return;
+  try {
+    const blob = await fetchFile(fileId);
+    const url = URL.createObjectURL(new File([blob], item.name, { type: blob.type || "application/octet-stream" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", item.name);
+    link.hidden = true;
+    document.body.append(link);
+    link.click();
+    setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 30000);
+  } catch { toast("파일을 받을 수 없어요. 이미 지워졌을 수 있어요."); }
+}
+// 그림 파일은 작은 미리보기를 한 번만 받아 두고 다시 그릴 때 재사용한다.
+function loadThumbs() {
+  for (const image of document.querySelectorAll("img[data-thumb]:not([src])")) {
+    const fileId = image.dataset.thumb;
+    if (thumbs.has(fileId)) { image.src = thumbs.get(fileId); continue; }
+    thumbs.set(fileId, "");
+    fetchFile(fileId, true).then((blob) => { const url = URL.createObjectURL(blob); thumbs.set(fileId, url); for (const element of document.querySelectorAll("img[data-thumb]")) if (element.dataset.thumb === fileId) element.src = url; }).catch(() => thumbs.delete(fileId));
+  }
+}
+document.addEventListener("change", (event) => {
+  const input = event.target.closest?.("input[data-upload]");
+  if (!input || !input.files?.length) return;
+  uploadFiles(input.dataset.upload, input.files);
+  input.value = "";
+});
+document.addEventListener("dragover", (event) => {
+  const zone = event.target.closest?.(".rq-drop");
+  if (!zone || !event.dataTransfer?.types?.includes("Files")) return;
+  event.preventDefault();
+  zone.classList.add("dragging-over");
+});
+document.addEventListener("dragleave", (event) => { const zone = event.target.closest?.(".rq-drop"); if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove("dragging-over"); });
+document.addEventListener("drop", (event) => {
+  const zone = event.target.closest?.(".rq-drop");
+  if (!zone) return;
+  event.preventDefault();
+  zone.classList.remove("dragging-over");
+  if (event.dataTransfer?.files?.length) uploadFiles(zone.dataset.request, event.dataTransfer.files);
+});
+
 // ── PDF 내보내기 ────────────────────────────────────────────────────
 // 표지 → 흐름도(한 장에 맞춤) → 와이어프레임 카드(목적 · 목업 · 코멘트) 순서의 인쇄용 문서를 숨은 iframe에 만들고,
 // 인쇄 창을 연다. 인쇄 창에서 '대상: PDF로 저장'을 고르면 PDF 파일이 된다(외부 라이브러리 없이).
@@ -2023,6 +2173,50 @@ body.flow-expanded .flow-board .flow-scroll{flex:1 1 auto;min-height:0;width:100
 .vw-switch button[aria-pressed="true"]{background:#1d2330;color:#fff;font-weight:700}
 .flow-toolbar .vw-switch{margin-left:auto;margin-right:8px}
 @media (prefers-reduced-motion:no-preference){.xp-meter i{transition:width .2s ease}}
+.rq-filters{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 16px}
+.rq-filters button{padding:6px 12px;border:1px solid #d5d8e1;border-radius:999px;background:#fff;color:#374151;font:inherit;font-size:13px;cursor:pointer}
+.rq-filters button[aria-pressed="true"]{border-color:#1d2330;background:#1d2330;color:#fff}
+.rq-filters button b{margin-left:2px}
+.rq-me{margin-left:auto;color:#6b7280;font-size:12px}
+.rq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:16px;align-items:start}
+.rq-card{display:grid;gap:12px;min-width:0;padding:18px;border:1px solid #e3e5ec;border-radius:16px;background:#fff}
+.rq-card .card-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rq-card .card-top time{color:#8e8e8e;font-size:12px}
+.rq-people{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;padding:10px 12px;border-radius:10px;background:#f7f8fb}
+.rq-people div{min-width:0}
+.rq-people dt{color:#6b7280;font-size:11px}
+.rq-people dd{margin:2px 0 0;font-weight:700;overflow-wrap:anywhere}
+.rq-people span{color:#9aa1ae}
+.rq-label{display:inline-block;margin-right:4px;color:#6b7280;font-size:11px;font-weight:700}
+.rq-what h2{margin:2px 0 6px;font-size:18px;line-height:1.4;overflow-wrap:anywhere}
+.rq-what p{margin:0 0 4px;font-size:13px;overflow-wrap:anywhere}
+.rq-note{color:#4b5563;white-space:pre-wrap}
+.rq-box{display:grid;gap:8px;padding:12px;border:1px solid #e3e5ec;border-radius:12px;background:#fafafc}
+.rq-box h3{display:flex;justify-content:space-between;margin:0;font-size:13px}
+.rq-box h3 span{color:#6b7280;font-weight:400}
+.rq-empty{margin:0;color:#8e8e8e;font-size:12px}
+.rq-items{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.rq-item{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;min-width:0;padding:6px 8px;border:1px solid #eceef3;border-radius:8px;background:#fff}
+.rq-item div{display:grid;min-width:0}
+.rq-item a,.rq-file{overflow:hidden;padding:0;border:0;background:none;color:#1d4ed8;font:inherit;font-size:13px;text-align:left;text-overflow:ellipsis;white-space:nowrap;text-decoration:none;cursor:pointer}
+.rq-item small{color:#8e8e8e;font-size:11px}
+.rq-item-icon{font-size:16px}
+.rq-thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;background:#eceef3}
+.rq-item-delete{padding:2px 8px;border:0;border-radius:6px;background:transparent;color:#9aa1ae;font-size:16px;cursor:pointer}
+.rq-drop{display:grid;gap:8px;padding:10px;border:2px dashed #cfd4de;border-radius:10px;background:#fff;text-align:center}
+.rq-drop.dragging-over{border-color:#2563eb;background:#eff6ff}
+.rq-drop p{margin:0;color:#4b5563;font-size:12px}
+.rq-pick{display:inline-block;padding:3px 10px;border-radius:999px;background:#1d2330;color:#fff;font-weight:700;cursor:pointer}
+.rq-pick input{position:absolute;width:1px;height:1px;opacity:0}
+.rq-pick:focus-within{outline:2px solid #7c6cd8;outline-offset:2px}
+.rq-link{display:grid;grid-template-columns:1fr auto;gap:6px}
+.rq-link input{min-width:0;padding:6px 8px;border:1px solid #d5d8e1;border-radius:8px;font:inherit;font-size:12px}
+.rq-link button{padding:6px 10px;border:1px solid #d5d8e1;border-radius:8px;background:#fff;font:inherit;font-size:12px;cursor:pointer}
+.rq-progress{min-height:0;color:#1d4ed8!important;font-weight:700}
+.rq-progress:empty{display:none}
+.rq-none{margin:0}
+.rq-filters button:focus-visible,.rq-file:focus-visible,.rq-item a:focus-visible,.rq-item-delete:focus-visible,.rq-link button:focus-visible,.rq-link input:focus-visible{outline:2px solid #7c6cd8;outline-offset:2px}
+@media (max-width:640px){.rq-me{margin-left:0;width:100%}.rq-card{padding:14px}}
 .cm-count{padding:1px 6px;border:1px solid #c9c1f3;border-radius:999px;background:#f5f3ff;color:#4a3ab0;font:inherit;font-size:11px;cursor:pointer}
 `;
   document.head.append(style);
@@ -2038,13 +2232,15 @@ const changedFields = (next, before) => Object.fromEntries(Object.entries(next).
 function openEditor(kind, item = null, preset = {}) {
   const original = kind === "screen" && item ? screenPayload(item) : kind === "experiment" && item ? experimentPayload(item) : null;
   editContext = { kind, id: item?.id || null, original };
-  const titles = { project: "프로젝트 이름", screen: item ? "화면 편집" : "화면 추가", experiment: item ? "실험 편집" : "실험 추가", link: "화면 연결", nickname: "내 이름" };
+  if (kind === "request" && item) editContext.original = requestPayload(item);
+  const titles = { project: "프로젝트 이름", screen: item ? "화면 편집" : "화면 추가", experiment: item ? "실험 편집" : "실험 추가", link: "화면 연결", nickname: "내 이름", request: item ? "자료 요청 편집" : "자료 요청하기" };
   $("#editor-title").textContent = titles[kind];
   let html = "";
   if (kind === "project") html = field("프로젝트 이름", "projectName", state.projectName);
   if (kind === "screen") html = field("화면 이름", "title", item?.title || "") + field("이 화면의 목적", "purpose", item?.purpose || "", "textarea") + field("정보 블록", "sections", item?.sections ?? preset.sections ?? "", "textarea", "한 줄에 하나씩 적어 주세요. ChatGPT 블록을 넣으면 ChatGPT 대화 목업으로 그려집니다.") + chatEditorTools() + `<div class="cg-to-draw"><button type="button" data-action="editor-to-draw">✎ 그리기로 이어서 편집</button><small>지금 내용을 저장하고, 이 목업을 도형으로 옮겨 그림판에서 이어서 고칩니다.</small></div>` + field("기본 버튼 문구", "actionLabel", item?.actionLabel || "") + field("실제 화면 URL (선택)", "url", item?.url || "", "input", "URL을 넣으면 프로토타입에서 해당 페이지를 폰에 표시합니다.") + `<label class="form-field"><span>진행 상태</span><select name="status"><option ${item?.status !== "확정" ? "selected" : ""}>작업 중</option><option ${item?.status === "확정" ? "selected" : ""}>확정</option></select></label>`;
   if (kind === "experiment") html = field("실험 이름", "title", item?.title || "") + field("확인할 질문", "question", item?.question || "", "textarea") + field("참고 URL (선택)", "url", item?.url || "") + `<label class="form-field"><span>상태</span><select name="status">${["진행 중", "검토 완료", "보류"].map((status) => `<option ${item?.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>`;
   if (kind === "link") html = `<label class="form-field"><span>출발 화면</span><select name="from">${state.screens.map((screen) => `<option value="${escapeHtml(screen.id)}">${escapeHtml(screen.title)}</option>`).join("")}</select></label><label class="form-field"><span>도착 화면</span><select name="to">${state.screens.map((screen, index) => `<option value="${escapeHtml(screen.id)}" ${index === 1 ? "selected" : ""}>${escapeHtml(screen.title)}</option>`).join("")}</select></label>${field("버튼 문구", "label", "", "input", "비우면 도착 화면 이름이 표시됩니다.")}`;
+  if (kind === "request") html = requestEditorFields(item);
   if (kind === "nickname") html = field("팀원에게 보일 이름", "nickname", collab.me.name, "input", "작업판을 함께 보는 사람들에게 이 이름으로 표시됩니다.");
   if (item) html = `<p id="collab-notice" class="collab-notice" role="status" hidden></p>${html}`;
   $("#editor-fields").innerHTML = html;
@@ -2107,6 +2303,14 @@ function submitEditor(event) {
       if (Object.keys(fields).length) commit({ type: "experiment.update", id: editContext.id, fields });
     } else commit({ type: "experiment.create", item: { id: id(), ...payload } });
   }
+  if (kind === "request") {
+    const payload = requestPayload(values);
+    if (!payload.what) { toast("요청할 자료를 적어 주세요."); return; }
+    if (editContext.id) {
+      const fields = changedFields(payload, editContext.original);
+      if (Object.keys(fields).length) commit({ type: "request.update", id: editContext.id, fields });
+    } else commit({ type: "request.create", item: { id: id(), ...payload, status: "요청", createdAt: new Date().toISOString() } });
+  }
   if (kind === "link") {
     if (values.from === values.to) { toast("서로 다른 화면을 연결해 주세요."); return; }
     if (state.links.some((link) => link.from === values.from && link.to === values.to)) { toast("이미 연결된 화면입니다."); return; }
@@ -2160,7 +2364,7 @@ function remove(kind, itemId) {
   if (!confirm(`${label}을 삭제할까요? 모든 팀원의 작업판에서 함께 삭제됩니다.`)) return;
   if (commit({ type: `${kind}.delete`, id: itemId })) toast("삭제했습니다.");
 }
-const READ_ONLY_ACTIONS = new Set(["edit-project", "add-screen", "add-chat-screen", "add-web-screen", "add-draw-screen", "edit-screen", "delete-screen", "draw-screen", "add-experiment", "edit-experiment", "delete-experiment", "add-link", "delete-link", "import-merge", "import", "save-version", "resolve-comment", "delete-comment", "vote"]);
+const READ_ONLY_ACTIONS = new Set(["edit-project", "add-screen", "add-chat-screen", "add-web-screen", "add-draw-screen", "edit-screen", "delete-screen", "draw-screen", "add-experiment", "edit-experiment", "delete-experiment", "add-link", "delete-link", "import-merge", "import", "save-version", "resolve-comment", "delete-comment", "vote", "add-request", "edit-request", "delete-request", "request-status", "delete-request-item"]);
 document.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action]");
   if (!target) return;
@@ -2178,6 +2382,13 @@ document.addEventListener("click", (event) => {
   if (action === "resolve-comment") { const comment = commentTarget(target.dataset.kind, target.dataset.target)?.comments?.find((item) => item.id === itemId); if (comment) commit({ type: "comment.resolve", ...commentWhere(target.dataset.kind, target.dataset.target), id: itemId, resolved: !comment.resolved }); }
   if (action === "delete-comment" && confirm("이 코멘트를 삭제할까요? 모든 팀원에게서 함께 사라져요.")) commit({ type: "comment.delete", ...commentWhere(target.dataset.kind, target.dataset.target), id: itemId });
   if (action === "vote") castVote(itemId, target.dataset.value);
+  if (action === "add-request") openEditor("request");
+  if (action === "edit-request") { const item = (state.requests || []).find((request) => request.id === itemId); if (item) openEditor("request", item); }
+  if (action === "delete-request") { const item = (state.requests || []).find((request) => request.id === itemId); if (item && confirm(`"${item.what}" 요청을 삭제할까요?${item.items.length ? ` 올린 자료 ${item.items.length}개도 함께 지워져요.` : ""}`)) commit({ type: "request.delete", id: itemId }); }
+  if (action === "request-status") commit({ type: "request.update", id: itemId, fields: { status: target.dataset.status } });
+  if (action === "request-filter") { requestFilter = target.dataset.filter; refresh(); }
+  if (action === "delete-request-item") { const item = (state.requests || []).find((request) => request.id === target.dataset.request)?.items.find((entry) => entry.id === itemId); if (item && confirm(`"${item.name}"을(를) 지울까요? 모든 팀원에게서 함께 사라져요.`)) commit({ type: "request.item.delete", requestId: target.dataset.request, id: itemId }); }
+  if (action === "download-file") downloadFile(itemId);
   if (action === "chat-view") { chatView = target.dataset.view; storage.set(VIEW_KEY, chatView); refresh(); }
   if (action === "edit-project") openEditor("project");
   if (action === "add-screen") openEditor("screen");
@@ -2217,6 +2428,8 @@ $("#editor").addEventListener("close", () => { editContext = null; if (collab.ed
 $("#import-file").addEventListener("change", (event) => { if (event.target.files[0]) importData(event.target.files[0]); });
 window.addEventListener("hashchange", () => { if (flowExpanded) setFlowExpanded(false); render(); $("#app").focus(); });
 document.addEventListener("submit", (event) => {
+  const linkForm = event.target.closest?.(".rq-link");
+  if (linkForm) { event.preventDefault(); addRequestLink(linkForm); return; }
   const form = event.target.closest?.(".cm-form");
   if (!form) return;
   event.preventDefault();
