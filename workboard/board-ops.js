@@ -33,7 +33,8 @@ export function drawingField(value) {
       x: coordinate(shape.x, 5000), y: coordinate(shape.y, 5000), w: coordinate(shape.w, 5000), h: coordinate(shape.h, 5000),
       text: text(shape.text, 300),
       tone: DRAW_TONES.includes(shape.tone) ? shape.tone : DRAW_TONES[0],
-      size: ["s", "m", "l"].includes(shape.size) ? shape.size : "m",
+      // 글자 크기: 작게/보통/크게(s·m·l) 또는 8~120px 숫자
+      size: ["s", "m", "l"].includes(shape.size) ? shape.size : Number.isFinite(Number(shape.size)) && shape.size !== "" && shape.size !== null ? Math.min(120, Math.max(8, Math.round(Number(shape.size)))) : "m",
       round: shape.round === true,
     })),
   };

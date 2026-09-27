@@ -766,6 +766,10 @@ const TONE_STYLE = {
   brand: { fill: "#6a58d6", stroke: "#6a58d6", text: "#ffffff" }, // 가이드라인: 주 버튼에는 브랜드 색
 };
 const FONT_SIZE = { s: 13, m: 16, l: 24 };
+const FONT_MIN = 8, FONT_MAX = 120;
+// 도형의 글자 크기(px). 작게/보통/크게 또는 숫자를 모두 받는다.
+const sizePx = (size) => (typeof size === "number" ? size : FONT_SIZE[size] || FONT_SIZE.m);
+const clampFont = (value) => Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(Number(value) || FONT_SIZE.m)));
 const LINE_TYPES = new Set(["line", "arrow"]);
 const drawingOf = (screen) => (screen?.drawing && Array.isArray(screen.drawing.shapes) ? screen.drawing : null);
 const hasDrawing = (screen) => (drawingOf(screen)?.shapes.length || 0) > 0;
@@ -782,7 +786,7 @@ function shapesInside(container, shapes) {
 // 글자 폭을 대충 잰다(한글·전각은 글자 크기만큼, 나머지는 0.6배).
 const textWidth = (line, size) => [...line].reduce((sum, char) => sum + (/[ᄀ-ᇿ　-鿿가-힯＀-￯]/.test(char) ? size : size * .6), 0);
 function fitTextBox(shape) {
-  const size = FONT_SIZE[shape.size] || FONT_SIZE.m;
+  const size = sizePx(shape.size);
   const lines = String(shape.text || " ").split("\n");
   shape.w = Math.max(24, Math.ceil(Math.max(...lines.map((line) => textWidth(line, size))) + 4));
   shape.h = Math.ceil(lines.length * size * 1.3 + 4);
@@ -813,7 +817,7 @@ function svgText(text, x, y, size, color, anchor, weight = 500) {
 }
 function centeredLabel(shape, box, color) {
   if (!shape.text) return "";
-  const size = FONT_SIZE[shape.size] || FONT_SIZE.m;
+  const size = sizePx(shape.size);
   const lines = String(shape.text).split("\n").length;
   return svgText(shape.text, box.x + box.w / 2, box.y + box.h / 2 - ((lines - 1) * size * 1.3) / 2 + size * .35, size, color, "middle", 600);
 }
@@ -825,7 +829,7 @@ function shapeSvg(shape, editing) {
   if (shape.type === "ellipse") return `<g${tag}><ellipse cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" rx="${box.w / 2}" ry="${box.h / 2}" fill="${tone.fill}" stroke="${tone.stroke}" stroke-width="2"/>${centeredLabel(shape, box, tone.text)}</g>`;
   if (shape.type === "image") return `<g${tag}><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${shape.round ? 12 : 2}" fill="#f3f4f6" stroke="#b9bfcb" stroke-width="2"/><path d="M ${box.x} ${box.y} L ${box.x + box.w} ${box.y + box.h} M ${box.x + box.w} ${box.y} L ${box.x} ${box.y + box.h}" stroke="#d3d7de" stroke-width="1.5"/>${centeredLabel({ ...shape, text: shape.text || "이미지" }, box, "#6b7280")}</g>`;
   if (shape.type === "text") {
-    const size = FONT_SIZE[shape.size] || FONT_SIZE.m;
+    const size = sizePx(shape.size);
     const color = shape.tone === "dark" ? "#0d0d0d" : shape.tone === "soft" ? "#6b7280" : tone.text;
     return `<g${tag}>${editing ? `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="rgba(0,0,0,0)"/>` : ""}${svgText(shape.text || "텍스트", box.x, box.y + size, size, color, "start", shape.tone === "dark" || shape.size === "l" ? 700 : 500)}</g>`;
   }
@@ -835,7 +839,7 @@ function shapeSvg(shape, editing) {
   const angle = Math.atan2(shape.h, shape.w), head = 14;
   const arrow = shape.type === "arrow" && (shape.w || shape.h) ? `<polygon points="${x2},${y2} ${x2 - head * Math.cos(angle - .45)},${y2 - head * Math.sin(angle - .45)} ${x2 - head * Math.cos(angle + .45)},${y2 - head * Math.sin(angle + .45)}" fill="${color}"/>` : "";
   const hit = editing ? `<line x1="${shape.x}" y1="${shape.y}" x2="${x2}" y2="${y2}" stroke="rgba(0,0,0,0)" stroke-width="16"/>` : "";
-  const label = shape.text ? svgText(shape.text, (shape.x + x2) / 2, (shape.y + y2) / 2 - 8, FONT_SIZE[shape.size] || FONT_SIZE.m, color, "middle", 600) : "";
+  const label = shape.text ? svgText(shape.text, (shape.x + x2) / 2, (shape.y + y2) / 2 - 8, sizePx(shape.size), color, "middle", 600) : "";
   return `<g${tag}>${hit}<line x1="${shape.x}" y1="${shape.y}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>${arrow}${label}</g>`;
 }
 function drawingView(screen, footer) {
@@ -920,12 +924,12 @@ function mockToDrawing(screen) {
       }
       return element.innerText.split("\n").map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
     };
-    const sizeOf = (style, map) => { const px = parseFloat(style.fontSize) * map.scale; return px < 14.5 ? "s" : px < 20 ? "m" : "l"; };
+    const sizeOf = (style, map) => clampFont(parseFloat(style.fontSize) * map.scale); // 목업 글자 크기를 그대로 옮긴다
     const addText = (text, style, rect, map) => {
       const place = map.map(rect), size = sizeOf(style, map), tone = convertTextTone(style);
       // 목업에서 한 줄이던 글은 그대로 한 줄로, 여러 줄이던 글만 폭에 맞춰 나눈다.
       const fontPx = parseFloat(style.fontSize), lineHeight = parseFloat(style.lineHeight) || fontPx * 1.45;
-      const wrapped = rect.height > lineHeight * 1.5 ? wrapText(text, (place.w + 6) * FONT_SIZE[size] / (fontPx * map.scale), FONT_SIZE[size]) : text;
+      const wrapped = rect.height > lineHeight * 1.5 ? wrapText(text, (place.w + 6) * sizePx(size) / (fontPx * map.scale), sizePx(size)) : text;
       const shape = { type: "text", x: place.x, y: place.y, w: 0, h: 0, text: wrapped.slice(0, 300), tone: tone === "white" ? "line" : tone, size, round: false };
       fitTextBox(shape);
       if (style.textAlign === "center") shape.x = Math.round(place.x + (place.w - shape.w) / 2);
@@ -1151,7 +1155,10 @@ function renderDrawUi() {
   pressed("[data-dw-tool]", draw.tool);
   pressed("[data-dw-frame]", draw.frame);
   pressed("[data-dw-tone]", first?.tone || draw.tone);
-  pressed("[data-dw-size]", first?.size || draw.size);
+  const px = sizePx(first ? first.size : draw.size);
+  dialog.querySelectorAll("[data-dw-size]").forEach((button) => button.setAttribute("aria-pressed", String(FONT_SIZE[button.dataset.value] === px)));
+  const sizeField = dialog.querySelector("#dw-size");
+  if (document.activeElement !== sizeField) sizeField.value = px;
   dialog.querySelector("[data-dw='round']").setAttribute("aria-pressed", String(first ? first.round : draw.round));
   dialog.querySelector("[data-dw='grid']").setAttribute("aria-pressed", String(draw.grid));
   dialog.querySelector("[data-dw='undo']").disabled = !draw.history.length;
@@ -1217,6 +1224,12 @@ function drawCommand(command, value) {
   if (command === "frame" && value !== draw.frame) { pushDrawHistory(); draw.frame = value; }
   if (command === "tone") { draw.tone = value; if (applyToSelection((item) => { item.tone = value; })) return; }
   if (command === "size") { draw.size = value; if (applyToSelection((item) => { item.size = value; })) return; }
+  if (command === "size-up" || command === "size-down") {
+    const step = command === "size-up" ? 2 : -2;
+    const next = (current) => clampFont(sizePx(current) + step);
+    draw.size = next(draw.size);
+    if (applyToSelection((item) => { item.size = next(item.size); })) return;
+  }
   if (command === "round") { if (list.length) { const next = !list[0].round; applyToSelection((item) => { item.round = next; }); return; } draw.round = !draw.round; }
   if (command === "grid") draw.grid = !draw.grid;
   if (command === "undo") { undoDraw(); return; }
@@ -1368,6 +1381,8 @@ function drawKeyDown(event) {
   if (mod && key === "x") { event.preventDefault(); drawCommand("cut"); return; }
   if (mod && key === "v") { event.preventDefault(); drawCommand("paste"); return; }
   if (mod && key === "a") { event.preventDefault(); drawCommand("select-all"); return; }
+  if (mod && event.shiftKey && (event.key === ">" || event.key === ".")) { event.preventDefault(); drawCommand("size-up"); return; }
+  if (mod && event.shiftKey && (event.key === "<" || event.key === ",")) { event.preventDefault(); drawCommand("size-down"); return; }
   if (mod) return;
   if (event.key === "Escape" && (draw.selection.length || draw.tool !== "select")) { event.preventDefault(); draw.selection = []; draw.tool = "select"; renderDrawUi(); return; }
   if ((event.key === "Delete" || event.key === "Backspace") && draw.selection.length) { event.preventDefault(); drawCommand("delete"); return; }
@@ -1390,9 +1405,9 @@ function ensureDrawDialog() {
   dialog.setAttribute("aria-label", "화면 그리기");
   dialog.innerHTML = `<div class="dw-top"><input class="dw-title" aria-label="화면 이름" maxlength="200"><div class="dw-seg" role="group" aria-label="화면 틀">${Object.entries(DRAW_FRAME_SIZE).map(([value, frame]) => button(`data-dw-frame data-value="${value}" aria-pressed="false"`, frame.label)).join("")}</div><span class="dw-count"></span><span class="dw-spacer"></span>${button(`data-dw="undo"`, "↶ 되돌리기", "되돌리기 (Ctrl/⌘+Z)")}${button(`data-dw="redo"`, "↷ 다시", "다시 실행 (Ctrl/⌘+Shift+Z)")}${button(`data-dw="close"`, "닫기")}${button(`data-dw="save" class="dw-primary"`, "저장", "저장 (Ctrl/⌘+S)")}</div>
   <p class="dw-notice" role="status" hidden></p>
-  <div class="dw-body"><div class="dw-tools" role="toolbar" aria-label="그리기 도구"><span class="dw-group-label">도구</span>${DRAW_TOOL_LIST.map(([value, label, key, icon]) => button(`data-dw-tool data-value="${value}" aria-pressed="false"`, `<b aria-hidden="true">${icon}</b>${label}<kbd>${key}</kbd>`, `${label} (${key})`)).join("")}<div class="dw-stamps" role="group" aria-label="ChatGPT 요소"><span class="dw-sep"></span><span class="dw-group-label">ChatGPT 요소</span>${Object.entries(CHAT_STAMPS).map(([value, stamp]) => button(`data-dw-stamp data-value="${value}"`, `<b aria-hidden="true">＋</b>${stamp.label}`)).join("")}</div><span class="dw-sep"></span><span class="dw-group-label">편집</span>${button(`data-dw="copy"`, "복사<kbd>⌘C</kbd>", "복사 (Ctrl/⌘+C)")}${button(`data-dw="paste"`, "붙여넣기<kbd>⌘V</kbd>", "붙여넣기 (Ctrl/⌘+V)")}${button(`data-dw="cut"`, "잘라내기<kbd>⌘X</kbd>", "잘라내기 (Ctrl/⌘+X)")}${button(`data-dw="duplicate"`, "복제<kbd>⌘D</kbd>", "복제 (Ctrl/⌘+D)")}${button(`data-dw="select-all"`, "전체 선택<kbd>⌘A</kbd>", "전체 선택 (Ctrl/⌘+A)")}${button(`data-dw="front"`, "맨 앞으로")}${button(`data-dw="back"`, "맨 뒤로")}${button(`data-dw="delete" class="dw-danger"`, "삭제<kbd>Del</kbd>", "삭제 (Delete)")}<span class="dw-sep"></span><span class="dw-group-label">색</span>${DRAW_TONE_LIST.map(([value, label]) => button(`data-dw-tone data-value="${value}" aria-pressed="false"`, `<i class="dw-swatch" style="background:${TONE_STYLE[value].fill};border-color:${TONE_STYLE[value].stroke}"></i>${label}`)).join("")}<span class="dw-sep"></span><span class="dw-group-label">글자 크기</span>${DRAW_SIZE_LIST.map(([value, label]) => button(`data-dw-size data-value="${value}" aria-pressed="false"`, label)).join("")}<span class="dw-sep"></span>${button(`data-dw="round" aria-pressed="false"`, "둥근 모서리")}${button(`data-dw="grid" aria-pressed="true"`, "격자에 맞추기")}</div>
+  <div class="dw-body"><div class="dw-tools" role="toolbar" aria-label="그리기 도구"><span class="dw-group-label">도구</span>${DRAW_TOOL_LIST.map(([value, label, key, icon]) => button(`data-dw-tool data-value="${value}" aria-pressed="false"`, `<b aria-hidden="true">${icon}</b>${label}<kbd>${key}</kbd>`, `${label} (${key})`)).join("")}<div class="dw-stamps" role="group" aria-label="ChatGPT 요소"><span class="dw-sep"></span><span class="dw-group-label">ChatGPT 요소</span>${Object.entries(CHAT_STAMPS).map(([value, stamp]) => button(`data-dw-stamp data-value="${value}"`, `<b aria-hidden="true">＋</b>${stamp.label}`)).join("")}</div><span class="dw-sep"></span><span class="dw-group-label">편집</span>${button(`data-dw="copy"`, "복사<kbd>⌘C</kbd>", "복사 (Ctrl/⌘+C)")}${button(`data-dw="paste"`, "붙여넣기<kbd>⌘V</kbd>", "붙여넣기 (Ctrl/⌘+V)")}${button(`data-dw="cut"`, "잘라내기<kbd>⌘X</kbd>", "잘라내기 (Ctrl/⌘+X)")}${button(`data-dw="duplicate"`, "복제<kbd>⌘D</kbd>", "복제 (Ctrl/⌘+D)")}${button(`data-dw="select-all"`, "전체 선택<kbd>⌘A</kbd>", "전체 선택 (Ctrl/⌘+A)")}${button(`data-dw="front"`, "맨 앞으로")}${button(`data-dw="back"`, "맨 뒤로")}${button(`data-dw="delete" class="dw-danger"`, "삭제<kbd>Del</kbd>", "삭제 (Delete)")}<span class="dw-sep"></span><span class="dw-group-label">색</span>${DRAW_TONE_LIST.map(([value, label]) => button(`data-dw-tone data-value="${value}" aria-pressed="false"`, `<i class="dw-swatch" style="background:${TONE_STYLE[value].fill};border-color:${TONE_STYLE[value].stroke}"></i>${label}`)).join("")}<span class="dw-sep"></span><span class="dw-group-label">글자 크기</span>${DRAW_SIZE_LIST.map(([value, label]) => button(`data-dw-size data-value="${value}" aria-pressed="false"`, `${label}<kbd>${FONT_SIZE[value]}</kbd>`)).join("")}<div class="dw-size-custom">${button(`data-dw="size-down"`, "A−", "글자 작게 (Ctrl/⌘+Shift+,)")}<label><input id="dw-size" type="number" inputmode="numeric" min="${FONT_MIN}" max="${FONT_MAX}" step="1" aria-label="글자 크기 (px)"><span>px</span></label>${button(`data-dw="size-up"`, "A+", "글자 크게 (Ctrl/⌘+Shift+.)")}</div><span class="dw-sep"></span>${button(`data-dw="round" aria-pressed="false"`, "둥근 모서리")}${button(`data-dw="grid" aria-pressed="true"`, "격자에 맞추기")}</div>
   <div class="dw-stage"><div class="dw-device"><div class="dw-device-bar"></div><svg id="dw-svg" class="dw-svg" xmlns="http://www.w3.org/2000/svg" tabindex="0" role="application" aria-label="그림판. 도구를 고른 뒤 끌어서 그리세요."></svg></div></div></div>
-  <div class="dw-bottom"><label class="dw-text"><span>글자</span><textarea id="dw-text" rows="1"></textarea></label><span class="dw-status" role="status" aria-live="polite"></span><small>Shift+클릭 · 빈 곳 끌기: 여러 개 선택 · 큰 도형을 옮기면 안에 든 도형도 함께 · Esc: 선택 해제</small></div>`;
+  <div class="dw-bottom"><label class="dw-text"><span>글자</span><textarea id="dw-text" rows="1"></textarea></label><span class="dw-status" role="status" aria-live="polite"></span><small>Shift+클릭 · 빈 곳 끌기: 여러 개 선택 · 큰 도형을 옮기면 안에 든 도형도 함께 · ⌘⇧. / ⌘⇧, : 글자 크게/작게 · Esc: 선택 해제</small></div>`;
   document.body.append(dialog);
   dialog.addEventListener("click", (event) => {
     const target = event.target.closest("button");
@@ -1419,6 +1434,21 @@ function ensureDrawDialog() {
     renderDrawUi();
     dialog.querySelector("#dw-text").focus();
   });
+  // 글자 크기 숫자 칸: 입력하는 동안 바로 반영하고, 되돌리기 기록은 칸에 들어간 뒤 처음 바꿀 때 한 번만 남긴다.
+  const sizeField = dialog.querySelector("#dw-size");
+  sizeField.addEventListener("focus", () => { if (draw) draw.sizeSnapshot = drawSnapshot(); });
+  sizeField.addEventListener("input", () => {
+    if (!draw || sizeField.value === "") return;
+    const value = clampFont(sizeField.value);
+    if (draw.sizeSnapshot && selectedShapes().length) { draw.history.push(draw.sizeSnapshot); draw.future = []; draw.dirty = true; draw.sizeSnapshot = null; }
+    draw.size = value;
+    for (const shape of selectedShapes()) { shape.size = value; if (shape.type === "text") fitTextBox(shape); }
+    dialog.querySelectorAll("[data-dw-size]").forEach((button) => button.setAttribute("aria-pressed", String(FONT_SIZE[button.dataset.value] === value)));
+    renderDrawSvg();
+  });
+  // Enter를 누르면 그림판으로 포커스를 돌려서 단축키가 바로 다시 동작하게 한다.
+  sizeField.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); dialog.querySelector("#dw-svg").focus({ preventScroll: true }); } });
+  sizeField.addEventListener("blur", () => { if (draw) { sizeField.value = clampFont(sizeField.value); renderDrawUi(); } });
   const textField = dialog.querySelector("#dw-text");
   // 글자 칸에 들어갈 때 상태를 기억해 두고, 실제로 입력했을 때만 되돌리기 기록에 넣는다.
   textField.addEventListener("focus", () => { if (draw && selectedShape()) { draw.textSnapshot = drawSnapshot(); draw.textFocused = true; } });
@@ -1468,6 +1498,11 @@ function injectDrawStyles() {
 .dw-tools kbd{margin-left:auto;color:#9aa1ad;font:11px ui-monospace,monospace}
 .dw-tools .dw-danger{color:#b42318}
 .dw-stamps{display:flex;flex-direction:column;gap:4px}.dw-stamps[hidden]{display:none}
+.dw-size-custom{display:flex;align-items:center;gap:4px}
+.dw-size-custom button{flex:none;justify-content:center;min-width:34px;font-weight:700}
+.dw-size-custom label{display:flex;align-items:center;gap:3px;flex:1;min-width:0;font-size:11px;color:#6b7280}
+.dw-size-custom input{width:100%;min-width:0;padding:4px 6px;border:1px solid #d5d8e1;border-radius:8px;font:inherit;font-size:12px;text-align:center}
+.dw-size-custom input:focus-visible{outline:2px solid #7c6cd8;outline-offset:1px}
 .dw-sep{flex:none;height:1px;margin:4px 0;background:#e3e5ec}
 .dw-group-label{color:#6b7280;font-size:11px;font-weight:700}
 .dw-swatch{display:inline-block;width:12px;height:12px;border:1.5px solid;border-radius:3px}
