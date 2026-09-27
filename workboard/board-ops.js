@@ -3,7 +3,7 @@
 export const blank = () => ({ version: 1, projectName: "새 프로젝트", screens: [], experiments: [], links: [] });
 export const SCREEN_STATUS = ["작업 중", "확정"];
 export const EXPERIMENT_STATUS = ["진행 중", "검토 완료", "보류"];
-export const DRAW_FRAMES = ["phone", "web", "chatgpt"];
+export const DRAW_FRAMES = ["phone", "web", "chatgpt", "chatgpt-web"];
 export const DRAW_TYPES = ["rect", "ellipse", "line", "arrow", "text", "image"];
 export const DRAW_TONES = ["line", "soft", "accent", "dark"];
 export const DRAW_MAX_SHAPES = 400;
