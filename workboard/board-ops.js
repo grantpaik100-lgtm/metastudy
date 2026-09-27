@@ -5,7 +5,7 @@ export const SCREEN_STATUS = ["작업 중", "확정"];
 export const EXPERIMENT_STATUS = ["진행 중", "검토 완료", "보류"];
 export const DRAW_FRAMES = ["phone", "web", "chatgpt", "chatgpt-web"];
 export const DRAW_TYPES = ["rect", "ellipse", "line", "arrow", "text", "image"];
-export const DRAW_TONES = ["line", "soft", "accent", "dark"];
+export const DRAW_TONES = ["line", "soft", "accent", "dark", "brand"];
 export const DRAW_MAX_SHAPES = 400;
 
 export const validUrl = (raw) => {
@@ -38,6 +38,21 @@ export function drawingField(value) {
     })),
   };
 }
+// 와이어프레임 카드에 팀원이 남기는 코멘트. screen.update로는 바뀌지 않고 comment.* op로만 더하고 지운다.
+const COMMENT_MAX = 200;
+function commentFields(source = {}) {
+  const body = text(source.text, 1000).trim();
+  if (!isId(source.id) || !body) return null;
+  return {
+    id: source.id,
+    text: body,
+    by: text(source.by, 20).trim() || "팀원",
+    color: /^#[0-9a-f]{6}$/i.test(String(source.color)) ? source.color : "#7c6cd8",
+    at: text(source.at, 40),
+    resolved: source.resolved === true,
+  };
+}
+const commentList = (list) => (Array.isArray(list) ? list.map(commentFields).filter(Boolean).slice(-COMMENT_MAX) : []);
 function screenFields(source = {}) {
   const out = {};
   if ("title" in source) out.title = text(source.title, 200).trim();
@@ -71,7 +86,7 @@ export function normalizeBoard(data) {
   return {
     version: 1,
     projectName: text(data.projectName, 200).trim() || "새 프로젝트",
-    screens: data.screens.map((item) => ({ id: item.id, title: "", purpose: "", sections: "", actionLabel: "", url: "", status: SCREEN_STATUS[0], ...screenFields(item) })),
+    screens: data.screens.map((item) => ({ id: item.id, title: "", purpose: "", sections: "", actionLabel: "", url: "", status: SCREEN_STATUS[0], ...screenFields(item), ...(Array.isArray(item.comments) && item.comments.length ? { comments: commentList(item.comments) } : {}) })),
     experiments: data.experiments.map((item) => ({ id: item.id, title: "", question: "", url: "", status: EXPERIMENT_STATUS[0], ...experimentFields(item) })),
     links: data.links.map((link) => ({ id: link.id, from: link.from, to: link.to, label: text(link.label, 200) })),
   };
@@ -90,6 +105,29 @@ export function applyOp(board, op, { trusted = false } = {}) {
   const list = collection && board[collection];
   const find = (itemId) => list.find((item) => item.id === itemId);
 
+  if (op.type.startsWith("comment.")) {
+    const screen = isId(op.screenId) && board.screens.find((item) => item.id === op.screenId);
+    if (!screen) return trusted ? { ok: true, op } : MISSING();
+    screen.comments ||= [];
+    if (op.type === "comment.add") {
+      const comment = commentFields(op.item);
+      if (!comment) return INVALID();
+      if (!screen.comments.some((item) => item.id === comment.id)) screen.comments.push(comment);
+      if (screen.comments.length > COMMENT_MAX) screen.comments.splice(0, screen.comments.length - COMMENT_MAX);
+      return { ok: true, op: { type: op.type, screenId: op.screenId, item: comment } };
+    }
+    if (!isId(op.id)) return INVALID();
+    if (op.type === "comment.delete") {
+      screen.comments = screen.comments.filter((item) => item.id !== op.id);
+      return { ok: true, op: { type: op.type, screenId: op.screenId, id: op.id } };
+    }
+    if (op.type === "comment.resolve") {
+      const comment = screen.comments.find((item) => item.id === op.id);
+      if (comment) comment.resolved = op.resolved === true;
+      return { ok: true, op: { type: op.type, screenId: op.screenId, id: op.id, resolved: op.resolved === true } };
+    }
+    return INVALID();
+  }
   switch (op.type) {
     case "project": {
       const projectName = text(op.projectName, 200).trim();

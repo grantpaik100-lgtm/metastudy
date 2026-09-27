@@ -27,7 +27,7 @@
 | `README.md` | 저장소 개요 | ✅ 파일 추가/삭제 시 구조 목록 갱신 |
 | `md/` | 로컬 연구 노트 (`.gitignore` 처리, 공개 저장소에 올리지 않음) | ✅ 단, 커밋되지 않음 |
 | `AGENTS.md` | 이 문서 | ✅ |
-| `workboard/` | 로컬 작업판 도구에 넣어 쓰는 파일. 작업판 JSON(폰 · ChatGPT · 웹), 목업과 그리기 도구를 담은 `app.js`, 데이터 규칙 `board-ops.js` (도구 전체는 저장소 밖) | ✅ |
+| `workboard/` | 로컬 작업판 도구에 넣어 쓰는 파일. 작업판 JSON(폰 · ChatGPT · 웹), 목업 · 그리기 · 버전 폴더 · 코멘트 · PDF를 담은 `app.js`, 데이터 규칙 `board-ops.js`, 공동 작업 서버 `server.mjs` (`index.html` · `styles.css`는 저장소 밖) | ✅ |
 
 ---
 

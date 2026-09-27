@@ -9,8 +9,8 @@ const MIGRATED_KEY = "workboard-collab-migrated";
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const id = () => globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const routeNames = { home: "작업판", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입" };
-const routeIcons = { home: "⌂", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶" };
+const routeNames = { home: "작업판", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", versions: "버전 폴더" };
+const routeIcons = { home: "⌂", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", versions: "▤" };
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { /* 저장소를 쓸 수 없어도 작업판은 열린다. */ } },
@@ -18,14 +18,21 @@ const storage = {
 let state = blank();
 let ready = false; // 서버에서 첫 작업판을 받기 전에는 빈 화면 대신 연결 중 안내를 보여 준다.
 let selectedScreen = null;
+// 버전 폴더: 저장된 버전을 여는 동안 state는 그 버전(읽기 전용)이고, 실시간 작업판은 liveState에 계속 반영된다.
+let versions = [];
+let viewing = null;
+let liveState = null;
+const openComments = new Set();
+const commentDrafts = new Map();
+const READ_ONLY_NOTICE = "저장된 버전은 읽기 전용이에요. 위쪽의 '현재 작업판으로 돌아가기'를 누른 뒤 고쳐 주세요.";
 let editContext = null;
 let toastTimer;
 
 // 흐름도 확대·축소. 트랙패드 핀치(ctrlKey가 붙은 wheel), 버튼, 전체 맞춤을 지원한다.
 const NODE_W = 248, NODE_H = 542, SCALE_MIN = .25, SCALE_MAX = 2, SCALE_KEY = "workboard-flow-scale";
-const stageSize = () => ({
-  width: Math.max(1930, ...state.screens.map((screen) => (Number.isFinite(screen.x) ? screen.x : 0) + nodeWidth(screen) + 70)),
-  height: Math.max(1230, ...state.screens.map((screen) => (Number.isFinite(screen.y) ? screen.y : 0) + NODE_H + 70)),
+const stageSize = (board = state) => ({
+  width: Math.max(1930, ...board.screens.map((screen) => (Number.isFinite(screen.x) ? screen.x : 0) + nodeWidth(screen) + 70)),
+  height: Math.max(1230, ...board.screens.map((screen) => (Number.isFinite(screen.y) ? screen.y : 0) + NODE_H + 70)),
 });
 const clampScale = (value) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, value));
 let flowScale = (() => { const saved = parseFloat(storage.get(SCALE_KEY)); return Number.isFinite(saved) ? clampScale(saved) : 1; })();
@@ -98,6 +105,7 @@ async function post(path, body) {
 }
 // 변경을 이 화면에 먼저 반영하고 서버로 보낸다. 서버가 거절하면 최신 상태로 다시 맞춘다.
 function commit(op, { quiet = false, rerender = true } = {}) {
+  if (viewing) { if (!quiet) toast(READ_ONLY_NOTICE); return false; }
   const result = applyOp(state, op);
   if (result.error) { if (!quiet) toast(result.message); return false; }
   if (rerender) refresh();
@@ -132,16 +140,20 @@ async function resync() {
   finally { resyncing = false; }
 }
 function replaceState(board, rev) {
-  state = normalizeBoard(board) || blank();
+  const next = normalizeBoard(board) || blank();
   collab.rev = rev;
+  if (viewing) { liveState = next; return; }
+  state = next;
   refresh();
 }
 function receiveOp({ rev, op, by, name }) {
   if (rev <= collab.rev) return;
   if (rev !== collab.rev + 1) { resync(); return; } // 중간 변경을 놓쳤으면 전체를 다시 받는다.
   collab.rev = rev;
-  applyOp(state, op, { trusted: true });
+  applyOp(viewing ? liveState : state, op, { trusted: true });
+  if (viewing) return; // 저장된 버전을 보는 동안에는 실시간 변경을 뒤에서만 반영한다.
   if (op.type === "screen.move") { moveNode(op.id, by); return; }
+  if (op.type === "comment.add" && by !== clientId) { const screen = state.screens.find((item) => item.id === op.screenId); if (screen) toast(`${name}님이 "${screen.title}"에 코멘트를 남겼어요.`); }
   // 그림 저장이 서버에서 빠졌다면 서버가 예전 board-ops.js를 쓰고 있다는 뜻이다.
   if (by === clientId && op.type === "screen.update" && drawSaveCheck?.id === op.id) {
     const sentFrame = drawSaveCheck.frame;
@@ -178,7 +190,10 @@ function refresh() {
   const scrollers = [document.scrollingElement, $("#app"), $(".main-column"), $(".flow-scroll"), $(".screen-rail")].filter(Boolean).map((element) => ({ selector: element === document.scrollingElement ? null : element.id ? `#${element.id}` : `.${element.classList[0]}`, top: element.scrollTop, left: element.scrollLeft }));
   const focused = document.activeElement?.closest?.("#app [data-action]");
   const focusKey = focused ? [focused.dataset.action, focused.dataset.id] : null;
+  // 코멘트를 쓰는 중에 팀원 변경으로 다시 그려져도 입력 칸과 커서를 지킨다.
+  const typing = document.activeElement?.matches?.("[data-keep-focus]") ? { key: document.activeElement.dataset.keepFocus, start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
   render();
+  if (typing) { const input = [...document.querySelectorAll("[data-keep-focus]")].find((element) => element.dataset.keepFocus === typing.key); if (input) { input.focus({ preventScroll: true }); try { input.setSelectionRange(typing.start, typing.end); } catch { /* 선택 영역을 지원하지 않는 칸 */ } } }
   for (const { selector, top, left } of scrollers) {
     const element = selector ? $(selector) : document.scrollingElement;
     if (element) { element.scrollTop = top; element.scrollLeft = left; }
@@ -231,9 +246,11 @@ function connect() {
     renderPresence();
     sendPresence(); // 다시 연결됐을 때 바뀐 이름과 편집 중 표시를 서버에 다시 알린다.
     if (first) migrateLocalBoard();
+    loadVersions();
   });
   source.addEventListener("op", (event) => receiveOp(JSON.parse(event.data)));
   source.addEventListener("presence", (event) => { collab.peers = JSON.parse(event.data).peers; renderPresence(); });
+  source.addEventListener("versions", (event) => { versions = JSON.parse(event.data).versions || []; if (currentRoute() === "versions") refresh(); });
   source.onerror = () => {
     collab.online = false;
     renderPresence();
@@ -290,7 +307,7 @@ function home() {
   <section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>AI와 함께 쓰는 방법</h2></div><span>AI 대화는 평소 사용하는 도구에서 진행합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>작업판의 현재 상태를 AI에게 건네세요.</h3><p>AI가 실험 가설, 화면 구성, 연결을 제안하거나 JSON을 수정하도록 요청할 수 있습니다. 이 버튼은 현재 작업판 데이터와 형식을 요청문에 담아 복사합니다.</p><button class="primary-button" data-action="copy-ai-prompt">AI 요청문 복사 →</button><small>클립보드에만 복사됩니다. 원하는 AI 대화창에 직접 붙여 넣으세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>복사해 AI에게 전달</strong><small>프로젝트 목표와 원하는 작업을 요청문에 덧붙입니다.</small></span></div><div><b>02</b><span><strong>결과를 검토</strong><small>화면 이름, 연결, 문구를 확인하고 JSON으로 저장합니다.</small></span></div><div><b>03</b><span><strong>불러와 직접 눌러보기</strong><small>상단 불러오기로 반영하고 흐름도와 프로토타입을 확인합니다.</small></span></div></div></div><p class="ai-guide-note">작업판의 디자인·기능 자체를 바꾸려면 이 폴더를 AI 코딩 도구에서 열고 원하는 변경을 요청하세요. 작업판 데이터는 서버를 켠 컴퓨터의 <b>data/board.json</b>에 저장되고, 접속한 모든 팀원에게 실시간으로 반영됩니다. AI에게 건넬 때는 <b>내보내기</b>나 AI 요청문 복사를 사용하세요.</p></section>`;
 }
 function aiPrompt() {
-  return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n- ChatGPT(MCP) 화면은 sections에 다음 형식을 씁니다. ${CHAT_RULES}. 위젯 표시 방식은 inline(카드, 버튼 2개까지) · carousel(카드 3~8개) · fullscreen · pip 네 가지입니다.\n- 화면의 drawing 필드는 그리기 도구로 그린 그림입니다. 있으면 내용을 바꾸지 말고 그대로 두세요.\n- 웹 화면은 sections에 다음 형식을 씁니다. ${WEB_RULES}.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
+  return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n- ChatGPT(MCP) 화면은 sections에 다음 형식을 씁니다. ${CHAT_RULES}. 위젯 표시 방식은 inline 카드(버튼 최대 2개, 탭·중첩 스크롤 없음) · inline 캐러셀(카드 3~8개, 카드마다 이미지와 버튼 1개) · fullscreen(왼쪽 위 닫기, 입력창 유지)입니다. 위젯 안에 로고를 넣지 마세요.\n- 화면의 drawing 필드는 그리기 도구로 그린 그림입니다. 있으면 내용을 바꾸지 말고 그대로 두세요.\n- 웹 화면은 sections에 다음 형식을 씁니다. ${WEB_RULES}.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
 }
 async function copyAiPrompt() {
   try {
@@ -314,16 +331,16 @@ const WIDGET_KINDS = { inline: "Inline 카드", carousel: "Inline 캐러셀", fu
 const CHAT_BLOCKS = {
   frame: { label: "웹(데스크톱)으로 보기", text: "[틀] 웹" },
   user: { label: "사용자 말", text: "[사용자] 오늘 공부 시작할래" },
-  tool: { label: "도구 호출", text: "[도구] StudyMeta 사용 중" },
-  ai: { label: "AI 답변", text: "[AI] 시험까지 할 일을 정리했어요." },
+  tool: { label: "앱 표시", text: "[도구] StudyMeta" },
+  ai: { label: "AI 후속 답변", text: "[AI] 다음에 할 일을 짧게 제안해요." },
   inline: { label: "Inline 카드", text: "[inline] 할 일 체크리스트\n- [x] 극한의 정의 복습 | AI 제안\n- [ ] 교수님 강조 부분 | 내가 추가\n[버튼] 학습 시작 | 수정하기" },
   carousel: { label: "캐러셀", text: "[carousel] 오늘 공부할 범위\n- 2장 연속 | 개념 3개\n- 3장 미분 | 개념 4개\n- 1장 극한 | 복습\n[버튼] 이 범위로 시작" },
   fullscreen: { label: "Fullscreen", text: "[fullscreen] 오늘 공부한 내용\n- 2장 연속\n-- [x] 연속의 정의\n-- [ ] 중간값 정리\n[버튼] 내 상태 보기" },
-  pip: { label: "PiP", text: "[pip] 내 계획\n- [x] 극한의 정의 복습 | 완료\n- [ ] 연속 예제 5개 | 학습 중" },
   button: { label: "버튼", text: "[버튼] 버튼 1 | 버튼 2" },
 };
-const CHAT_STARTER = [CHAT_BLOCKS.user.text, CHAT_BLOCKS.tool.text, CHAT_BLOCKS.ai.text, CHAT_BLOCKS.inline.text].join("\n");
-const CHAT_RULES = "[틀] 웹 을 넣으면 ChatGPT 웹(데스크톱) 화면 · [사용자] [AI] [도구] 한 줄씩 · [inline] [carousel] [fullscreen] [pip] 제목 줄 아래에 '- 항목 | 배지', 한 단계 아래는 '-- 항목' · 체크박스는 '[ ]' '[x]' · 위젯 버튼은 [버튼] A | B";
+// Apps SDK 가이드라인 순서: 앱 표시 → 위젯 → AI 후속 답변
+const CHAT_STARTER = [CHAT_BLOCKS.user.text, CHAT_BLOCKS.tool.text, CHAT_BLOCKS.inline.text, CHAT_BLOCKS.ai.text].join("\n");
+const CHAT_RULES = "[틀] 웹 을 넣으면 ChatGPT 웹(데스크톱) 화면 · [사용자] [AI] [도구] 한 줄씩 · 위젯은 AI 답변보다 먼저(앱 표시 → 위젯 → AI 후속 답변) · [inline] [carousel] [fullscreen] 제목 줄 아래에 '- 항목 | 배지', 한 단계 아래는 '-- 항목' · 체크박스는 '[ ]' '[x]' · 위젯 버튼은 [버튼] A | B";
 
 const chatTag = (line) => { const match = /^\[([^\]]+)\]\s*(.*)$/.exec(line); const tag = match && CHAT_TAGS[match[1].trim().toLowerCase()]; return tag ? { tag, text: match[2].trim() } : null; };
 const isChatScreen = (screen) => sectionLines(screen).some((line) => chatTag(line));
@@ -360,8 +377,10 @@ function parseChat(screen) {
 // Apps SDK 디자인 가이드라인에 맞춰 설계 중에 바로 알 수 있도록 짧은 경고를 붙인다.
 function chatLint(widget, counts) {
   const notes = [];
-  if (widget.kind === "inline" && widget.buttons.length > 2) notes.push("Inline 카드 버튼은 2개까지 권장");
-  if (widget.kind === "inline" && (widget.items.length > 6 || widget.items.some((item) => item.depth > 1))) notes.push("내용이 길거나 위계가 깊으면 Fullscreen을 고려");
+  if (widget.kind === "inline" && widget.buttons.length > 2) notes.push("Inline 카드 버튼은 최대 2개 (주 버튼 1 + 보조 1)");
+  if (widget.kind === "inline" && widget.items.length > 6) notes.push("목록이 길면 '더 보기'로 나눠 보여 주기");
+  if (widget.kind === "inline" && widget.items.some((item) => item.depth > 1)) notes.push("카드 안에서는 여러 단계 위계 · 탭을 피하기 (카드를 나누거나 Fullscreen)");
+  if (widget.kind === "pip" && widget.buttons.length > 1) notes.push("PiP에는 컨트롤을 최소로");
   if (widget.kind === "carousel" && (widget.items.length < 3 || widget.items.length > 8)) notes.push("캐러셀은 카드 3~8개 권장");
   if (widget.kind === "carousel" && widget.buttons.length > 1) notes.push("캐러셀 카드마다 버튼은 1개");
   if ((widget.kind === "fullscreen" || widget.kind === "pip") && counts[widget.kind] > 1) notes.push(`${WIDGET_KINDS[widget.kind]}는 한 화면에 1개만 보여요`);
@@ -370,7 +389,11 @@ function chatLint(widget, counts) {
 const chatCheck = (text) => String(text).replace(/^\[\s\]\s*/, "☐ ").replace(/^\[[xX✓]\]\s*/, "☑ ");
 const chatBadge = (badge) => badge ? `<b class="cg-badge${/AI/.test(badge) ? " ai" : /내가|사용자/.test(badge) ? " mine" : ""}">${escapeHtml(badge)}</b>` : "";
 function chatWidget(widget, counts) {
-  const head = `<div class="cg-widget-head"><span class="cg-app-icon">S</span><strong>${escapeHtml(widget.title || "StudyMeta")}</strong><em>${WIDGET_KINDS[widget.kind]}</em>${widget.kind === "inline" || widget.kind === "carousel" ? "" : '<span class="cg-close">✕</span>'}</div>`;
+  // 로고·앱 이름은 ChatGPT가 위젯 위에 붙이므로 위젯 안에는 넣지 않는다. Fullscreen 닫기는 왼쪽 위(시스템 닫기).
+  const close = '<span class="cg-close" aria-hidden="true">✕</span>';
+  const head = widget.kind === "fullscreen"
+    ? `<div class="cg-widget-head">${close}<strong>${escapeHtml(widget.title || "제목")}</strong><em>${WIDGET_KINDS[widget.kind]}</em></div>`
+    : `<div class="cg-widget-head"><strong>${escapeHtml(widget.title || "제목")}</strong><em>${WIDGET_KINDS[widget.kind]}</em>${widget.kind === "pip" ? close : ""}</div>`;
   const body = widget.body.map((text) => `<p class="cg-widget-text">${escapeHtml(chatCheck(text))}</p>`).join("");
   const buttons = (labels) => labels.length ? `<div class="cg-widget-buttons">${labels.map((label, index) => `<span class="cg-button${index ? "" : " primary"}">${escapeHtml(label)}</span>`).join("")}</div>` : "";
   if (widget.kind === "carousel") {
@@ -384,15 +407,27 @@ function chatScreen(screen, desktop = false) {
   const blocks = parseChat(screen);
   const counts = blocks.reduce((total, block) => (block.type === "widget" ? { ...total, [block.kind]: (total[block.kind] || 0) + 1 } : total), {});
   const thread = [], overlays = [];
+  let previous = null, fullscreenSeen = false, snippet = "";
+  const appLabel = (text = "StudyMeta") => `<div class="cg-tool"><span class="cg-app-icon">S</span>${escapeHtml(text)}</div>`;
   for (const block of blocks) {
+    if (block.type === "ai" && fullscreenSeen) snippet = block.lines.join(" ");
     if (block.type === "user") thread.push(`<div class="cg-user">${escapeHtml(block.text)}</div>`);
-    if (block.type === "tool") thread.push(`<div class="cg-tool"><span class="cg-app-icon">S</span>${escapeHtml(block.text || "StudyMeta 사용 중")}</div>`);
+    if (block.type === "tool") thread.push(appLabel(block.text || "StudyMeta"));
     if (block.type === "ai") thread.push(`<div class="cg-ai">${block.lines.map((text) => escapeHtml(text)).join("<br>")}</div>`);
     if (block.type === "buttons") thread.push(`<div class="cg-widget-buttons loose">${block.labels.map((label) => `<span class="cg-button">${escapeHtml(label)}</span>`).join("")}</div><div class="cg-lint">⚠ 버튼은 위젯 안에서만 쓸 수 있어요</div>`);
-    if (block.type === "widget" && (block.kind === "inline" || block.kind === "carousel")) thread.push(chatWidget(block, counts));
+    if (block.type === "widget" && (block.kind === "inline" || block.kind === "carousel")) {
+      // 가이드라인: 위젯은 늘 AI 답변보다 먼저 나오고, 위젯 위에는 ChatGPT가 앱 이름과 아이콘을 붙인다.
+      if (previous === "ai") thread.push(`<div class="cg-lint">⚠ 위젯은 AI 답변보다 먼저 나와요 — AI 답변을 위젯 아래로 옮겨 주세요</div>`);
+      if (previous !== "tool") thread.push(appLabel());
+      thread.push(chatWidget(block, counts));
+    }
     // Fullscreen·PiP는 대화 위에 겹쳐 뜬다. 여러 개면 마지막 것만 보인다.
     if (block.type === "widget" && (block.kind === "fullscreen" || block.kind === "pip")) overlays[block.kind === "pip" ? 1 : 0] = chatWidget(block, counts);
+    if (block.type === "widget" && block.kind === "fullscreen") fullscreenSeen = true;
+    previous = block.type;
   }
+  // Fullscreen에서는 AI 답변이 입력창 위에 짧은 조각으로 잠깐 떠요.
+  if (overlays[0] && snippet) overlays.push(`<div class="cg-snippet">${escapeHtml(snippet)}</div>`);
   const main = `<div class="cg-header"><strong>ChatGPT${desktop ? " ▾" : ""}</strong><span>StudyMeta 연결됨</span></div><div class="cg-thread">${thread.join("") || '<div class="cg-empty">대화 블록을 추가해 주세요</div>'}</div>${overlays.filter(Boolean).join("")}<div class="cg-composer"><span>무엇이든 물어보세요</span><b>⬆</b></div>`;
   if (desktop) return `<div class="cg-app cg-desktop${overlays[0] ? " has-fullscreen" : ""}"><aside class="cg-side"><strong>ChatGPT</strong><span>＋ 새 채팅</span><span><i class="cg-app-icon">S</i> StudyMeta</span><small>최근</small><span class="active">오늘의 학습</span><span>미적분 중간고사 계획</span><span>연속 개념 정리</span></aside><div class="cg-main">${main}</div></div>`;
   return `<div class="cg-app${overlays[0] ? " has-fullscreen" : ""}">${main}</div>`;
@@ -451,14 +486,15 @@ function injectChatStyles() {
 .cg-badge.ai{background:#f1efff;color:#5b4bc4}.cg-badge.mine{background:#e8f6ee;color:#1f7a4a}
 .cg-widget-buttons{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px 7px}.cg-widget-buttons.loose{padding:0}
 .cg-button{padding:3px 8px;border:1px solid #d9d9d9;border-radius:999px;font-size:8.5px;font-weight:600}
-.cg-button.primary{border-color:#0d0d0d;background:#0d0d0d;color:#fff}
+.cg-button.primary{border-color:#6a58d6;background:#6a58d6;color:#fff}
 .cg-slides{display:flex;gap:6px;padding:7px 8px;overflow:hidden}
 .cg-slide{flex:0 0 62%;display:grid;gap:3px;padding:6px;border:1px solid #ececec;border-radius:10px}
 .cg-slide small{color:#8e8e8e}.cg-slide .cg-widget-buttons{padding:2px 0 0}
 .cg-slide-art{height:30px;border-radius:7px;background:linear-gradient(135deg,#efedff,#f7f7f7)}
 .cg-widget.fullscreen{position:absolute;top:0;left:0;right:0;bottom:34px;z-index:2;display:flex;flex-direction:column;border:0;border-radius:0;box-shadow:none}
 .cg-widget.fullscreen .cg-widget-body{flex:1;align-content:start;overflow:hidden}
-.cg-widget.pip{position:absolute;top:30px;right:7px;z-index:3;width:64%;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.cg-widget.pip{position:absolute;top:30px;left:6px;right:6px;z-index:3;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.cg-snippet{position:absolute;left:10px;right:10px;bottom:40px;z-index:4;padding:5px 9px;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.16);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cg-lint{margin:0 8px 6px;padding:3px 6px;border-radius:6px;background:#fff6e5;color:#9a5b00;font-size:8px}
 .cg-thread>.cg-lint{margin:0}
 .cg-composer{display:flex;align-items:center;justify-content:space-between;margin:0 8px 8px;padding:6px 6px 6px 10px;border:1px solid #e3e3e3;border-radius:999px;color:#8e8e8e;position:relative;z-index:4;background:#fff}
@@ -491,7 +527,8 @@ function injectChatStyles() {
 .cg-desktop .cg-header{border-bottom:0}
 .cg-desktop .cg-thread{width:100%;max-width:340px;align-self:center}
 .cg-desktop .cg-composer{width:calc(100% - 16px);max-width:340px;align-self:center}
-.cg-desktop .cg-widget.pip{width:40%;top:34px}
+.cg-desktop .cg-widget.pip{top:34px;left:50%;right:auto;width:min(340px,92%);transform:translateX(-50%)}
+.cg-desktop .cg-snippet{left:50%;right:auto;width:min(320px,88%);transform:translateX(-50%)}
 .cg-desktop .cg-slide{flex-basis:44%}
 .wire-card .cg-app.cg-desktop{height:360px}
 .preview-center .cg-app.cg-desktop{height:540px;font-size:11px}
@@ -689,52 +726,44 @@ function frameUnderlay(frame) {
   return "";
 }
 // ChatGPT 요소 도장: 기본 도형 몇 개를 묶어 한 번에 넣는다. 좌표는 폭 390 기준, y는 넣을 위치 기준 상대 좌표.
+// Apps SDK 가이드라인 기준: 앱 표시(ChatGPT가 붙임) → 위젯 → AI 후속 답변. 위젯 안에는 로고를 넣지 않고,
+// 주 버튼은 브랜드 색, Inline 카드 버튼은 최대 2개, 캐러셀 카드는 이미지 + 버튼 1개, Fullscreen은 왼쪽 위 닫기.
+const carouselCard = (x, n) => [
+  { type: "rect", x, y: 0, w: 170, h: 176, tone: "line", round: true },
+  { type: "image", x: x + 10, y: 10, w: 150, h: 70, round: true },
+  { type: "text", x: x + 10, y: 88, text: `카드 ${n}`, tone: "line", size: "m" },
+  { type: "text", x: x + 10, y: 112, text: "한 줄 정보", tone: "soft", size: "s" },
+  { type: "rect", x: x + 10, y: 138, w: 80, h: 28, text: "선택", tone: "brand", size: "s", round: true },
+];
 const CHAT_STAMPS = {
   user: { label: "사용자 말풍선", shapes: [{ type: "rect", x: 150, y: 0, w: 222, h: 44, text: "사용자 메시지", tone: "soft", size: "s", round: true }] },
-  tool: { label: "도구 호출", shapes: [{ type: "text", x: 18, y: 0, text: "⚙ StudyMeta 사용 중", tone: "soft", size: "s" }] },
-  ai: { label: "AI 답변", shapes: [{ type: "text", x: 18, y: 0, text: "AI 답변을 적어 주세요", tone: "line", size: "m" }] },
+  tool: { label: "앱 표시", shapes: [{ type: "rect", x: 18, y: 2, w: 18, h: 18, text: "S", tone: "brand", size: "s", round: true }, { type: "text", x: 42, y: 0, text: "StudyMeta", tone: "soft", size: "s" }] },
   inline: { label: "Inline 카드", shapes: [
-    { type: "rect", x: 16, y: 0, w: 358, h: 160, tone: "line", round: true },
-    { type: "text", x: 30, y: 10, text: "StudyMeta · Inline 카드", tone: "accent", size: "s" },
-    { type: "line", x: 16, y: 40, w: 358, h: 0, tone: "soft" },
-    { type: "text", x: 30, y: 52, text: "카드 내용", tone: "line", size: "m" },
-    { type: "rect", x: 30, y: 114, w: 110, h: 32, text: "버튼 1", tone: "dark", size: "s", round: true },
-    { type: "rect", x: 150, y: 114, w: 110, h: 32, text: "버튼 2", tone: "line", size: "s", round: true },
+    { type: "rect", x: 16, y: 0, w: 358, h: 150, tone: "line", round: true },
+    { type: "text", x: 30, y: 14, text: "카드 제목", tone: "line", size: "m" },
+    { type: "text", x: 30, y: 46, text: "필요한 정보만 짧게 보여줘요", tone: "soft", size: "s" },
+    { type: "rect", x: 30, y: 104, w: 120, h: 32, text: "주 버튼", tone: "brand", size: "s", round: true },
+    { type: "rect", x: 160, y: 104, w: 120, h: 32, text: "보조 버튼", tone: "line", size: "s", round: true },
   ] },
-  carousel: { label: "캐러셀", shapes: [
-    { type: "text", x: 18, y: 0, text: "StudyMeta · 캐러셀", tone: "accent", size: "s" },
-    { type: "rect", x: 16, y: 26, w: 170, h: 150, tone: "line", round: true },
-    { type: "image", x: 28, y: 38, w: 146, h: 60, round: true },
-    { type: "text", x: 28, y: 108, text: "카드 1", tone: "line", size: "m" },
-    { type: "rect", x: 28, y: 138, w: 90, h: 28, text: "선택", tone: "dark", size: "s", round: true },
-    { type: "rect", x: 196, y: 26, w: 170, h: 150, tone: "line", round: true },
-    { type: "image", x: 208, y: 38, w: 146, h: 60, round: true },
-    { type: "text", x: 208, y: 108, text: "카드 2", tone: "line", size: "m" },
-    { type: "rect", x: 208, y: 138, w: 90, h: 28, text: "선택", tone: "dark", size: "s", round: true },
-  ] },
-  pip: { label: "PiP", area: "pip", shapes: [
-    { type: "rect", x: 164, y: 0, w: 210, h: 132, tone: "line", round: true },
-    { type: "text", x: 176, y: 10, text: "StudyMeta · PiP", tone: "accent", size: "s" },
-    { type: "text", x: 356, y: 10, text: "✕", tone: "soft", size: "s" },
-    { type: "line", x: 164, y: 38, w: 210, h: 0, tone: "soft" },
-    { type: "text", x: 176, y: 50, text: "계속 떠 있는 내용", tone: "line", size: "s" },
-  ] },
+  carousel: { label: "캐러셀", shapes: [...carouselCard(16, 1), ...carouselCard(196, 2), ...carouselCard(376, 3)] },
+  ai: { label: "AI 후속 답변", shapes: [{ type: "text", x: 18, y: 0, text: "다음에 할 일을 짧게 제안해요", tone: "line", size: "m" }] },
   fullscreen: { label: "Fullscreen", area: "full", shapes: [
     { type: "rect", x: 0, y: 0, w: 390, h: 648, tone: "line" },
-    { type: "text", x: 18, y: 14, text: "StudyMeta · Fullscreen", tone: "accent", size: "m" },
-    { type: "text", x: 356, y: 14, text: "✕", tone: "soft", size: "m" },
-    { type: "line", x: 0, y: 50, w: 390, h: 0, tone: "soft" },
-    { type: "text", x: 18, y: 66, text: "전체 화면 내용", tone: "line", size: "m" },
+    { type: "text", x: 14, y: 12, text: "✕", tone: "soft", size: "m" },
+    { type: "text", x: 44, y: 12, text: "화면 제목", tone: "line", size: "m" },
+    { type: "text", x: 18, y: 56, text: "넓은 공간이 필요한 편집 · 탐색 내용", tone: "soft", size: "s" },
+    { type: "rect", x: 16, y: 588, w: 300, h: 40, text: "AI 답변 조각…", tone: "soft", size: "s", round: true },
   ] },
 };
 const DRAW_TOOL_LIST = [["select", "선택", "V", "↖"], ["rect", "사각형", "R", "▭"], ["ellipse", "원", "O", "◯"], ["line", "선", "L", "╱"], ["arrow", "화살표", "A", "↗"], ["text", "텍스트", "T", "T"], ["image", "이미지 자리", "I", "⊠"]];
-const DRAW_TONE_LIST = [["line", "선만"], ["soft", "회색"], ["accent", "보라"], ["dark", "검정"]];
+const DRAW_TONE_LIST = [["line", "선만"], ["soft", "회색"], ["accent", "연보라"], ["brand", "브랜드"], ["dark", "검정"]];
 const DRAW_SIZE_LIST = [["s", "작게"], ["m", "보통"], ["l", "크게"]];
 const TONE_STYLE = {
   line: { fill: "#ffffff", stroke: "#1d2330", text: "#1d2330" },
   soft: { fill: "#eef0f4", stroke: "#b9bfcb", text: "#1d2330" },
   accent: { fill: "#efedff", stroke: "#7c6cd8", text: "#4a3ab0" },
   dark: { fill: "#1d2330", stroke: "#1d2330", text: "#ffffff" },
+  brand: { fill: "#6a58d6", stroke: "#6a58d6", text: "#ffffff" }, // 가이드라인: 주 버튼에는 브랜드 색
 };
 const FONT_SIZE = { s: 13, m: 16, l: 24 };
 const LINE_TYPES = new Set(["line", "arrow"]);
@@ -837,7 +866,8 @@ function convertBox(style) {
   if (!hasBg && !hasBorder && !hasImage) return null;
   let tone = "line";
   if (hasBg) {
-    if (bg.lum < .35) tone = "dark";
+    if (bg.lum < .55 && bg.b - bg.g > 60 && bg.b - bg.r > 30) tone = "brand";
+    else if (bg.lum < .35) tone = "dark";
     else if (bg.lum > .97) { if (!hasBorder) return null; }
     else if (bg.b - bg.r > 10 && bg.b - bg.g > 6) tone = "accent";
     else tone = "soft";
@@ -1472,9 +1502,9 @@ function phoneContent(screen, interactive = false, action = "go-screen") {
   return `<div class="phone-frame"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="phone-body"><div class="phone-kicker">${escapeHtml(state.projectName)}</div><h3>${escapeHtml(screen.title)}</h3><p class="phone-purpose">${escapeHtml(screen.purpose || "이 화면의 목적을 적어 주세요.")}</p><div class="wire-blocks">${blocks.length ? blocks.map((block, index) => `<div class="wire-block"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(block)}</div>`).join("") : `<div class="wire-placeholder">+ 정보 블록을 추가해 주세요</div>`}</div></div>${footer}</div><div class="phone-home"></div></div>`;
 }
 function wireframe() {
-  const button = `<div class="intro-buttons"><button class="outline-button" data-action="import-merge">파일 합쳐 불러오기</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="save-version">버전 저장</button><button class="outline-button" data-action="export-pdf">PDF 내보내기</button><button class="outline-button" data-action="import-merge">파일 합쳐 불러오기</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="primary-button" data-action="add-screen">+ 화면 추가</button></div>`;
   return `${pageHeader("ROOM 02 / STRUCTURE", "와이어프레임", "화면별 목적과 정보의 순서를 잡습니다. 이 목록이 흐름도와 프로토타입의 공통 원본입니다. 정보 블록에 ChatGPT 블록을 넣으면 ChatGPT 대화 목업으로, 웹 블록을 넣으면 브라우저 목업으로 그려집니다. 원하는 모양이 있으면 그리기로 네모·원·선을 직접 그리세요.", button)}
-  ${state.screens.length ? `<div class="wire-grid">${state.screens.map((screen, index) => `<article class="wire-card${isWideScreen(screen) ? " wb-wire-card" : ""}" data-presence-id="${escapeHtml(screen.id)}"><div class="wire-heading"><span class="index-label">SCREEN ${String(index + 1).padStart(2, "0")}</span><span class="status ${screen.status === "확정" ? "done" : "in-progress"}">${escapeHtml(screen.status)}</span></div>${phoneContent(screen)}<div class="wire-meta"><h2>${escapeHtml(screen.title)}</h2><p>${escapeHtml(screen.purpose || "목적 미입력")}</p><div class="card-actions"><button data-action="draw-screen" data-id="${escapeHtml(screen.id)}">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">편집</button><button data-action="delete-screen" data-id="${escapeHtml(screen.id)}">삭제</button></div></div></article>`).join("")}</div>` : empty("▦", "아직 화면이 없습니다", "첫 화면을 추가하면 흐름도와 프로토타입에도 자동으로 나타납니다.", "add-screen", "+ 첫 화면 추가")}`;
+  ${state.screens.length ? `<div class="wire-grid">${state.screens.map((screen, index) => `<article class="wire-card${isWideScreen(screen) ? " wb-wire-card" : ""}" data-presence-id="${escapeHtml(screen.id)}"><div class="wire-heading"><span class="index-label">SCREEN ${String(index + 1).padStart(2, "0")}</span><span class="status ${screen.status === "확정" ? "done" : "in-progress"}">${escapeHtml(screen.status)}</span></div>${phoneContent(screen)}<div class="wire-meta"><h2>${escapeHtml(screen.title)}</h2><p>${escapeHtml(screen.purpose || "목적 미입력")}</p><div class="card-actions"><button data-action="draw-screen" data-id="${escapeHtml(screen.id)}">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">편집</button><button data-action="delete-screen" data-id="${escapeHtml(screen.id)}">삭제</button>${commentToggle(screen)}</div>${commentPanel(screen)}</div></article>`).join("")}</div>` : empty("▦", "아직 화면이 없습니다", "첫 화면을 추가하면 흐름도와 프로토타입에도 자동으로 나타납니다.", "add-screen", "+ 첫 화면 추가")}`;
 }
 // 흐름도에서는 설명 목록 대신 실제 화면 구조를 닮은 작은 폰 목업을 보여 준다.
 // StudyMeta의 계획 → 학습 → 정리 화면은 각각 구성하고, 이후 추가하는 화면은 공통 폰 목업을 사용한다.
@@ -1511,10 +1541,17 @@ function flowPhoneContent(screen, action = "focus-flow-screen") {
   if (!views[screen.id]) return phoneContent(screen, true, action);
   return `<div class="phone-frame flow-phone"><div class="phone-island"></div><div class="phone-screen"><div class="phone-top"><span>9:41</span><span>●●● ▰</span></div><div class="mock-body"><div class="mock-brand">StudyMeta <span>설계 목업</span></div>${views[screen.id]}</div><div class="flow-phone-footer">${linkButtons || `<span class="flow-no-link">연결된 화면이 없어요</span>`}</div></div><div class="phone-home"></div></div>`;
 }
+// 흐름도 카드 하나. PDF로 내보낼 때(print)는 버튼 없이 같은 모양으로 그린다.
+function flowNodeHtml(screen, index, print = false) {
+  const wide = isWideScreen(screen);
+  const unresolved = (screen.comments || []).filter((item) => !item.resolved).length;
+  const actions = print ? "" : `<span class="dw-node-actions">${unresolved ? `<button class="cm-count" data-action="open-comments" data-id="${escapeHtml(screen.id)}" aria-label="코멘트 ${unresolved}개 보기">💬 ${unresolved}</button>` : ""}<button data-action="draw-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 그리기">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></span>`;
+  return `<div class="flow-node${!print && flowFocus === screen.id ? " focused" : ""}${wide ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${wide ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3 title="${escapeHtml(screen.purpose || "")}">${escapeHtml(screen.title)}</h3>${actions}</div>${flowPhoneContent(screen)}</div>`;
+}
 function flow() {
-  const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="save-version">버전 저장</button><button class="outline-button" data-action="export-pdf">PDF 내보내기</button><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
   return `${pageHeader("ROOM 03 / CONNECT", "흐름도", "화면을 보며 동선을 확인하세요. 폰 속 버튼을 누르면 연결된 화면으로 이동합니다.", button)}
-  ${state.screens.length ? `<div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => `<div class="flow-node${flowFocus === screen.id ? " focused" : ""}${isWideScreen(screen) ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${isWideScreen(screen) ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3 title="${escapeHtml(screen.purpose || "")}">${escapeHtml(screen.title)}</h3><span class="dw-node-actions"><button data-action="draw-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 그리기">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></span></div>${flowPhoneContent(screen)}</div>`).join("")}</div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
+  ${state.screens.length ? `<div class="flow-board"><div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => flowNodeHtml(screen, index)).join("")}</div></div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
 }
 function prototype() {
   if (!state.screens.length) return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "화면을 폰 프레임에서 눌러보며 동선을 확인합니다.")}${empty("▶", "아직 눌러볼 화면이 없습니다", "와이어프레임에서 화면을 추가하면 이곳에서 바로 확인할 수 있습니다.", "add-screen", "+ 첫 화면 추가")}`;
@@ -1524,15 +1561,19 @@ function prototype() {
   return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "왼쪽에서 화면을 고르거나 폰 안의 이동 버튼을 눌러 실제 흐름처럼 확인하세요.")}
   <div class="prototype-layout"><aside class="screen-rail"><div class="rail-heading"><span class="eyebrow">SCREENS</span><strong>${state.screens.length}개 화면</strong></div>${state.screens.map((item, index) => `<button class="rail-item ${item.id === screen.id ? "selected" : ""}" data-action="go-screen" data-id="${escapeHtml(item.id)}" data-presence-id="${escapeHtml(item.id)}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(item.title)}</strong><i>↗</i></button>`).join("")}<div class="rail-note">흐름도에서 연결한 화면은 폰 안의 버튼으로 이동할 수 있습니다.</div></aside><div class="preview-area"><div class="preview-toolbar"><span class="live-dot"></span><span>${url ? "실제 화면 미리보기" : "설계 목업"}</span><span class="spacer"></span>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">새 탭에서 열기 ↗</a>` : `<button data-action="draw-screen" data-id="${escapeHtml(screen.id)}">이 화면 그리기 ✎</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}">이 화면 편집 ↗</button>`}</div><div class="preview-center">${url ? `<div class="phone-frame live-phone"><div class="phone-island"></div><iframe title="${escapeHtml(screen.title)} 미리보기" src="${escapeHtml(url)}"></iframe><div class="phone-home"></div></div>` : flowPhoneContent(screen, "go-screen")}<div class="preview-caption"><strong>${escapeHtml(screen.title)}</strong><p>${escapeHtml(screen.purpose || "화면 목적 미입력")}</p>${url ? "<small>외부 사이트는 임베드를 차단할 수 있습니다. 이 경우 새 탭에서 여세요.</small>" : ""}</div></div></div></div>`;
 }
-function drawLines() {
-  const svg = $("#flow-lines");
+function drawLines(root = document, board = state) {
+  const svg = root.querySelector("#flow-lines");
   if (!svg) return;
-  const { width, height } = stageSize();
+  const { width, height } = stageSize(board);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  const widths = Object.fromEntries(state.screens.map((screen) => [screen.id, nodeWidth(screen)]));
-  svg.innerHTML = `<defs><marker id="flow-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M 0 0 L 9 4.5 L 0 9 z" fill="#8879d4"/></marker></defs>` + state.links.map((link) => {
-    const from = [...document.querySelectorAll(".flow-node")].find((node) => node.dataset.id === link.from);
-    const to = [...document.querySelectorAll(".flow-node")].find((node) => node.dataset.id === link.to);
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  const widths = Object.fromEntries(board.screens.map((screen) => [screen.id, nodeWidth(screen)]));
+  const nodes = [...root.querySelectorAll(".flow-node")];
+  const focus = root === document ? flowFocus : null;
+  svg.innerHTML = `<defs><marker id="flow-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M 0 0 L 9 4.5 L 0 9 z" fill="#8879d4"/></marker></defs>` + board.links.map((link) => {
+    const from = nodes.find((node) => node.dataset.id === link.from);
+    const to = nodes.find((node) => node.dataset.id === link.to);
     if (!from || !to) return "";
     const fx = parseFloat(from.style.left), fy = parseFloat(from.style.top);
     const tx = parseFloat(to.style.left), ty = parseFloat(to.style.top);
@@ -1547,7 +1588,7 @@ function drawLines() {
     const y2 = horizontal ? ty + th / 2 : ty + (dy >= 0 ? 0 : th);
     const bend = Math.max(55, Math.min(180, (horizontal ? Math.abs(x2 - x1) : Math.abs(y2 - y1)) * .48));
     // 서로 되돌아오는 두 연결은 겹치지 않게 조금 벌린다(오른쪽·아래로 가는 선이 위·왼쪽).
-    const paired = state.links.some((other) => other.from === link.to && other.to === link.from);
+    const paired = board.links.some((other) => other.from === link.to && other.to === link.from);
     const shift = paired ? ((horizontal ? dx : dy) >= 0 ? -22 : 22) : 0;
     let path = horizontal
       ? `M ${x1} ${y1 + shift} C ${x1 + Math.sign(dx) * bend} ${y1 + shift}, ${x2 - Math.sign(dx) * bend} ${y2 + shift}, ${x2} ${y2 + shift}`
@@ -1563,7 +1604,7 @@ function drawLines() {
       const middle = (y1 + y2) / 2;
       path = `M ${x1} ${y1} C ${x1} ${middle}, ${endX} ${middle}, ${endX} ${y2}`;
     }
-    const active = flowFocus && (flowFocus === link.from || flowFocus === link.to);
+    const active = focus && (focus === link.from || focus === link.to);
     return `<path class="flow-link${active ? " active" : ""}${link.to === "plan-drawer" ? " panel-link" : ""}" d="${path}" fill="none" stroke="${active ? "#6a58d6" : "#8879d4"}" stroke-width="${active ? 3 : 2}" stroke-linecap="round" marker-end="url(#flow-arrow)"><title>${escapeHtml(link.label || "화면 이동")}</title></path>`;
   }).join("");
 }
@@ -1584,17 +1625,238 @@ function setFlowExpanded(expanded) {
     button.textContent = expanded ? "전체화면 닫기" : "전체화면";
     button.setAttribute("aria-pressed", String(expanded));
   }
+  // 흐름도 틀(.flow-board)을 창 전체로 넓히고, 가능하면 브라우저 전체화면도 켠다.
+  // 문서 전체를 전체화면으로 두어서 팀원 변경으로 다시 그려져도 풀리지 않는다.
+  if (expanded && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+  if (!expanded && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  requestAnimationFrame(() => { if (expanded) fitScale(); else applyScale(); });
 }
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && flowExpanded) setFlowExpanded(false); });
 function render() {
   nav();
   const route = currentRoute();
-  $("#app").innerHTML = ready ? ({ home, lab, wireframe, flow, prototype })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>작업판 서버가 켜져 있는지 확인해 주세요.</p></div>`;
+  $("#app").innerHTML = ready ? versionBanner() + ({ home, lab, wireframe, flow, prototype, versions: versionsRoom })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>작업판 서버가 켜져 있는지 확인해 주세요.</p></div>`;
   document.body.classList.toggle("flow-expanded", ready && route === "flow" && flowExpanded);
   if (ready && route === "flow") $(".zoom-controls")?.insertAdjacentHTML("beforeend", `<button class="zoom-button wide fullscreen-button" type="button" data-action="toggle-flow-fullscreen" aria-pressed="${flowExpanded}">${flowExpanded ? "전체화면 닫기" : "전체화면"}</button>`);
   if (ready && route === "flow") { applyScale(); drawLines(); }
   decoratePresence();
 }
 
+// ── 버전 폴더 ───────────────────────────────────────────────────────
+// 버튼 한 번으로 지금 작업판(와이어프레임 + 흐름도 + 코멘트)을 서버의 data/versions/에 저장하고,
+// 폴더를 열면 그때 모습을 읽기 전용으로 본다. 되돌리기는 기존 replace op를 쓴다(서버가 직전 상태를 백업).
+const shortDate = (value) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? "" : date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
+async function loadVersions() {
+  try {
+    const response = await fetch("/api/versions", { headers: { "ngrok-skip-browser-warning": "1" } });
+    if (response.ok) { versions = (await response.json()).versions || []; if (currentRoute() === "versions") refresh(); }
+  } catch { /* 서버가 예전 버전이면 목록 없이 둔다 */ }
+}
+async function fetchVersion(versionId) {
+  const response = await fetch(`/api/versions/${encodeURIComponent(versionId)}`, { headers: { "ngrok-skip-browser-warning": "1" } });
+  if (!response.ok) throw new Error("missing version");
+  return (await response.json()).version;
+}
+async function saveVersion() {
+  const name = prompt("저장할 버전 이름을 적어 주세요.", `v${versions.length + 1} · ${new Date().toLocaleDateString("ko-KR")}`);
+  if (name === null) return;
+  try {
+    const data = await post("/api/versions", { client: clientId, name });
+    toast(`"${data.version.name}" 버전을 버전 폴더에 저장했어요.`);
+  } catch { toast("버전을 저장하지 못했어요. 작업판 서버(server.mjs)를 새 파일로 바꾸고 다시 켰는지 확인해 주세요."); }
+}
+async function openVersion(versionId, route = "wireframe") {
+  try {
+    const version = await fetchVersion(versionId);
+    if (!viewing) liveState = state;
+    viewing = { id: version.id, name: version.name, savedAt: version.savedAt, by: version.by };
+    state = normalizeBoard(version.board) || blank();
+    if (currentRoute() === route) refresh(); else location.hash = `#${route}`;
+  } catch { toast("버전을 열 수 없어요. 이미 삭제됐을 수 있어요."); }
+}
+function closeVersion() {
+  if (!viewing) return;
+  state = liveState || state;
+  liveState = null;
+  viewing = null;
+  refresh();
+}
+async function restoreVersion(versionId) {
+  if (!confirm("이 버전으로 작업판 전체를 되돌릴까요?\n지금 상태는 '되돌리기 전 자동 저장' 버전으로 먼저 저장해 둘게요.")) return;
+  try {
+    const version = viewing?.id === versionId ? { name: viewing.name, board: state } : await fetchVersion(versionId);
+    const snapshot = JSON.parse(JSON.stringify(version.board));
+    closeVersion();
+    await post("/api/versions", { client: clientId, name: `되돌리기 전 자동 저장 · ${new Date().toLocaleString("ko-KR")}` });
+    if (commit({ type: "replace", board: snapshot })) toast(`"${version.name}" 버전으로 되돌렸어요.`);
+  } catch { toast("되돌리지 못했어요. 서버 연결을 확인해 주세요."); }
+}
+async function deleteVersion(versionId) {
+  const version = versions.find((item) => item.id === versionId);
+  if (!confirm(`"${version?.name || "이 버전"}" 폴더를 삭제할까요? 모든 팀원에게서 함께 사라져요.`)) return;
+  try {
+    await post(`/api/versions/${encodeURIComponent(versionId)}/delete`, { client: clientId });
+    if (viewing?.id === versionId) closeVersion();
+    toast("버전을 삭제했어요.");
+  } catch { toast("버전을 삭제하지 못했어요."); }
+}
+async function versionPdf(versionId) {
+  try {
+    const version = await fetchVersion(versionId);
+    exportPdf(version.name, normalizeBoard(version.board) || blank());
+  } catch { toast("버전을 열 수 없어요."); }
+}
+function versionBanner() {
+  if (!viewing) return "";
+  return `<div class="vr-banner" role="status"><span><b>📁 ${escapeHtml(viewing.name)}</b> · ${escapeHtml(shortDate(viewing.savedAt))} · ${escapeHtml(viewing.by)} — 저장된 버전을 보는 중이에요 (읽기 전용)</span><span class="vr-banner-actions"><a href="#wireframe">와이어프레임</a><a href="#flow">흐름도</a><button data-action="export-pdf">PDF</button><button data-action="restore-version" data-id="${escapeHtml(viewing.id)}">이 버전으로 되돌리기</button><button class="vr-primary" data-action="close-version">현재 작업판으로 돌아가기</button></span></div>`;
+}
+function versionsRoom() {
+  const button = `<div class="intro-buttons"><button class="outline-button" data-action="export-pdf">${viewing ? "보는 버전 PDF" : "지금 작업판 PDF"}</button><button class="primary-button" data-action="save-version">+ 지금 상태를 버전으로 저장</button></div>`;
+  const card = (version) => `<article class="vr-card${viewing?.id === version.id ? " viewing" : ""}"><div class="vr-folder" aria-hidden="true">📁</div><div class="vr-info"><strong>${escapeHtml(version.name)}</strong><span>${escapeHtml(shortDate(version.savedAt))} · ${escapeHtml(version.by)}</span><small>화면 ${version.screens}개 · 연결 ${version.links}개</small></div><div class="card-actions"><button data-action="open-version" data-id="${escapeHtml(version.id)}" data-route="wireframe">와이어프레임</button><button data-action="open-version" data-id="${escapeHtml(version.id)}" data-route="flow">흐름도</button><button data-action="version-pdf" data-id="${escapeHtml(version.id)}">PDF</button><button data-action="restore-version" data-id="${escapeHtml(version.id)}">되돌리기</button><button data-action="delete-version" data-id="${escapeHtml(version.id)}">삭제</button></div></article>`;
+  return `${pageHeader("ROOM 05 / VERSIONS", "버전 폴더", "와이어프레임과 흐름도를 한 묶음으로 저장해 둡니다. 폴더를 열면 그때의 화면과 흐름을 그대로 볼 수 있고, 필요하면 그 버전으로 되돌릴 수 있어요.", button)}
+  ${versions.length ? `<div class="vr-grid">${versions.map(card).join("")}</div>` : empty("▤", "아직 저장한 버전이 없어요", "지금 상태를 저장하면 폴더로 쌓입니다. 와이어프레임 · 흐름도의 [버전 저장] 버튼으로도 저장할 수 있어요.", "save-version", "+ 첫 버전 저장")}`;
+}
+
+// ── 코멘트 ─────────────────────────────────────────────────────────
+function commentToggle(screen) {
+  const comments = screen.comments || [];
+  const open = unresolvedCount(screen);
+  return `<button class="cm-toggle${open ? " has-open" : ""}" data-action="toggle-comments" data-id="${escapeHtml(screen.id)}" aria-expanded="${openComments.has(screen.id)}">코멘트${comments.length ? ` ${open}/${comments.length}` : ""}</button>`;
+}
+const unresolvedCount = (screen) => (screen.comments || []).filter((item) => !item.resolved).length;
+function commentPanel(screen) {
+  if (!openComments.has(screen.id)) return "";
+  const comments = [...(screen.comments || [])].sort((a, b) => Number(a.resolved) - Number(b.resolved));
+  const list = comments.map((item) => `<li class="cm-item${item.resolved ? " resolved" : ""}"><div class="cm-meta"><b style="color:${escapeHtml(item.color)}">${escapeHtml(item.by)}</b><time>${escapeHtml(shortDate(item.at))}</time>${item.resolved ? "<em>해결됨</em>" : ""}</div><p>${escapeHtml(item.text)}</p>${viewing ? "" : `<div class="cm-actions"><button data-action="resolve-comment" data-id="${escapeHtml(item.id)}" data-screen="${escapeHtml(screen.id)}">${item.resolved ? "다시 열기" : "해결"}</button><button data-action="delete-comment" data-id="${escapeHtml(item.id)}" data-screen="${escapeHtml(screen.id)}">삭제</button></div>`}</li>`).join("");
+  const form = viewing ? "" : `<form class="cm-form" data-screen="${escapeHtml(screen.id)}"><label class="cm-label" for="cm-${escapeHtml(screen.id)}">${escapeHtml(collab.me.name)}(으)로 코멘트 남기기</label><textarea id="cm-${escapeHtml(screen.id)}" data-keep-focus="cm-${escapeHtml(screen.id)}" data-comment-input="${escapeHtml(screen.id)}" rows="2" maxlength="1000" placeholder="의견을 남겨 주세요 (⌘/Ctrl+Enter로 등록)">${escapeHtml(commentDrafts.get(screen.id) || "")}</textarea><button type="submit">등록</button></form>`;
+  return `<div class="cm-panel" aria-label="${escapeHtml(screen.title)} 코멘트">${list ? `<ul class="cm-list">${list}</ul>` : `<p class="cm-empty">아직 코멘트가 없어요.</p>`}${form}</div>`;
+}
+function addComment(screenId) {
+  const text = String(commentDrafts.get(screenId) || $(`[data-comment-input="${CSS.escape(screenId)}"]`)?.value || "").trim();
+  if (!text) return;
+  if (commit({ type: "comment.add", screenId, item: { id: id(), text, by: collab.me.name, color: collab.me.color, at: new Date().toISOString() } })) {
+    commentDrafts.delete(screenId);
+    refresh();
+    $(`[data-comment-input="${CSS.escape(screenId)}"]`)?.focus();
+  }
+}
+
+// ── PDF 내보내기 ────────────────────────────────────────────────────
+// 표지 → 흐름도(한 장에 맞춤) → 와이어프레임 카드(목적 · 목업 · 코멘트) 순서의 인쇄용 문서를 숨은 iframe에 만들고,
+// 인쇄 창을 연다. 인쇄 창에서 '대상: PDF로 저장'을 고르면 PDF 파일이 된다(외부 라이브러리 없이).
+const PRINT_CSS = `
+@page{size:A4 landscape;margin:10mm}
+html,body{margin:0;background:#fff}
+.pr-body{width:1040px;margin:0 auto;color:#1d2330;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pr-page{break-after:page;page-break-after:always}
+.pr-cover{padding:90px 30px 0}
+.pr-cover .pr-kicker{color:#6a58d6;font-size:12px;font-weight:800;letter-spacing:.08em}
+.pr-cover h1{margin:10px 0 6px;font-size:34px}
+.pr-cover p{margin:4px 0;color:#555;font-size:14px}
+.pr-toc{margin-top:28px;columns:2;font-size:12px;color:#444;line-height:1.7}
+.pr-flow h2,.pr-wires h2{margin:0 0 10px;font-size:18px}
+.pr-flow-frame{position:relative;width:1040px;height:640px;overflow:hidden;border:1px solid #e3e5ec;border-radius:10px;background:#fbfbfd}
+.pr-flow-frame .flow-stage{position:absolute;left:0;top:0;transform-origin:0 0}
+.pr-flow-frame .flow-node{position:absolute}
+.pr-flow-frame .flow-lines{position:absolute;left:0;top:0;overflow:visible}
+.pr-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.pr-card{break-inside:avoid;page-break-inside:avoid;border:1px solid #e3e5ec;border-radius:10px;padding:10px;background:#fff}
+.pr-card.wide{grid-column:span 2}
+.pr-card-head{display:flex;justify-content:space-between;color:#888;font-size:9px}
+.pr-card h3{margin:4px 0;font-size:13px}
+.pr-purpose{margin:0 0 8px;color:#555;font-size:10px;line-height:1.5}
+.pr-mock{display:flex;justify-content:center}
+.pr-mock .wb-shell,.pr-mock .cg-desktop-shell{width:100%}
+.pr-comments{margin-top:8px;padding-top:6px;border-top:1px dashed #e3e5ec;font-size:10px}
+.pr-comments ul{margin:4px 0 0;padding-left:16px}
+.pr-comments .resolved{color:#999;text-decoration:line-through}
+.pr-body .flow-phone-footer,.pr-body .phone-footer{pointer-events:none}
+.pr-body .cg-lint,.pr-body .wb-lint{display:none}
+`;
+function exportPdf(label = "현재 작업판", board = state) {
+  const links = [...document.querySelectorAll('link[rel="stylesheet"]')].map((link) => `<link rel="stylesheet" href="${escapeHtml(link.href)}">`).join("");
+  const styles = [...document.querySelectorAll("style")].map((style) => style.textContent).join("\n");
+  const commentCount = board.screens.reduce((sum, screen) => sum + (screen.comments || []).length, 0);
+  // 목업 함수들이 state를 보므로 문서를 만드는 동안만 내보낼 작업판으로 바꿔 둔다.
+  const previous = state;
+  state = board;
+  let html;
+  try {
+    const { width, height } = stageSize(board);
+    const cards = board.screens.map((screen, index) => `<article class="pr-card${isWideScreen(screen) ? " wide" : ""}"><div class="pr-card-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}</span><b>${escapeHtml(screen.status)}</b></div><h3>${escapeHtml(screen.title)}</h3>${screen.purpose ? `<p class="pr-purpose">${escapeHtml(screen.purpose)}</p>` : ""}<div class="pr-mock">${phoneContent(screen)}</div>${(screen.comments || []).length ? `<div class="pr-comments"><strong>코멘트 ${screen.comments.length}개</strong><ul>${screen.comments.map((item) => `<li class="${item.resolved ? "resolved" : ""}"><b>${escapeHtml(item.by)}</b> · ${escapeHtml(shortDate(item.at))} — ${escapeHtml(item.text)}</li>`).join("")}</ul></div>` : ""}</article>`).join("");
+    html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(board.projectName)} - ${escapeHtml(label)}</title>${links}<style>${styles}</style><style>${PRINT_CSS}</style></head><body class="pr-body">
+      <section class="pr-page pr-cover"><div class="pr-kicker">WORKBOARD EXPORT</div><h1>${escapeHtml(board.projectName)}</h1><p>${escapeHtml(label)} · ${escapeHtml(new Date().toLocaleString("ko-KR"))}</p><p>화면 ${board.screens.length}개 · 연결 ${board.links.length}개 · 코멘트 ${commentCount}개 · 실험 ${board.experiments.length}개</p><ol class="pr-toc">${board.screens.map((screen) => `<li>${escapeHtml(screen.title)}</li>`).join("")}</ol></section>
+      <section class="pr-page pr-flow"><h2>흐름도</h2><div class="pr-flow-frame"><div class="flow-stage" id="flow-stage" style="width:${width}px;height:${height}px"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${board.screens.map((screen, index) => flowNodeHtml(screen, index, true)).join("")}</div></div></section>
+      <section class="pr-wires"><h2>와이어프레임</h2><div class="pr-grid">${cards}</div></section></body></html>`;
+  } finally { state = previous; }
+  document.querySelector("#pr-frame")?.remove();
+  const frame = document.createElement("iframe");
+  frame.id = "pr-frame";
+  frame.title = "PDF 내보내기";
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed;left:-20000px;top:0;width:1123px;height:794px;border:0";
+  frame.addEventListener("load", async () => {
+    const doc = frame.contentDocument, win = frame.contentWindow;
+    try { await doc.fonts?.ready; } catch { /* 글꼴 대기 실패는 무시 */ }
+    drawLines(doc, board);
+    const stage = doc.getElementById("flow-stage"), holder = doc.querySelector(".pr-flow-frame");
+    if (stage && holder) {
+      const { width, height } = stageSize(board);
+      const used = board.screens.reduce((box, screen) => ({ right: Math.max(box.right, (screen.x || 0) + nodeWidth(screen) + 30), bottom: Math.max(box.bottom, (screen.y || 0) + NODE_H + 30) }), { right: 0, bottom: 0 });
+      const scale = Math.min(holder.clientWidth / Math.min(width, used.right || width), holder.clientHeight / Math.min(height, used.bottom || height), 1);
+      stage.style.transform = `scale(${scale})`;
+    }
+    win.addEventListener("afterprint", () => setTimeout(() => frame.remove(), 500));
+    win.focus();
+    win.print();
+  }, { once: true });
+  frame.srcdoc = html;
+  document.body.append(frame);
+  toast("인쇄 창이 열리면 대상에서 'PDF로 저장'을 골라 주세요.");
+}
+function injectRoundStyles() {
+  if (document.getElementById("round-styles")) return;
+  const style = document.createElement("style");
+  style.id = "round-styles";
+  style.textContent = `
+body.flow-expanded{overflow:hidden}
+body.flow-expanded .flow-board{position:fixed;inset:0;z-index:950;display:flex;flex-direction:column;gap:8px;margin:0;padding:12px 14px;background:#f4f5f8}
+body.flow-expanded .flow-board .flow-toolbar{flex:none;margin:0}
+body.flow-expanded .flow-board .flow-scroll{flex:1 1 auto;min-height:0;width:100%!important;height:auto!important;max-height:none!important;margin:0}
+.vr-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0 0 16px;padding:10px 14px;border:1px solid #c9c1f3;border-radius:12px;background:#f5f3ff;color:#3b2f94;font-size:13px}
+.vr-banner-actions{display:flex;flex-wrap:wrap;gap:6px}
+.vr-banner-actions a,.vr-banner-actions button{padding:5px 10px;border:1px solid #c9c1f3;border-radius:8px;background:#fff;color:#3b2f94;font:inherit;font-size:12px;text-decoration:none;cursor:pointer}
+.vr-banner-actions .vr-primary{border-color:#6a58d6;background:#6a58d6;color:#fff;font-weight:700}
+.vr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.vr-card{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start;padding:14px;border:1px solid #e3e5ec;border-radius:14px;background:#fff}
+.vr-card.viewing{border-color:#6a58d6;box-shadow:0 0 0 2px #efedff}
+.vr-folder{font-size:30px;line-height:1}
+.vr-info{display:grid;gap:2px;min-width:0}
+.vr-info strong{font-size:15px;overflow-wrap:anywhere}
+.vr-info span,.vr-info small{color:#6b7280;font-size:12px}
+.vr-card .card-actions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px}
+.cm-toggle.has-open{font-weight:700;color:#4a3ab0}
+.cm-panel{display:grid;gap:8px;margin-top:10px;padding:10px;border:1px solid #e3e5ec;border-radius:10px;background:#fafafc;text-align:left}
+.cm-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.cm-item{padding:8px 10px;border-radius:8px;background:#fff;border:1px solid #eceef3}
+.cm-item.resolved{opacity:.6}
+.cm-item.resolved p{text-decoration:line-through}
+.cm-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:12px}
+.cm-meta time{color:#8e8e8e}
+.cm-meta em{color:#1f7a4a;font-style:normal;font-weight:700}
+.cm-item p{margin:4px 0;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.cm-actions{display:flex;gap:6px}
+.cm-actions button{padding:2px 8px;border:1px solid #d5d8e1;border-radius:6px;background:#fff;font:inherit;font-size:11px;cursor:pointer}
+.cm-empty{margin:0;color:#8e8e8e;font-size:12px}
+.cm-form{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:end}
+.cm-label{grid-column:1 / -1;color:#6b7280;font-size:11px}
+.cm-form textarea{min-width:0;padding:6px 8px;border:1px solid #d5d8e1;border-radius:8px;font:inherit;font-size:13px;resize:vertical}
+.cm-form button{padding:7px 12px;border:0;border-radius:8px;background:#6a58d6;color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.cm-panel button:focus-visible,.cm-form textarea:focus-visible,.vr-banner a:focus-visible,.vr-banner button:focus-visible{outline:2px solid #7c6cd8;outline-offset:2px}
+.cm-count{padding:1px 6px;border:1px solid #c9c1f3;border-radius:999px;background:#f5f3ff;color:#4a3ab0;font:inherit;font-size:11px;cursor:pointer}
+`;
+  document.head.append(style);
+}
 function field(label, name, value = "", kind = "input", help = "") {
   const control = kind === "textarea" ? `<textarea name="${name}" rows="4">${escapeHtml(value)}</textarea>` : `<input name="${name}" value="${escapeHtml(value)}" ${name === "title" || name === "projectName" ? "required" : ""} />`;
   return `<label class="form-field"><span>${label}</span>${control}${help ? `<small>${help}</small>` : ""}</label>`;
@@ -1728,10 +1990,23 @@ function remove(kind, itemId) {
   if (!confirm(`${label}을 삭제할까요? 모든 팀원의 작업판에서 함께 삭제됩니다.`)) return;
   if (commit({ type: `${kind}.delete`, id: itemId })) toast("삭제했습니다.");
 }
+const READ_ONLY_ACTIONS = new Set(["edit-project", "add-screen", "add-chat-screen", "add-web-screen", "add-draw-screen", "edit-screen", "delete-screen", "draw-screen", "add-experiment", "edit-experiment", "delete-experiment", "add-link", "delete-link", "import-merge", "import", "save-version", "resolve-comment", "delete-comment"]);
 document.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action]");
   if (!target) return;
   const action = target.dataset.action, itemId = target.dataset.id;
+  if (viewing && READ_ONLY_ACTIONS.has(action)) { toast(READ_ONLY_NOTICE); return; }
+  if (action === "save-version") saveVersion();
+  if (action === "export-pdf") exportPdf(viewing ? viewing.name : "현재 작업판");
+  if (action === "open-version") openVersion(itemId, target.dataset.route || "wireframe");
+  if (action === "close-version") closeVersion();
+  if (action === "restore-version") restoreVersion(itemId);
+  if (action === "delete-version") deleteVersion(itemId);
+  if (action === "version-pdf") versionPdf(itemId);
+  if (action === "toggle-comments") { if (openComments.has(itemId)) openComments.delete(itemId); else openComments.add(itemId); refresh(); }
+  if (action === "open-comments") { openComments.add(itemId); location.hash = "#wireframe"; setTimeout(() => [...document.querySelectorAll(".wire-card")].find((card) => card.dataset.presenceId === itemId)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); }
+  if (action === "resolve-comment") { const comment = state.screens.find((item) => item.id === target.dataset.screen)?.comments?.find((item) => item.id === itemId); if (comment) commit({ type: "comment.resolve", screenId: target.dataset.screen, id: itemId, resolved: !comment.resolved }); }
+  if (action === "delete-comment" && confirm("이 코멘트를 삭제할까요? 모든 팀원에게서 함께 사라져요.")) commit({ type: "comment.delete", screenId: target.dataset.screen, id: itemId });
   if (action === "edit-project") openEditor("project");
   if (action === "add-screen") openEditor("screen");
   if (action === "add-chat-screen") openEditor("screen", null, { sections: CHAT_STARTER });
@@ -1768,8 +2043,16 @@ document.addEventListener("click", (event) => {
 $("#editor-form").addEventListener("submit", submitEditor);
 $("#editor").addEventListener("close", () => { editContext = null; if (collab.editing) setEditing(null); }); // Esc로 닫아도 편집 중 표시를 지운다.
 $("#import-file").addEventListener("change", (event) => { if (event.target.files[0]) importData(event.target.files[0]); });
-window.addEventListener("hashchange", () => { flowExpanded = false; render(); $("#app").focus(); });
+window.addEventListener("hashchange", () => { if (flowExpanded) setFlowExpanded(false); render(); $("#app").focus(); });
+document.addEventListener("submit", (event) => {
+  const form = event.target.closest?.(".cm-form");
+  if (!form) return;
+  event.preventDefault();
+  addComment(form.dataset.screen);
+});
+document.addEventListener("input", (event) => { if (event.target.matches?.("[data-comment-input]")) commentDrafts.set(event.target.dataset.commentInput, event.target.value); });
 document.addEventListener("keydown", (event) => {
+  if (event.target.matches?.("[data-comment-input]") && event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); event.target.form?.requestSubmit(); return; }
   if (event.key === "Escape" && flowExpanded && !$("#editor")?.open && !drawDialog()?.open) setFlowExpanded(false);
 });
 
@@ -1795,6 +2078,7 @@ document.addEventListener("pointerdown", (event) => {
     }
     return;
   }
+  if (viewing) { toast(READ_ONLY_NOTICE); return; }
   const node = handle.closest(".flow-node");
   dragging = { node, startX: event.clientX, startY: event.clientY, left: parseFloat(node.style.left), top: parseFloat(node.style.top) };
   node.setPointerCapture(event.pointerId);
@@ -1832,6 +2116,7 @@ document.addEventListener("pointercancel", endDrag);
 injectChatStyles();
 injectWebStyles();
 injectDrawStyles();
+injectRoundStyles();
 render();
 renderPresence();
 connect();
