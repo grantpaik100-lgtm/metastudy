@@ -1412,6 +1412,7 @@ function injectDrawStyles() {
 .dw-view{display:block;flex:1 1 0;width:100%;min-height:320px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
 .dw-webview{display:flex;flex-direction:column}.dw-webview .dw-view{min-height:0}
 .dw-node-actions{display:inline-flex;gap:4px}
+.flow-lines path.flow-link{fill:none}
 .dw-dialog{width:min(1200px,96vw);height:min(880px,94vh);max-width:none;max-height:none;margin:auto;padding:0;border:0;border-radius:16px;background:#f4f5f8;color:#1d2330;box-shadow:0 24px 60px rgba(0,0,0,.28);font:13px/1.4 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;overflow:hidden}
 .dw-dialog[open]{display:flex;flex-direction:column}
 .dw-dialog::backdrop{background:rgba(20,22,30,.5)}
@@ -1513,7 +1514,7 @@ function flowPhoneContent(screen, action = "focus-flow-screen") {
 function flow() {
   const button = `<div class="intro-buttons"><button class="outline-button" data-action="add-screen">+ 화면</button><button class="outline-button" data-action="add-chat-screen">+ ChatGPT 화면</button><button class="outline-button" data-action="add-web-screen">+ 웹 화면</button><button class="outline-button" data-action="add-draw-screen">+ 그림 화면</button><button class="primary-button" data-action="add-link" ${state.screens.length < 2 ? "disabled" : ""}>+ 연결</button></div>`;
   return `${pageHeader("ROOM 03 / CONNECT", "흐름도", "화면을 보며 동선을 확인하세요. 폰 속 버튼을 누르면 연결된 화면으로 이동합니다.", button)}
-  ${state.screens.length ? `<div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => `<div class="flow-node${flowFocus === screen.id ? " focused" : ""}${isWideScreen(screen) ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${isWideScreen(screen) ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3>${escapeHtml(screen.title)}</h3><span class="dw-node-actions"><button data-action="draw-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 그리기">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></span></div>${flowPhoneContent(screen)}<div class="flow-node-caption">${escapeHtml(screen.purpose || "화면 목적 미입력")}</div></div>`).join("")}</div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
+  ${state.screens.length ? `<div class="flow-toolbar"><span>상단 손잡이로 화면 이동 · 빈 바탕 드래그로 캔버스 이동 · 폰 버튼으로 연결 따라가기</span><div class="zoom-controls"><button class="zoom-button" type="button" data-action="zoom-out" aria-label="축소">−</button><span id="zoom-level" aria-live="polite">100%</span><button class="zoom-button" type="button" data-action="zoom-in" aria-label="확대">+</button><button class="zoom-button wide" type="button" data-action="zoom-fit">전체 맞춤</button></div></div><div class="flow-scroll"><div class="flow-canvas" id="flow-canvas"><div class="flow-stage" id="flow-stage"><svg id="flow-lines" class="flow-lines" aria-hidden="true"></svg>${state.screens.map((screen, index) => `<div class="flow-node${flowFocus === screen.id ? " focused" : ""}${isWideScreen(screen) ? " web-node" : ""}" data-id="${escapeHtml(screen.id)}" data-presence-id="${escapeHtml(screen.id)}" style="left:${Number.isFinite(screen.x) ? screen.x : 60 + (index % 5) * 310}px;top:${Number.isFinite(screen.y) ? screen.y : 60 + Math.floor(index / 5) * 580}px${isWideScreen(screen) ? `;width:${WEB_W}px` : ""}"><div class="flow-node-head"><span>SCREEN ${String(index + 1).padStart(2, "0")}　·　${screen.status === "확정" ? "확정" : "작업 중"}</span><span aria-hidden="true">⠿</span></div><div class="flow-node-title"><h3 title="${escapeHtml(screen.purpose || "")}">${escapeHtml(screen.title)}</h3><span class="dw-node-actions"><button data-action="draw-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 그리기">그리기</button><button data-action="edit-screen" data-id="${escapeHtml(screen.id)}" aria-label="${escapeHtml(screen.title)} 편집">편집</button></span></div>${flowPhoneContent(screen)}</div>`).join("")}</div></div></div><div class="flow-list"><div class="section-title small"><div><span class="eyebrow">CONNECTIONS</span><h2>화면 연결</h2></div><span>${state.links.length}개</span></div>${state.links.length ? state.links.map((link) => { const from = state.screens.find((item) => item.id === link.from); const to = state.screens.find((item) => item.id === link.to); return `<div class="link-row"><span>${escapeHtml(from?.title || "삭제된 화면")} <strong>→</strong> ${escapeHtml(to?.title || "삭제된 화면")}</span><span>${escapeHtml(link.label || "이동")}</span><button data-action="delete-link" data-id="${escapeHtml(link.id)}" aria-label="연결 삭제">×</button></div>`; }).join("") : `<p class="subtle">연결을 추가하면 여기와 프로토타입에 이동 경로가 나타납니다.</p>`}</div>` : empty("⑂", "연결할 화면이 없습니다", "와이어프레임에서 화면을 먼저 추가하세요.", "add-screen", "+ 첫 화면 추가")}`;
 }
 function prototype() {
   if (!state.screens.length) return `${pageHeader("ROOM 04 / EXPERIENCE", "목업 · 프로토타입", "화면을 폰 프레임에서 눌러보며 동선을 확인합니다.")}${empty("▶", "아직 눌러볼 화면이 없습니다", "와이어프레임에서 화면을 추가하면 이곳에서 바로 확인할 수 있습니다.", "add-screen", "+ 첫 화면 추가")}`;
@@ -1540,9 +1541,10 @@ function drawLines() {
     const dx = (tx + tw / 2) - (fx + fw / 2), dy = ty - fy;
     const horizontal = Math.abs(dx) > Math.abs(dy) * .8;
     const x1 = horizontal ? fx + (dx >= 0 ? fw : 0) : fx + fw / 2;
-    const y1 = horizontal ? fy + NODE_H / 2 : fy + (dy >= 0 ? NODE_H : 0);
+    const fh = from.offsetHeight || NODE_H, th = to.offsetHeight || NODE_H; // 카드 실제 높이(목적 문구를 빼서 화면마다 다를 수 있다)
+    const y1 = horizontal ? fy + fh / 2 : fy + (dy >= 0 ? fh : 0);
     const x2 = horizontal ? tx + (dx >= 0 ? 0 : tw) : tx + tw / 2;
-    const y2 = horizontal ? ty + NODE_H / 2 : ty + (dy >= 0 ? 0 : NODE_H);
+    const y2 = horizontal ? ty + th / 2 : ty + (dy >= 0 ? 0 : th);
     const bend = Math.max(55, Math.min(180, (horizontal ? Math.abs(x2 - x1) : Math.abs(y2 - y1)) * .48));
     // 서로 되돌아오는 두 연결은 겹치지 않게 조금 벌린다(오른쪽·아래로 가는 선이 위·왼쪽).
     const paired = state.links.some((other) => other.from === link.to && other.to === link.from);
@@ -1562,7 +1564,7 @@ function drawLines() {
       path = `M ${x1} ${y1} C ${x1} ${middle}, ${endX} ${middle}, ${endX} ${y2}`;
     }
     const active = flowFocus && (flowFocus === link.from || flowFocus === link.to);
-    return `<path class="flow-link${active ? " active" : ""}${link.to === "plan-drawer" ? " panel-link" : ""}" d="${path}" marker-end="url(#flow-arrow)"><title>${escapeHtml(link.label || "화면 이동")}</title></path>`;
+    return `<path class="flow-link${active ? " active" : ""}${link.to === "plan-drawer" ? " panel-link" : ""}" d="${path}" fill="none" stroke="${active ? "#6a58d6" : "#8879d4"}" stroke-width="${active ? 3 : 2}" stroke-linecap="round" marker-end="url(#flow-arrow)"><title>${escapeHtml(link.label || "화면 이동")}</title></path>`;
   }).join("");
 }
 function focusFlowScreen(screenId) {
@@ -1572,7 +1574,7 @@ function focusFlowScreen(screenId) {
   const node = [...document.querySelectorAll(".flow-node")].find((element) => element.dataset.id === screenId);
   const scroll = $(".flow-scroll");
   if (!node || !scroll) return;
-  scroll.scrollTo({ left: (parseFloat(node.style.left) + node.offsetWidth / 2) * flowScale - scroll.clientWidth / 2, top: (parseFloat(node.style.top) + NODE_H / 2) * flowScale - scroll.clientHeight / 2, behavior: "smooth" });
+  scroll.scrollTo({ left: (parseFloat(node.style.left) + node.offsetWidth / 2) * flowScale - scroll.clientWidth / 2, top: (parseFloat(node.style.top) + node.offsetHeight / 2) * flowScale - scroll.clientHeight / 2, behavior: "smooth" });
 }
 function setFlowExpanded(expanded) {
   flowExpanded = expanded;
