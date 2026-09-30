@@ -18,10 +18,16 @@ function toolError(error: unknown): CallToolResult {
 }
 
 export function createStudyMetaMcpServer(services: StudyMetaServices): McpServer {
-  const server = new McpServer({
-    name: "studymeta-mcp",
-    version: "0.1.0",
-  });
+  // The tool list never changes at runtime. Advertising listChanged makes
+  // 2026-07-28 clients open a subscriptions/listen stream that never closes,
+  // which pins the Vercel function until it hits maxDuration.
+  const server = new McpServer(
+    {
+      name: "studymeta-mcp",
+      version: "0.1.0",
+    },
+    { capabilities: { tools: { listChanged: false } } },
+  );
 
   server.registerTool(
     "get_my_learner_context",

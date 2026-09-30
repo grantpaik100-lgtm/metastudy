@@ -321,6 +321,47 @@ test("Streamable HTTP exposes the same MCP tool contract", async () => {
   }
 });
 
+test("modern HTTP clients do not auto-open a tools listChanged stream", async () => {
+  const services = createStudyMetaServices(new MemoryRepository());
+  const { httpHandler, nodeHandler } = createStudyMetaMcpHttpHandlers(services);
+  const httpServer = createServer(async (request, response) => {
+    await nodeHandler(
+      request as Parameters<typeof nodeHandler>[0],
+      response,
+    );
+  });
+
+  await new Promise<void>((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
+  const address = httpServer.address();
+  assert(address && typeof address !== "string");
+
+  const client = new Client(
+    { name: "studymeta-modern-http-test", version: "1.0.0" },
+    { versionNegotiation: { mode: { pin: "2026-07-28" } } },
+  );
+  const transport = new StreamableHTTPClientTransport(
+    new URL(`http://127.0.0.1:${address.port}/mcp`),
+  );
+
+  try {
+    await client.connect(transport);
+    assert.equal(client.getServerCapabilities()?.tools?.listChanged, false);
+    assert.equal(client.autoOpenedSubscription, undefined);
+    const { tools } = await client.listTools();
+    assert.deepEqual(tools.map((tool) => tool.name), [
+      "get_my_learner_context",
+      "get_learner_context",
+      "record_learning_event",
+    ]);
+  } finally {
+    await client.close();
+    await httpHandler.close();
+    await new Promise<void>((resolve, reject) =>
+      httpServer.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("production and demo modes share one adaptive policy while only display changes", async () => {
   const repository = new MemoryRepository();
   const service = createStudyMetaServices(repository).learnerStateService;
