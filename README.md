@@ -36,6 +36,7 @@ tests/
   mcp.integration.test.ts        실제 MCP client 호출 테스트
 index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
+workboard/                       다운로드 작업판 복사본 + 기획/UI/MCP/백엔드 3D 구조 지도
 viewer.html                      Supabase Learner Context 검증 Viewer
 learner-card-preview.html        StudyMeta MCP Apps 카드의 독립 브라우저 미리보기 (build 생성)
 deliverables/                    제출용 IR Deck 및 발표 가이드
@@ -43,6 +44,13 @@ design.md                        학생용 UI 설계 문서
 AGENTS.md                        저장소 작업 및 Learner Model 보존 지침
 md/                              공개 저장소에서 제외되는 로컬 연구 노트
 ```
+
+## 3D 구조 지도 작업판
+
+`workboard/README.md`의 실행 안내를 따라 `workboard/server.mjs`를 실행합니다.
+기존 화면 21개와 흐름 29개를 보존하고, 59개 노드·63개 관계의 초기 연결 초안을 추가했습니다.
+노드와 연결선의 담당자·날짜·후속 과제·근거 및 수정 이력을 서버에 저장합니다.
+현재 작업은 다운로드 자료에서 복원한 별도 로컬 작업판이며 운영 학습 서비스는 변경하지 않습니다.
 
 ## Student Model 데이터 계층
 
