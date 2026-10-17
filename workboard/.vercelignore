@@ -1,0 +1,14 @@
+data/
+private/
+test-output/
+.env*
+*.json
+!package.json
+!vercel.json
+*.md
+test-*
+server.mjs
+create-seed.mjs
+cloud/schema.sql
+cloud/provision.mjs
+cloud/local.mjs

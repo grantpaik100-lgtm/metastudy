@@ -1,0 +1,9 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>로그인 · StudyMeta 작업판</title><link rel="stylesheet" href="/account.css"></head><body>
+<main><div class="eyebrow">STUDYMETA / WORKBOARD</div><section class="card"><h1>우리의 작업을 한곳에.</h1><p>기획부터 UI, MCP, 백엔드까지<br>같은 작업판에서 함께 이어가세요.</p>
+<form id="login"><label>아이디<input name="username" autocomplete="username" placeholder="이름을 입력해주세요" required maxlength="40" autofocus></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required maxlength="128"></label><button class="primary wide" type="submit">작업판 들어가기</button></form><div id="status" class="status" role="status" aria-live="polite"></div><small>등록된 팀원만 접속할 수 있어요.</small></section></main>
+<script type="module">
+const form=document.querySelector('form'),status=document.querySelector('#status');
+function safeNext(value){try{const url=new URL(value,location.origin);if(value?.startsWith('/')&&url.origin===location.origin)return url.pathname+url.search+url.hash;}catch{}return '/#spatial';}
+const next=safeNext(new URLSearchParams(location.search).get('next'));
+form.addEventListener('submit',async e=>{e.preventDefault();const button=form.querySelector('button');button.disabled=true;status.className='status';status.textContent='로그인하고 있어요…';try{const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(form)))});const data=await response.json();if(!response.ok)throw new Error(data.message);form.password.value='';location.replace(data.user.mustChangePassword?'/account.html?first=1&next='+encodeURIComponent(next):next);}catch(error){status.className='status error';status.textContent=error.message||'로그인하지 못했어요.';}finally{button.disabled=false;}});
+</script></body></html>

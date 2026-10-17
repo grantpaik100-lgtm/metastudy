@@ -1,7 +1,8 @@
 // Independent workboard UI. Screens are shared by wireframes, the flow map, and the prototype.
-// 실시간 공동 작업: 작업판 원본은 서버(server.mjs → data/board.json)에 있다.
+// 공동 작업: 클라우드는 공유 DB, 로컬 서버는 data/board.json을 원본으로 사용한다.
 // 이 브라우저의 변경은 op 하나씩 서버로 보내고, 서버가 정한 순서의 op를 모든 사람이 똑같이 적용한다.
 import { applyOp, blank, normalizeBoard, validUrl } from "./board-ops.js";
+import { cloud, identity, apiFetch, connectEvents } from "./transport.js";
 
 const KEY = "workboard-template-v1"; // 공동 작업 전 이 브라우저에만 저장하던 작업판. 서버로 옮길 때만 읽는다.
 const NAME_KEY = "workboard-collab-name";
@@ -67,7 +68,7 @@ const collab = {
   rev: 0,
   online: false,
   peers: {},
-  me: { name: storage.get(NAME_KEY) || `팀원 ${Math.floor(100 + Math.random() * 900)}`, color: COLORS[Math.floor(Math.random() * COLORS.length)] },
+  me: { name: identity?.name || storage.get(NAME_KEY) || `팀원 ${Math.floor(100 + Math.random() * 900)}`, color: COLORS[Math.floor(Math.random() * COLORS.length)] },
   editing: null,
   mode: null,
   source: null,
@@ -81,7 +82,7 @@ async function post(path, body) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" }, body: JSON.stringify(body), signal: controller.signal });
+    const response = await apiFetch(path, { method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" }, body: JSON.stringify(body), signal: controller.signal });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw Object.assign(new Error(data.message || "request failed"), { data });
     return data;
@@ -89,6 +90,10 @@ async function post(path, body) {
 }
 // 변경을 이 화면에 먼저 반영하고 서버로 보낸다. 서버가 거절하면 최신 상태로 다시 맞춘다.
 function commit(op, { quiet = false, rerender = true } = {}) {
+  if (cloud) {
+    if(op.type==='screen.move'&&!op.final) {applyOp(state,op);return true;}
+    saveCloud(op,{quiet:quiet&&op.type!=='screen.move'}).catch(()=>resync());return true;
+  }
   const result = applyOp(state, op);
   if (result.error) { if (!quiet) toast(result.message); return false; }
   if (rerender) refresh();
@@ -98,6 +103,12 @@ function commit(op, { quiet = false, rerender = true } = {}) {
   else outbox.push({ op: result.op, quiet });
   flush();
   return true;
+}
+async function saveCloud(op,{quiet=false,expectedRev=collab.rev}={}) {
+  try {
+    const response=await post('/api/op',{client:clientId,op,expectedRev,requestId:crypto.randomUUID()});
+    await resync();return response;
+  }catch(error){if(!quiet)toast(error.data?.message||error.message);throw error;}
 }
 // 보낸 순서대로 서버에 도착하도록 한 번에 하나씩 보낸다.
 async function flush() {
@@ -117,7 +128,7 @@ async function resync() {
   if (resyncing) return;
   resyncing = true;
   try {
-    const response = await fetch("/api/state", { headers: { "ngrok-skip-browser-warning": "1" } });
+    const response = await apiFetch("/api/state", { headers: { "ngrok-skip-browser-warning": "1" } });
     if (response.ok) { const data = await response.json(); replaceState(data.board, data.rev); }
   } catch { /* 연결이 돌아오면 hello 이벤트가 다시 전체 상태를 보낸다. */ }
   finally { resyncing = false; }
@@ -174,9 +185,10 @@ function setEditing(itemId, mode = "edit") {
 }
 function initials(name) { return [...String(name).trim()].slice(0, 1).join("") || "?"; }
 function renderPresence() {
-  const peers = Object.entries(collab.peers);
+  const peers = cloud ? [...new Map(Object.entries(collab.peers).map(pair=>[pair[1].userId,pair])).values()] : Object.entries(collab.peers);
   const list = peers.map(([peerId, peer]) => `<span class="collab-chip" style="--collab-color:${escapeHtml(peer.color)}" title="${escapeHtml(peer.name)}${peerId === clientId ? " (나)" : ""}"><b>${escapeHtml(initials(peer.name))}</b><span>${escapeHtml(peer.name)}${peerId === clientId ? " · 나" : ""}</span></span>`).join("");
   $("#collab-presence").innerHTML = `<span class="collab-status ${collab.online ? "online" : "offline"}"><i></i>${collab.online ? `${peers.length}명 접속 중` : "연결 끊김 · 다시 연결 중"}</span><span class="collab-chips">${list}</span><button class="ghost-button collab-rename" data-action="rename">이름 바꾸기</button>`;
+  if(cloud) $(".collab-rename").outerHTML='<a class="ghost-button" href="/account.html">계정 · AI 연결</a>';
   decoratePresence();
 }
 // 다른 사람이 편집하거나 옮기고 있는 카드에 테두리와 이름표를 붙인다.
@@ -198,7 +210,7 @@ function decoratePresence() {
 }
 function connect() {
   const params = new URLSearchParams({ client: clientId, name: collab.me.name, color: collab.me.color });
-  const source = new EventSource(`/api/events?${params}`);
+  const source = connectEvents(`/api/events?${params}`);
   collab.source = source;
   source.addEventListener("hello", (event) => {
     const data = JSON.parse(event.data);
@@ -266,7 +278,11 @@ function home() {
   ${roomCard("flow", "03 / CONNECT", "흐름도", "화면을 배치하고 이동 경로를 연결합니다.", `${state.links.length}개 연결`)}
   ${roomCard("prototype", "04 / EXPERIENCE", "목업 · 프로토타입", "같은 화면을 폰에서 누르며 사용 흐름을 검토합니다.", `${screenCount}개 화면`)}
   </div></section><section class="home-strip"><div><span class="eyebrow">START HERE</span><h2>첫 화면을 만들면 세 공간이 함께 채워집니다.</h2><p>와이어프레임에서 화면을 추가하고 흐름도에서 연결하세요. 프로토타입에 이동 버튼이 자동으로 생깁니다.</p></div><button class="outline-button" data-action="add-screen">화면 추가하기 →</button></section>
-  <section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>AI와 함께 쓰는 방법</h2></div><span>AI 대화는 평소 사용하는 도구에서 진행합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>작업판의 현재 상태를 AI에게 건네세요.</h3><p>AI가 실험 가설, 화면 구성, 연결을 제안하거나 JSON을 수정하도록 요청할 수 있습니다. 이 버튼은 현재 작업판 데이터와 형식을 요청문에 담아 복사합니다.</p><button class="primary-button" data-action="copy-ai-prompt">AI 요청문 복사 →</button><small>클립보드에만 복사됩니다. 원하는 AI 대화창에 직접 붙여 넣으세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>복사해 AI에게 전달</strong><small>프로젝트 목표와 원하는 작업을 요청문에 덧붙입니다.</small></span></div><div><b>02</b><span><strong>결과를 검토</strong><small>화면 이름, 연결, 문구를 확인하고 JSON으로 저장합니다.</small></span></div><div><b>03</b><span><strong>불러와 직접 눌러보기</strong><small>상단 불러오기로 반영하고 흐름도와 프로토타입을 확인합니다.</small></span></div></div></div><p class="ai-guide-note">작업판의 디자인·기능 자체를 바꾸려면 이 폴더를 AI 코딩 도구에서 열고 원하는 변경을 요청하세요. 작업판 데이터는 서버를 켠 컴퓨터의 <b>data/board.json</b>에 저장되고, 접속한 모든 팀원에게 실시간으로 반영됩니다. AI에게 건넬 때는 <b>내보내기</b>나 AI 요청문 복사를 사용하세요.</p></section>`;
+  ${aiGuide()}`;
+}
+function aiGuide() {
+  if(cloud) return `<section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>대화에서 결정하고, 작업판에 남겨요.</h2></div><span>평소 사용하는 AI와 연결합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>지금 쓰는 AI에 작업판을 연결하세요.</h3><p>AI와 아이디어를 검토한 뒤 “이 결정을 작업판에 반영해줘”라고 요청하세요. 연결된 AI가 관련 노드와 선을 읽고, 요청한 내용을 저장합니다.</p><a class="primary-button" href="/account.html">내 계정에서 AI 연결 →</a><small>각자 본인의 작업판 계정으로 연결해 주세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>한 번 연결하기</strong><small>계정 화면의 MCP 주소를 AI 앱에 등록하고 접근을 승인합니다.</small></span></div><div><b>02</b><span><strong>대화에서 변경 요청</strong><small>담당자, 후속 과제, 노드와 연결을 어떻게 바꿀지 알려주세요.</small></span></div><div><b>03</b><span><strong>함께 확인하기</strong><small>저장한 내용은 팀원들의 작업판에 반영되고 수정자와 변경 이력이 남습니다.</small></span></div></div></div><p class="ai-guide-note">작업판은 공유 저장소에 보관됩니다. 작업판을 열어 둔 컴퓨터가 없어도 다른 팀원이 접속할 수 있어요. AI가 작업판에 남긴 결정은 3D 구조 지도와 계정 화면의 변경 이력에서 확인하세요.</p></section>`;
+  return `<section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>AI와 함께 쓰는 방법</h2></div><span>AI 대화는 평소 사용하는 도구에서 진행합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>작업판의 현재 상태를 AI에게 건네세요.</h3><p>AI가 실험 가설, 화면 구성, 연결을 제안하거나 JSON을 수정하도록 요청할 수 있습니다. 이 버튼은 현재 작업판 데이터와 형식을 요청문에 담아 복사합니다.</p><button class="primary-button" data-action="copy-ai-prompt">AI 요청문 복사 →</button><small>클립보드에만 복사됩니다. 원하는 AI 대화창에 직접 붙여 넣으세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>복사해 AI에게 전달</strong><small>프로젝트 목표와 원하는 작업을 요청문에 덧붙입니다.</small></span></div><div><b>02</b><span><strong>결과를 검토</strong><small>화면 이름, 연결, 문구를 확인하고 JSON으로 저장합니다.</small></span></div><div><b>03</b><span><strong>불러와 직접 눌러보기</strong><small>상단 불러오기로 반영하고 흐름도와 프로토타입을 확인합니다.</small></span></div></div></div><p class="ai-guide-note">작업판의 디자인·기능 자체를 바꾸려면 이 폴더를 AI 코딩 도구에서 열고 원하는 변경을 요청하세요. 작업판 데이터는 서버를 켠 컴퓨터의 <b>data/board.json</b>에 저장되고, 접속한 모든 팀원에게 실시간으로 반영됩니다. AI에게 건넬 때는 <b>내보내기</b>나 AI 요청문 복사를 사용하세요.</p></section>`;
 }
 function aiPrompt() {
   return `당신은 내 프로젝트의 UI 설계 협업자입니다. 아래 작업판 JSON을 현재 상태로 사용하세요.\n\n프로젝트 목표: [여기에 적기]\n이번에 원하는 작업: [실험 가설 / 화면 추가·수정 / 화면 흐름 연결 중 구체적으로 적기]\n\n규칙:\n- 기존 id와 작성된 내용을 임의로 지우지 마세요.\n- 결과는 설명이나 코드펜스 없이, 가져오기 가능한 JSON 객체 하나만 반환하세요.\n- 최상위 필드는 version(1), projectName, screens, experiments, links입니다.\n- 새 화면: {"id":"고유한-문자열","title":"화면 이름","purpose":"목적","sections":"블록1\\n블록2","actionLabel":"버튼 문구","url":"","status":"작업 중","x":60,"y":80}\n- 새 실험: {"id":"고유한-문자열","title":"실험 이름","question":"검증할 질문","url":"","status":"진행 중"}\n- 새 연결: {"id":"고유한-문자열","from":"출발 화면 id","to":"도착 화면 id","label":"이동 버튼 문구"}\n- links의 from/to는 반드시 screens에 있는 id를 가리켜야 합니다.\n- 화면 URL은 없으면 빈 문자열로 둡니다.\n\n현재 작업판 JSON:\n${JSON.stringify(state, null, 2)}`;
@@ -340,7 +356,7 @@ function render() {
     if (!$('#spatial-frame')) $('#app').innerHTML = '<iframe id="spatial-frame" title="기획·UI·MCP·백엔드 3D 구조 지도" src="./spatial.html?embed=1" style="width:100%;height:calc(100vh - 140px);min-height:700px;border:0;border-radius:16px"></iframe>';
     return;
   }
-  $("#app").innerHTML = ready ? ({ home, lab, wireframe, flow, prototype })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>작업판 서버가 켜져 있는지 확인해 주세요.</p></div>`;
+  $("#app").innerHTML = ready ? ({ home, lab, wireframe, flow, prototype })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>${cloud ? "공유 작업판을 불러오고 있어요. 연결이 지연되면 잠시 후 새로고침해주세요." : "작업판 서버가 켜져 있는지 확인해 주세요."}</p></div>`;
   if (ready && route === "flow") { applyScale(); drawLines(); }
   decoratePresence();
 }
@@ -355,7 +371,7 @@ const experimentPayload = (source) => ({ title: String(source.title || "").trim(
 const changedFields = (next, before) => Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== before[key]));
 function openEditor(kind, item = null) {
   const original = kind === "screen" && item ? screenPayload(item) : kind === "experiment" && item ? experimentPayload(item) : null;
-  editContext = { kind, id: item?.id || null, original };
+  editContext = { kind, id: item?.id || null, original, rev: collab.rev };
   const titles = { project: "프로젝트 이름", screen: item ? "화면 편집" : "화면 추가", experiment: item ? "실험 편집" : "실험 추가", link: "화면 연결", nickname: "내 이름" };
   $("#editor-title").textContent = titles[kind];
   let html = "";
@@ -375,11 +391,27 @@ function closeEditor() {
   editContext = null;
   if (collab.editing) setEditing(null);
 }
-function submitEditor(event) {
+async function submitEditor(event) {
   event.preventDefault();
   if (!editContext) return;
   const values = Object.fromEntries(new FormData(event.currentTarget).entries());
   const kind = editContext.kind;
+  if(cloud&&kind!=='nickname') {
+    let op;
+    if(kind==='project') {const projectName=String(values.projectName||'').trim();if(!projectName)return;op={type:'project',projectName};}
+    if(kind==='screen'||kind==='experiment') {
+      const payload=kind==='screen'?screenPayload(values):experimentPayload(values);
+      if(!payload.title)return;
+      if(values.url&&!payload.url){toast('올바른 화면 주소를 입력해주세요.');return;}
+      op=editContext.id?{type:kind+'.update',id:editContext.id,fields:changedFields(payload,editContext.original)}:{type:kind+'.create',item:{id:id(),...payload}};
+    }
+    if(kind==='link')op={type:'link.create',item:{id:id(),...values}};
+    if(!op)return;
+    const submit=event.submitter;submit.disabled=true;
+    try{await saveCloud(op,{expectedRev:editContext.rev});closeEditor();toast('공유 작업판에 저장했습니다.');}
+    catch{const notice=$('#collab-notice');if(notice){notice.hidden=false;notice.textContent='저장하지 못했어요. 현재 초안은 그대로 남아 있습니다. 취소 후 최신 내용을 열어 확인해주세요.';}}
+    finally{submit.disabled=false;}return;
+  }
   if (kind === "nickname") {
     collab.me.name = String(values.nickname || "").trim().slice(0, 20) || collab.me.name;
     storage.set(NAME_KEY, collab.me.name);
@@ -433,19 +465,27 @@ function exportData() {
   toast("작업판 JSON을 내보냈습니다.");
 }
 async function importData(file) {
+  let data;
   try {
-    const data = normalizeBoard(JSON.parse(await file.text()));
+    data = normalizeBoard(JSON.parse(await file.text()));
     if (!data) throw new Error("invalid");
-    if (!confirm("접속한 모든 팀원의 작업판이 선택한 파일 내용으로 바뀝니다. 바꾸기 직전 상태는 서버의 data/backups/에 자동으로 백업됩니다. 계속할까요?")) return;
-    selectedScreen = null;
-    if (commit({ type: "replace", board: data })) toast("작업판을 불러왔습니다.");
-  } catch { toast("작업판 JSON 파일을 읽을 수 없습니다."); }
+  } catch { toast("작업판 JSON 파일을 읽을 수 없습니다."); return; }
   finally { $("#import-file").value = ""; }
+  const backup = cloud ? "이전 상태는 변경 이력에 보관됩니다." : "바꾸기 직전 상태는 서버의 data/backups/에 자동으로 백업됩니다.";
+  if (!confirm(`접속한 모든 팀원의 작업판이 선택한 파일 내용으로 바뀝니다. ${backup} 계속할까요?`)) return;
+  try {
+    selectedScreen = null;
+    if (cloud) { await saveCloud({ type: "replace", board: data }); toast("작업판을 불러왔습니다."); }
+    else if (commit({ type: "replace", board: data })) toast("작업판을 불러왔습니다.");
+  } catch { /* saveCloud가 저장 실패 이유를 표시한다. */ }
 }
-function remove(kind, itemId) {
+async function remove(kind, itemId) {
   const label = kind === "screen" ? "화면과 연결" : kind === "experiment" ? "실험" : "연결";
   if (!confirm(`${label}을 삭제할까요? 모든 팀원의 작업판에서 함께 삭제됩니다.`)) return;
-  if (commit({ type: `${kind}.delete`, id: itemId })) toast("삭제했습니다.");
+  try {
+    if (cloud) { await saveCloud({ type: `${kind}.delete`, id: itemId }); toast("삭제했습니다."); }
+    else if (commit({ type: `${kind}.delete`, id: itemId })) toast("삭제했습니다.");
+  } catch { /* saveCloud가 저장 실패 이유를 표시한다. */ }
 }
 document.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action]");
@@ -517,4 +557,4 @@ document.addEventListener("pointercancel", endDrag);
 render();
 renderPresence();
 connect();
-if (!storage.get(NAME_KEY)) openEditor("nickname");
+if (!cloud && !storage.get(NAME_KEY)) openEditor("nickname");

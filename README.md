@@ -36,7 +36,10 @@ tests/
   mcp.integration.test.ts        실제 MCP client 호출 테스트
 index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
-workboard/                       다운로드 작업판 복사본 + 기획/UI/MCP/백엔드 3D 구조 지도
+workboard/                       공동 작업판 + 기획/UI/MCP/백엔드 3D 구조 지도
+  cloud/                          공유 DB·로그인·OAuth·MCP·배포 준비
+  api/gateway.js                  작업판 전용 Vercel API
+  CLOUD-GUIDE.md                  세 사람 공동 사용·AI 연결·운영 안내
 viewer.html                      Supabase Learner Context 검증 Viewer
 learner-card-preview.html        StudyMeta MCP Apps 카드의 독립 브라우저 미리보기 (build 생성)
 deliverables/                    제출용 IR Deck 및 발표 가이드
