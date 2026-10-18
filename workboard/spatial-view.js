@@ -69,6 +69,12 @@ export function createSpatialView({stage,scene,getState,choose,traceFrom,openPla
   const s=state(),r=scene.getBoundingClientRect(),anchors=new Map();
   world.querySelectorAll('[data-anchor],[data-screen-anchor]').forEach(el=>{const b=el.getBoundingClientRect();if(!b.width||!b.height)return;anchors.set(el.dataset.anchor||el.dataset.screenAnchor,{left:b.left-r.left,right:b.right-r.left,top:b.top-r.top,bottom:b.bottom-r.top,x:b.x+b.width/2-r.x,y:b.y+b.height/2-r.y});});
   svg.setAttribute('viewBox',`0 0 ${r.width} ${r.height}`);svg.innerHTML='<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker></defs>';
+  // Connections may pass behind other cards. Clip both paint and hit-testing out
+  // of their interiors, so a relationship can never steal a node/button click.
+  const clip=document.createElementNS(NS,'clipPath');clip.id='relation-gaps';clip.setAttribute('clipPathUnits','userSpaceOnUse');
+  const cutout=document.createElementNS(NS,'path');let holes=`M0,0H${r.width}V${r.height}H0Z`;
+  world.querySelectorAll('.map-node,.file-anchor,.preview-anchor,.screen-destinations button').forEach(el=>{const b=el.getBoundingClientRect();if(b.width<4||b.height<4)return;const x=b.left-r.left+2,y=b.top-r.top+2;holes+=` M${x},${y}h${b.width-4}v${b.height-4}h${4-b.width}Z`;});
+  cutout.setAttribute('d',holes);cutout.setAttribute('clip-rule','evenodd');clip.append(cutout);svg.querySelector('defs').append(clip);
   const byId=new Map(s.allNodes.map(n=>[n.id,n]));
   const relevant=s.edges.filter(e=>anchors.has(e.from)&&anchors.has(e.to));
   for(const [i,e] of relevant.entries()){
@@ -78,6 +84,7 @@ export function createSpatialView({stage,scene,getState,choose,traceFrom,openPla
    else if(Math.abs(a.x-b.x)>Math.abs(a.y-b.y)*.65){const forward=b.x>a.x;ax=forward?a.right:a.left;ay=a.y;bx=forward?b.left:b.right;by=b.y;const bend=Math.max(30,Math.abs(bx-ax)*.5);d=`M${ax},${ay} C${ax+(forward?bend:-bend)},${ay} ${bx+(forward?-bend:bend)},${by} ${bx},${by}`;lx=(ax+bx)/2;ly=(ay+by)/2;}
    else{const down=b.y>a.y;ax=a.x;ay=down?a.bottom:a.top;bx=b.x;by=down?b.top:b.bottom;const bend=Math.max(30,Math.abs(by-ay)*.5);d=`M${ax},${ay} C${ax},${ay+(down?bend:-bend)} ${bx},${by+(down?-bend:bend)} ${bx},${by}`;lx=(ax+bx)/2;ly=(ay+by)/2;}
    const group=document.createElementNS(NS,'g');group.setAttribute('class','spatial-relation'+(same?' internal':' cross')+(e.evidence==='code'?' verified':' draft')+(e.id===s.selected||e.from===s.selected||e.to===s.selected?' selected':''));group.dataset.select=e.id;group.dataset.from=e.from;group.dataset.to=e.to;group.setAttribute('tabindex','0');group.setAttribute('role','button');group.setAttribute('aria-label',`${byId.get(e.from)?.title} → ${e.title} → ${byId.get(e.to)?.title} · ${evidenceLabel(e)}`);
+   group.setAttribute('clip-path','url(#relation-gaps)');
    const line=document.createElementNS(NS,'path');line.setAttribute('d',d);line.setAttribute('class','spatial-link');line.setAttribute('marker-end','url(#arrow)');group.append(line);
    const hit=document.createElementNS(NS,'path');hit.setAttribute('d',d);hit.setAttribute('class','link-hit');group.append(hit);
    const dot=document.createElementNS(NS,'circle');dot.setAttribute('cx',ax);dot.setAttribute('cy',ay);dot.setAttribute('r','3');dot.setAttribute('class','link-origin');group.append(dot);

@@ -33,3 +33,4 @@
 .map-mode .spatial-relation.internal .link-label{opacity:1;font-size:9px}.narrow-world .face{width:var(--map-mobile-width)!important}.narrow-world .map-code-files,.narrow-world .map-tables{grid-template-columns:1fr}.narrow-world .face-body{padding:14px 18px}.narrow-world .face-head h3{font-size:16px}.narrow-world .map-node strong{font-size:14px}
 .map-mode .stage-controls{top:8px;bottom:auto;left:auto;right:12px;transform:none;flex-wrap:wrap;max-width:calc(100% - 24px);z-index:4}.map-mode .stage-help{top:55px}.map-mode .stage-controls button{font-size:11px;padding:4px 8px}
 .map-mode .stage-help{top:10px;max-width:40%}@media(max-width:700px){.map-mode .stage-help{display:none}}
+.map-mode .world{pointer-events:none}.map-mode .face{pointer-events:auto}
