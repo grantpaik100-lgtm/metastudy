@@ -81,7 +81,7 @@ MCP는 노드·선 삭제나 작업판 전체 교체를 제공하지 않는다. 
    `WORKBOARD_USERNAMES`는 로컬 계정 생성용이며 배포 환경에 필요 없다.
 5. `node test-cloud.mjs`, `node test-spatial.mjs`를 실행하고 `vercel deploy --prod`로 배포한다.
 
-배포 파일에는 명시한 화면 12개와 서버 코드만 포함된다. `private/`, `.env*`, `data/`, 테스트 결과,
+배포 파일에는 명시한 화면·스타일·스크립트 17개와 서버 코드만 포함된다. `private/`, `.env*`, `data/`, 테스트 결과,
 초기 작업판 JSON과 SQL 파일은 공개 정적 자산에서 제외한다. Git 자동 배포는 연결하지 않는다.
 이 저장소의 학습자 데모 및 다른 Vercel 프로젝트에 영향을 주지 않기 위한 분리다.
 

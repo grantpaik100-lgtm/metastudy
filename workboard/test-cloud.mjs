@@ -15,7 +15,7 @@ const store=createStore({url:process.env.SUPABASE_URL,key:process.env.SUPABASE_S
 const seed=JSON.parse(readFileSync(new URL('./study-spatial-seed.json',import.meta.url),'utf8'));
 const users=['A','B','C'].map(suffix=>({id:randomUUID(),username:'검증-'+tag+'-'+suffix,password:randomBytes(18).toString('base64url')}));
 const clients=[],checks=[],errors=[];
-const assets=new Set(['index.html','app.js','styles.css','collab.css','spatial.html','board-ops.js','spatial-ops.js','transport.js','login.html','account.html','authorize.html','account.css']);
+const assets=new Set(['index.html','app.js','styles.css','collab.css','spatial.html','spatial-view.js','structure.css','plane-content.js','product-ui-preview.html','product-preview-bridge.js','board-ops.js','spatial-ops.js','transport.js','login.html','account.html','authorize.html','account.css']);
 let handler,browser;
 const server=http.createServer(async(req,res)=>{
   const path=new URL(req.url,'http://localhost').pathname;
@@ -87,6 +87,10 @@ try {
   const invalid=await rpc(token,'update_workboard',{requestId:randomUUID(),reason:'원자성 검증',operations:[{type:'spatial.node.update',id:node.id,expectedVersion:3,fields:{owner:'저장되면 안 됨'}},{type:'spatial.edge.create',item:{id:randomUUID(),title:'잘못된 연결',from:node.id,to:'missing'}}]});
   assert.equal(invalid.data.result.isError,true);assert.equal((await store.snapshot()).rev,beforeRev);
   const updated=await rpc(token,'update_workboard',{requestId:randomUUID(),reason:'AI 연결 검증',operations:[{type:'spatial.node.update',id:node.id,expectedVersion:3,fields:{followup:'AI가 기록한 후속 과제'}}]});assert.equal(updated.data.result.structuredContent.ok,true);
+  const structureId='test-structure-'+tag;
+  const structureCreate=await rpc(token,'update_workboard',{requestId:randomUUID(),reason:'구조 메타데이터 검증',operations:[{type:'spatial.node.create',item:{id:structureId,title:'구조 검증',plane:'backend',kind:'function',filePath:'src/pilot/example.ts',symbol:'Example.run',evidence:'code',codeRef:'fixture-ref',description:'가상 코드'}}]});assert.equal(structureCreate.data.result.structuredContent.ok,true);
+  const structureSearch=await rpc(token,'search_workboard',{query:'src/pilot/example.ts'});assert.equal(structureSearch.data.result.structuredContent.items[0].symbol,'Example.run');
+  const structureRead=await rpc(token,'get_workboard',{id:structureId});assert.equal(structureRead.data.result.structuredContent.item.codeRef,'fixture-ref');checks.push('MCP file/symbol metadata storage and search');
   const history=await store.history();assert.equal(history[0].channel,'mcp');assert.equal(history[0].actor,users[0].username);
   assert.equal((await store.snapshot()).board.spatial.nodes[0].updatedBy,users[0].username+' · AI');
   await store.patch('sessions',{user_id:`eq.${users[0].id}`,kind:'eq.access'},{expires_at:new Date(Date.now()-1000).toISOString()});
@@ -116,7 +120,7 @@ try {
   const contextA=await browser.newContext({viewport:{width:1520,height:1000}}),contextB=await browser.newContext({viewport:{width:1400,height:950}});
   const pageA=await contextA.newPage(),pageB=await contextB.newPage();
   for(const page of [pageA,pageB])page.on('pageerror',e=>errors.push(e.message));
-  async function browserLogin(page,user){await page.goto(origin+'/spatial.html');await page.waitForURL('**/login.html?**');await page.locator('[name=username]').fill(user.username);await page.locator('[name=password]').fill(user.password);await page.getByRole('button',{name:'작업판 들어가기'}).click();await page.waitForURL('**/spatial.html');await page.getByText('서버 연결됨',{exact:true}).waitFor();if(page.viewportSize().width<600)await page.locator('#element-tree > summary').click();await page.locator('[data-select="'+node.id+'"]').first().click();}
+  async function browserLogin(page,user){await page.goto(origin+'/spatial.html');await page.waitForURL('**/login.html?**');await page.locator('[name=username]').fill(user.username);await page.locator('[name=password]').fill(user.password);await page.getByRole('button',{name:'작업판 들어가기'}).click();await page.waitForURL('**/spatial.html');await page.getByText('서버 연결됨',{exact:true}).waitFor();await page.locator('#element-tree').evaluate(el=>el.open=true);await page.locator('[data-select="'+node.id+'"]').first().click();}
   await pageA.goto(origin+'/login.html');await pageA.screenshot({path:new URL('cloud-login.png',out).pathname.replace(/^\/([A-Za-z]:)/,'$1'),fullPage:true});
   await browserLogin(pageA,users[0]);await browserLogin(pageB,users[1]);
   await pageA.locator('[name=followup]').fill('브라우저 공동 편집 검증');await pageA.getByRole('button',{name:'변경 저장',exact:true}).click();

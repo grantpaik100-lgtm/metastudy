@@ -5,7 +5,7 @@ export const STATES = ['기획', '구현', '검증', '운영', '확인 필요'];
 const text = (v, n = 4000) => String(v ?? '').slice(0, n);
 const idOk = v => typeof v === 'string' && /^[\w.-]{1,120}$/.test(v);
 const date = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) ? v : '';
-const keys = ['title','description','owner','followup','status','introduced','planned','implemented','deployed','source','feature','parentId','plane','from','to','x','y'];
+const keys = ['title','description','owner','followup','status','introduced','planned','implemented','deployed','source','feature','parentId','plane','from','to','x','y','kind','filePath','symbol','codeRef','codeExcerpt','uiScreen','uiSelector','toolName','relation','evidence'];
 function fields(input = {}) {
   const out = {};
   for (const key of keys) {

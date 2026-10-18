@@ -40,6 +40,12 @@ workboard/                       공동 작업판 + 기획/UI/MCP/백엔드 3D �
   cloud/                          공유 DB·로그인·OAuth·MCP·배포 준비
   api/gateway.js                  작업판 전용 Vercel API
   CLOUD-GUIDE.md                  세 사람 공동 사용·AI 연결·운영 안내
+  STRUCTURE-GUIDE.md              네 상세 공간·실제 UI·소스 근거와 3D 면 사용 안내
+  spatial-view.js / structure.css 실제 네 면의 회전·연결선·상세 공간
+  plane-content.js               기획 위계·UI 흐름·MCP 요청·파일/함수 구조 표현
+  product-ui-preview.html        가상 데이터로 실행하는 제품 UI 소스 스냅샷
+  build-structure.mjs            제품 소스에서 코드 관계와 미리보기 생성
+  structure-import.mjs          기존 팀 편집을 보존하는 구조 데이터 추가
 viewer.html                      Supabase Learner Context 검증 Viewer
 learner-card-preview.html        StudyMeta MCP Apps 카드의 독립 브라우저 미리보기 (build 생성)
 deliverables/                    제출용 IR Deck 및 발표 가이드

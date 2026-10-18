@@ -12,3 +12,7 @@ create-seed.mjs
 cloud/schema.sql
 cloud/provision.mjs
 cloud/local.mjs
+
+build-structure.mjs
+structure-import.mjs
+cloud/import-structure.mjs

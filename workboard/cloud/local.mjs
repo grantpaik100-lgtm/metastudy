@@ -5,7 +5,7 @@ import {createHandler} from './handler.mjs';
 try{process.loadEnvFile(fileURLToPath(new URL('../.env.local',import.meta.url)));}catch{}
 const port=Number(process.env.PORT)||4176;
 const handler=createHandler();
-const assets=new Set(['index.html','app.js','styles.css','collab.css','spatial.html','board-ops.js','spatial-ops.js','transport.js','login.html','account.html','authorize.html','account.css']);
+const assets=new Set(['index.html','app.js','styles.css','collab.css','spatial.html','spatial-view.js','structure.css','plane-content.js','product-ui-preview.html','product-preview-bridge.js','board-ops.js','spatial-ops.js','transport.js','login.html','account.html','authorize.html','account.css']);
 http.createServer(async(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
   if(pathname.startsWith('/api/')||pathname.startsWith('/oauth/')||pathname.startsWith('/.well-known/')||pathname==='/mcp')return handler(req,res);

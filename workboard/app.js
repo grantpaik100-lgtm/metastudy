@@ -10,8 +10,8 @@ const MIGRATED_KEY = "workboard-collab-migrated";
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const id = () => globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const routeNames = { home: "작업판", todos: "할 일", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", spatial: "3D 구조 지도" };
-const routeIcons = { home: "⌂", todos: "☷", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", spatial: "◇" };
+const routeNames = { home: "작업판", todos: "할 일", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", spatial: "3D 구조 지도", idea: "기획·아이디어", ux: "UI/UX", mcp: "MCP", backend: "백엔드" };
+const routeIcons = { home: "⌂", todos: "☷", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", spatial: "◇", idea: "↳", ux: "↳", mcp: "↳", backend: "↳" };
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { /* 저장소를 쓸 수 없어도 작업판은 열린다. */ } },
@@ -250,12 +250,12 @@ function toast(message) {
   toastTimer = setTimeout(() => element.classList.remove("show"), 2800);
 }
 function currentRoute() {
-  const route = location.hash.replace(/^#/, "");
+  const route = location.hash.replace(/^#/, "").split("/")[0];
   return routeNames[route] ? route : "home";
 }
 function nav() {
   const active = currentRoute();
-  $("#nav").innerHTML = Object.entries(routeNames).map(([route, label]) => `<a href="#${route}" class="nav-item ${active === route ? "active" : ""}" ${active === route ? 'aria-current="page"' : ""}><span class="nav-icon">${routeIcons[route]}</span><span>${label}</span>${route === "home" ? "" : '<span class="nav-arrow">↗</span>'}</a>`).join("");
+  $("#nav").innerHTML = Object.entries(routeNames).map(([route, label]) => `<a href="#${route}" class="nav-item ${["idea","ux","mcp","backend"].includes(route)?"nav-subitem":""} ${active === route ? "active" : ""}" ${active === route ? 'aria-current="page"' : ""}><span class="nav-icon">${routeIcons[route]}</span><span>${label}</span>${route === "home" ? "" : '<span class="nav-arrow">↗</span>'}</a>`).join("");
   $("#project-breadcrumb").textContent = state.projectName;
   $("#page-breadcrumb").textContent = routeNames[active];
   document.title = `${routeNames[active]} · ${state.projectName}`;
@@ -364,8 +364,10 @@ function drawLines() {
 function render() {
   nav();
   const route = currentRoute();
-  if (ready && route === 'spatial') {
-    if (!$('#spatial-frame')) $('#app').innerHTML = '<iframe id="spatial-frame" title="기획·UI·MCP·백엔드 3D 구조 지도" src="./spatial.html?embed=1" style="width:100%;height:calc(100vh - 140px);min-height:700px;border:0;border-radius:16px"></iframe>';
+  if (ready && ['spatial','idea','ux','mcp','backend'].includes(route)) {
+    const selection=location.hash.split('/')[1]||'';
+    const src='./spatial.html?embed=1'+(route==='spatial'?'':'&plane='+route)+(selection?'&selected='+encodeURIComponent(decodeURIComponent(selection)):'');
+    if ($('#spatial-frame')?.getAttribute('src')!==src) $('#app').innerHTML='<iframe id="spatial-frame" title="'+escapeHtml(routeNames[route])+'" src="'+escapeHtml(src)+'" style="width:100%;height:calc(100vh - 140px);min-height:900px;border:0;border-radius:16px"></iframe>';
     return;
   }
   $("#app").innerHTML = ready ? ({ home, todos, lab, wireframe, flow, prototype })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>${cloud ? "공유 작업판을 불러오고 있어요. 연결이 지연되면 잠시 후 새로고침해주세요." : "작업판 서버가 켜져 있는지 확인해 주세요."}</p></div>`;
