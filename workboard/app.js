@@ -3,6 +3,7 @@
 // 이 브라우저의 변경은 op 하나씩 서버로 보내고, 서버가 정한 순서의 op를 모든 사람이 똑같이 적용한다.
 import { applyOp, blank, normalizeBoard, validUrl } from "./board-ops.js";
 import { cloud, identity, apiFetch, connectEvents } from "./transport.js";
+import { showMeetings, hideMeetings, startMeetingNotices } from './meetings.js';
 
 const KEY = "workboard-template-v1"; // 공동 작업 전 이 브라우저에만 저장하던 작업판. 서버로 옮길 때만 읽는다.
 const NAME_KEY = "workboard-collab-name";
@@ -10,8 +11,8 @@ const MIGRATED_KEY = "workboard-collab-migrated";
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const id = () => globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const routeNames = { home: "작업판", todos: "할 일", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", spatial: "3D 구조 지도", idea: "기획·아이디어", ux: "UI/UX", mcp: "MCP", backend: "백엔드" };
-const routeIcons = { home: "⌂", todos: "☷", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", spatial: "◇", idea: "↳", ux: "↳", mcp: "↳", backend: "↳" };
+const routeNames = { home: "작업판", todos: "할 일", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", spatial: "3D 구조 지도", idea: "기획·아이디어", ux: "UI/UX", mcp: "MCP", backend: "백엔드", chat:'채팅', meetings:'음성회의' };
+const routeIcons = { home: "⌂", todos: "☷", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", spatial: "◇", idea: "↳", ux: "↳", mcp: "↳", backend: "↳", chat:'#', meetings:'◉' };
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { /* 저장소를 쓸 수 없어도 작업판은 열린다. */ } },
@@ -255,7 +256,7 @@ function currentRoute() {
 }
 function nav() {
   const active = currentRoute();
-  $("#nav").innerHTML = Object.entries(routeNames).map(([route, label]) => `<a href="#${route}" class="nav-item ${["idea","ux","mcp","backend"].includes(route)?"nav-subitem":""} ${active === route ? "active" : ""}" ${active === route ? 'aria-current="page"' : ""}><span class="nav-icon">${routeIcons[route]}</span><span>${label}</span>${route === "home" ? "" : '<span class="nav-arrow">↗</span>'}</a>`).join("");
+  $("#nav").innerHTML = Object.entries(routeNames).map(([route, label]) => `${route==='chat'?'<div class="meeting-nav-label">회의</div>':''}<a href="#${route}" class="nav-item ${["idea","ux","mcp","backend"].includes(route)?"nav-subitem":""} ${active === route ? "active" : ""}" ${active === route ? 'aria-current="page"' : ""}><span class="nav-icon">${routeIcons[route]}</span><span>${label}</span>${route === "home" ? "" : '<span class="nav-arrow">↗</span>'}</a>`).join("");
   $("#project-breadcrumb").textContent = state.projectName;
   $("#page-breadcrumb").textContent = routeNames[active];
   document.title = `${routeNames[active]} · ${state.projectName}`;
@@ -364,6 +365,8 @@ function drawLines() {
 function render() {
   nav();
   const route = currentRoute();
+  if(ready&&['chat','meetings'].includes(route)){$('#app').hidden=true;showMeetings(route,location.hash.split('/')[1]);return;}
+  $('#app').hidden=false;hideMeetings();
   if (ready && ['spatial','idea','ux','mcp','backend'].includes(route)) {
     const selection=location.hash.split('/')[1]||'';
     const src='./spatial.html?embed=1'+(route==='spatial'?'':'&plane='+route)+(selection?'&selected='+encodeURIComponent(decodeURIComponent(selection)):'');
@@ -529,6 +532,7 @@ $("#editor-form").addEventListener("submit", submitEditor);
 $("#editor").addEventListener("close", () => { editContext = null; if (collab.editing) setEditing(null); }); // Esc로 닫아도 편집 중 표시를 지운다.
 $("#import-file").addEventListener("change", (event) => { if (event.target.files[0]) importData(event.target.files[0]); });
 window.addEventListener("hashchange", () => { render(); $("#app").focus(); });
+startMeetingNotices();
 
 document.addEventListener("wheel", (event) => {
   if (!(event.ctrlKey || event.metaKey)) return;

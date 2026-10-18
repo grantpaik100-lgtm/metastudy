@@ -9,13 +9,14 @@ import {createRequire} from 'node:module';
 import {createStore} from './cloud/store.mjs';
 import {createHandler} from './cloud/handler.mjs';
 import {passwordHash} from './cloud/auth.mjs';
+import {assets as publicAssets} from './cloud/assets.mjs';
 process.loadEnvFile(new URL('./.env.local',import.meta.url));
 const tag=randomBytes(5).toString('hex'),boardId='test-'+tag;
 const store=createStore({url:process.env.SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY,boardId});
 const seed=JSON.parse(readFileSync(new URL('./study-spatial-seed.json',import.meta.url),'utf8'));
 const users=['A','B','C'].map(suffix=>({id:randomUUID(),username:'검증-'+tag+'-'+suffix,password:randomBytes(18).toString('base64url')}));
 const clients=[],checks=[],errors=[];
-const assets=new Set(['index.html','app.js','styles.css','collab.css','spatial.html','spatial-view.js','structure.css','plane-content.js','product-ui-preview.html','product-preview-bridge.js','board-ops.js','spatial-ops.js','transport.js','login.html','account.html','authorize.html','account.css']);
+const assets=new Set(publicAssets);
 let handler,browser;
 const server=http.createServer(async(req,res)=>{
   const path=new URL(req.url,'http://localhost').pathname;
@@ -81,7 +82,7 @@ try {
   const init=await request('/mcp',{token,body:{jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'test',version:'1'}}}});assert.equal(init.data.result.serverInfo.name,'studymeta-workboard');
   assert.equal((await request('/mcp',{token,body:{jsonrpc:'2.0',method:'notifications/initialized'}})).status,202);
   assert.equal((await request('/mcp',{token})).status,405);
-  const tools=await request('/mcp',{token,body:{jsonrpc:'2.0',id:2,method:'tools/list'}});assert.equal(tools.data.result.tools.length,4);
+  const tools=await request('/mcp',{token,body:{jsonrpc:'2.0',id:2,method:'tools/list'}});assert.equal(tools.data.result.tools.length,8);
   assert.equal((await rpc(token,'get_workboard')).data.result.structuredContent.spatial.nodes.length,59);
   const current=await store.snapshot(),beforeRev=current.rev;
   const invalid=await rpc(token,'update_workboard',{requestId:randomUUID(),reason:'원자성 검증',operations:[{type:'spatial.node.update',id:node.id,expectedVersion:3,fields:{owner:'저장되면 안 됨'}},{type:'spatial.edge.create',item:{id:randomUUID(),title:'잘못된 연결',from:node.id,to:'missing'}}]});

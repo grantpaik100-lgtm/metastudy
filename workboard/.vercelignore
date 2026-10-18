@@ -16,3 +16,6 @@ cloud/local.mjs
 build-structure.mjs
 structure-import.mjs
 cloud/import-structure.mjs
+cloud/meetings.sql
+cloud/provision-meetings.mjs
+prepare-speech.mjs

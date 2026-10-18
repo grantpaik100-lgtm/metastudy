@@ -81,7 +81,7 @@ MCP는 노드·선 삭제나 작업판 전체 교체를 제공하지 않는다. 
    `WORKBOARD_USERNAMES`는 로컬 계정 생성용이며 배포 환경에 필요 없다.
 5. `node test-cloud.mjs`, `node test-spatial.mjs`를 실행하고 `vercel deploy --prod`로 배포한다.
 
-배포 파일에는 명시한 화면·스타일·스크립트 17개와 서버 코드만 포함된다. `private/`, `.env*`, `data/`, 테스트 결과,
+배포 파일에는 명시한 `cloud/assets.mjs`의 화면·스타일·스크립트·음성인식 실행 파일와 서버 코드만 포함된다. `private/`, `.env*`, `data/`, 테스트 결과,
 초기 작업판 JSON과 SQL 파일은 공개 정적 자산에서 제외한다. Git 자동 배포는 연결하지 않는다.
 이 저장소의 학습자 데모 및 다른 Vercel 프로젝트에 영향을 주지 않기 위한 분리다.
 
@@ -98,3 +98,6 @@ CSRF, 동시 수정, 중복 요청, OAuth/PKCE/코드 재사용, 토큰 갱신·
 참고: [MCP 인증 규격](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization),
 [Codex MCP 설정](https://learn.chatgpt.com/docs/extend/mcp?surface=cli),
 [OpenAI MCP 인증](https://developers.openai.com/plugins/build/auth).
+
+
+회의 기능의 운영 설정, 30일 보관 정책과 MCP 도구는 [MEETINGS-GUIDE.md](./MEETINGS-GUIDE.md)를 참고하세요. 일일 정리 예약에는 서버 환경변수 `CRON_SECRET`이 추가로 필요합니다.

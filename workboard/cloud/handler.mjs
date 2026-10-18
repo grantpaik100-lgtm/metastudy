@@ -1,6 +1,7 @@
 import { createStore, HttpError } from './store.mjs';
 import { createAuth, hash, SCOPES } from './auth.mjs';
 import { handleMcp } from './mcp.mjs';
+import { createMeetings, cronAuthorized } from './meetings.mjs';
 
 const MAX_BODY=2*1024*1024;
 export async function bodyOf(req) {
@@ -24,6 +25,7 @@ export function createHandler({store,origin,env=process.env}={}) {
   origin=new URL(origin).origin;
   store=store||createStore({url:env.SUPABASE_URL,key:env.SUPABASE_SERVICE_ROLE_KEY,boardId:env.WORKBOARD_BOARD_ID});
   const auth=createAuth(store,origin),resource=auth.resource;
+  const meetings=createMeetings(store,env);
   const metadata={resource,authorization_servers:[origin],scopes_supported:SCOPES,resource_name:'StudyMeta 공동 작업판',bearer_methods_supported:['header']};
   const oauth={issuer:origin,authorization_endpoint:`${origin}/oauth/authorize`,token_endpoint:`${origin}/oauth/token`,
     registration_endpoint:`${origin}/oauth/register`,revocation_endpoint:`${origin}/oauth/revoke`,
@@ -42,6 +44,10 @@ export function createHandler({store,origin,env=process.env}={}) {
     try {
       const url=new URL(req.url,origin);path=url.searchParams.get('route')||url.pathname;
       const method=req.method;
+      if(path==='/api/meetings/maintenance'&&method==='GET') {
+        if(!cronAuthorized(req.headers.authorization,env.CRON_SECRET))throw new HttpError(401,'예약 작업 인증이 필요합니다.');
+        return json(res,200,await meetings.maintenance());
+      }
       if(path.startsWith('/.well-known/oauth-protected-resource')) return json(res,200,metadata,{'Access-Control-Allow-Origin':'*'});
       if(path==='/.well-known/oauth-authorization-server') return json(res,200,oauth,{'Access-Control-Allow-Origin':'*'});
       if(path==='/api/config') return json(res,200,{cloud:true,origin,mcpUrl:resource});
@@ -76,11 +82,27 @@ export function createHandler({store,origin,env=process.env}={}) {
         if(method!=='POST') return json(res,405,{message:'Use POST for stateless Streamable HTTP'},{Allow:'POST'});
         const version=req.headers['mcp-protocol-version'];
         if(version&&!['2024-11-05','2025-03-26','2025-06-18','2025-11-25'].includes(version)) throw new HttpError(400,'Unsupported MCP protocol version');
-        const result=await handleMcp(await bodyOf(req),identity,store);
+        const result=await handleMcp(await bodyOf(req),identity,store,meetings);
         return json(res,result?200:202,result||undefined);
       }
       const initial=['/api/session','/api/password'].includes(path);
       const {user,session}=await auth.authenticate(req,{initial});
+      if(path.startsWith('/api/meetings/')) {
+        const action=path.slice('/api/meetings/'.length);
+        if(method==='GET') {
+          if(action==='list')return json(res,200,await meetings.list());
+          if(action==='detail')return json(res,200,await meetings.detail(url.searchParams.get('id')));
+          if(action==='chat')return json(res,200,await meetings.chat(Object.fromEntries(url.searchParams)));
+          if(action==='download')return json(res,200,await meetings.download(url.searchParams.get('id')));
+          if(action==='notices')return json(res,200,await meetings.notices(user));
+        }
+        const writes={send:'send',create:'createRoom',update:'updateRoom',summary:'summary',call:'call',upload:'upload','file-prepare':'prepareFile','file-complete':'completeFile',transcript:'transcript',read:'readNotice'};
+        if(method==='POST'&&writes[action]) {
+          if(action!=='call')await auth.rate(`meetings:${user.id}:${action}`,action==='upload'?180:120,60);
+          return json(res,200,await meetings[writes[action]](user,await bodyOf(req)));
+        }
+        throw new HttpError(404,'회의 기능을 찾을 수 없어요.');
+      }
       if(path==='/api/session'&&method==='GET') return json(res,200,{user:auth.publicUser(user),mcpUrl:resource});
       if(path==='/api/password'&&method==='POST') {
         const input=await bodyOf(req),token=await auth.changePassword(user,input.currentPassword,input.password);
@@ -128,9 +150,9 @@ export function createHandler({store,origin,env=process.env}={}) {
           const input=await bodyOf(req);
           if(!/^[\w-]{1,80}$/.test(input.client||'')) throw new HttpError(400,'연결 ID를 확인해주세요.');
           const clientId=`${user.id}:${input.client}`;
-          await store.rest('workboard_presence',{on_conflict:'client_id'},{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:{client_id:clientId,user_id:user.id,name:user.username,color:/^#[0-9a-f]{6}$/i.test(input.color)?input.color:'#2563eb',editing:typeof input.editing==='string'?input.editing.slice(0,120):null,mode:input.mode==='move'?'move':input.mode==='edit'?'edit':null,seen_at:new Date().toISOString()}});
+          await store.rest('workboard_presence',{on_conflict:'client_id'},{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:{board_id:store.boardId,client_id:clientId,user_id:user.id,name:user.username,color:/^#[0-9a-f]{6}$/i.test(input.color)?input.color:'#2563eb',editing:typeof input.editing==='string'?input.editing.slice(0,120):null,mode:input.mode==='move'?'move':input.mode==='edit'?'edit':null,seen_at:new Date().toISOString()}});
         } else if(method!=='GET') throw new HttpError(405,'지원하지 않는 요청입니다.');
-        const peers=await store.rows('presence',{seen_at:`gt.${new Date(Date.now()-45000).toISOString()}`});
+        const peers=await store.rows('presence',{board_id:`eq.${store.boardId}`,seen_at:`gt.${new Date(Date.now()-45000).toISOString()}`});
         return json(res,200,{peers:Object.fromEntries(peers.map(p=>[p.client_id.split(':').slice(1).join(':'),{name:p.name,color:p.color,editing:p.editing,mode:p.mode,userId:p.user_id}]))});
       }
       throw new HttpError(404,'요청한 기능을 찾을 수 없어요.');

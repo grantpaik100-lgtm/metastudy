@@ -41,6 +41,13 @@ workboard/                       공동 작업판 + 기획/UI/MCP/백엔드 3D �
   api/gateway.js                  작업판 전용 Vercel API
   CLOUD-GUIDE.md                  세 사람 공동 사용·AI 연결·운영 안내
   STRUCTURE-GUIDE.md              네 상세 공간·실제 UI·소스 근거와 3D 면 사용 안내
+  MEETINGS-GUIDE.md               채팅·음성회의·녹음·PC 음성인식·30일 보관 안내
+  meetings.js / meetings.css      팀 채팅·음성회의·삭제 예정 알림 화면
+  meeting-call.js                 직접 통화·화면 공유·참여자별 녹음
+  meeting-storage.js              미전송 녹음 보관·음성 처리·ZIP 내려받기
+  speech-worker.js / vendor/      PC에서 실행하는 공개 음성인식 모델 런타임
+  cloud/meetings.mjs / meetings.sql 회의 전용 저장소·API·보관 기간 처리
+  test-meetings.mjs / test-speech.mjs 실제 통화·한국어 음성 검증
   spatial-view.js / structure.css 실제 네 면의 회전·연결선·상세 공간
   plane-content.js               기획 위계·UI 흐름·MCP 요청·파일/함수 구조 표현
   product-ui-preview.html        가상 데이터로 실행하는 제품 UI 소스 스냅샷

@@ -1,6 +1,6 @@
 # UI 작업판 템플릿
 
-> **현재 사용 안내:** [클라우드 공동 작업·로그인·MCP](./CLOUD-GUIDE.md), [네 상세 공간과 실제 3D 면](./STRUCTURE-GUIDE.md)을 먼저 읽으세요. 로컬 서버 실행은 [SPATIAL-GUIDE.md](./SPATIAL-GUIDE.md)를 참고하세요.
+> **현재 사용 안내:** [클라우드 공동 작업·로그인·MCP](./CLOUD-GUIDE.md), [네 상세 공간과 실제 3D 면](./STRUCTURE-GUIDE.md), [회의·채팅·녹음 안내](./MEETINGS-GUIDE.md)를 먼저 읽으세요. 로컬 서버 실행은 [SPATIAL-GUIDE.md](./SPATIAL-GUIDE.md)를 참고하세요.
 > 아래는 원본 ZIP의 이전 설명입니다. 현재 작업판은 공유 DB와 로그인·MCP, 기획/UI/MCP/백엔드 상세 공간을 제공합니다.
 
 루미아 작업실의 **구조와 사용 흐름**을 참고한 독립형 빈 작업판입니다. 루미아 화면, 데이터, API, 계정, 환경변수는 포함하지 않습니다.
