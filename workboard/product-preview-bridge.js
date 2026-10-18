@@ -26,5 +26,28 @@ window.__WORKBOARD_PREVIEW__=true;
     else throw Error('이 도구의 응답은 미리보기에 아직 연결되지 않았어요: '+name);
     emit('tool',{name,screen,phase:'response'});return {structuredContent:result};
   }};
-  addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;const selector=[...button.attributes].find(a=>a.name.startsWith('data-'))?.name;emit('button',{screen,selector:selector?'['+selector+']':'',targetScreen:button.dataset.screen||'',label:button.textContent.trim()});},true);
+  const inspect=new URLSearchParams(location.search).get('inspect')==='1';
+  let inspected=[],picked='',scheduled=false;
+  function report(){
+    scheduled=false;if(!inspect||!document.body)return;
+    const anchors=[];
+    for(const item of inspected){let button;try{button=document.querySelector(item.selector);}catch{continue;}if(!button)continue;
+      const r=button.getBoundingClientRect();if(!r.width||!r.height)continue;
+      button.classList.add('atlas-inspect-button');button.classList.toggle('atlas-selected',item.id===picked);
+      anchors.push({id:item.id,x:r.x,y:r.y,width:r.width,height:r.height});
+    }
+    emit('anchors',{screen,anchors,height:Math.ceil(document.body.getBoundingClientRect().height+24)});
+  }
+  function reportSoon(){if(!scheduled){scheduled=true;requestAnimationFrame(report);}}
+  addEventListener('message',e=>{if(e.source!==parent||e.origin!==origin||e.data?.type!=='workboard-inspect'||!inspect)return;inspected=Array.isArray(e.data.buttons)?e.data.buttons.slice(0,100):[];picked=e.data.selected;reportSoon();});
+  addEventListener('DOMContentLoaded',()=>{if(!inspect)return;
+    const css=document.createElement('style');css.textContent='html,body{min-height:0!important;height:auto!important;overflow:hidden!important}.atlas-inspect-button{outline:2px solid #2563eb!important;outline-offset:3px!important;cursor:crosshair!important}.atlas-selected{outline:3px solid #7c3aed!important}';document.head.append(css);
+    new ResizeObserver(reportSoon).observe(document.body);new MutationObserver(reportSoon).observe(document.body,{childList:true,subtree:true});reportSoon();
+  });
+  addEventListener('resize',reportSoon);
+  addEventListener('submit',event=>{if(inspect){event.preventDefault();event.stopImmediatePropagation();}},true);
+  addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;const selector=[...button.attributes].find(a=>a.name.startsWith('data-'))?.name;
+    if(inspect){event.preventDefault();event.stopImmediatePropagation();}
+    emit('button',{screen,selector:selector?'['+selector+']':'',targetScreen:button.dataset.screen||'',label:button.textContent.trim()});
+  },true);
 })();
