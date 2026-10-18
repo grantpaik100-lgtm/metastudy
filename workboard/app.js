@@ -10,8 +10,8 @@ const MIGRATED_KEY = "workboard-collab-migrated";
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const id = () => globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const routeNames = { home: "작업판", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", spatial: "3D 구조 지도" };
-const routeIcons = { home: "⌂", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", spatial: "◇" };
+const routeNames = { home: "작업판", todos: "할 일", lab: "실험실", wireframe: "와이어프레임", flow: "흐름도", prototype: "목업 · 프로토타입", spatial: "3D 구조 지도" };
+const routeIcons = { home: "⌂", todos: "☷", lab: "⌁", wireframe: "▦", flow: "⑂", prototype: "▶", spatial: "◇" };
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { /* 저장소를 쓸 수 없어도 작업판은 열린다. */ } },
@@ -280,6 +280,18 @@ function home() {
   </div></section><section class="home-strip"><div><span class="eyebrow">START HERE</span><h2>첫 화면을 만들면 세 공간이 함께 채워집니다.</h2><p>와이어프레임에서 화면을 추가하고 흐름도에서 연결하세요. 프로토타입에 이동 버튼이 자동으로 생깁니다.</p></div><button class="outline-button" data-action="add-screen">화면 추가하기 →</button></section>
   ${aiGuide()}`;
 }
+function todos() {
+  return `${pageHeader("PLAN / NEXT", "할 일", "큰 방향을 정하고, 하나씩 실행할 수 있는 목표로 나누는 공간이에요.")}
+  <ol class="todo-hierarchy" aria-label="할 일을 정리할 순서">
+    <li><span class="todo-level">01 / PHASE</span><strong>Phase</strong><p>지금 집중할 단계</p></li>
+    <li><span class="todo-level">02 / GOAL</span><strong>큰 목표</strong><p>이 단계에서 이루려는 결과</p></li>
+    <li><span class="todo-level">03 / TASK</span><strong>작은 목표</strong><p>결과를 위해 하나씩 해낼 일</p></li>
+  </ol>
+  <section class="todo-board" aria-labelledby="todo-list-title">
+    <div class="todo-board-head"><h2 id="todo-list-title">할 일 목록</h2><span>비어 있음</span></div>
+    <div class="todo-empty"><div class="todo-empty-mark" aria-hidden="true">☷</div><h3>첫 목표를 기다리고 있어요.</h3><p>Phase와 큰 목표를 정한 뒤,<br>작은 목표들을 차례로 나눠 담을 공간이에요.</p></div>
+  </section>`;
+}
 function aiGuide() {
   if(cloud) return `<section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>대화에서 결정하고, 작업판에 남겨요.</h2></div><span>평소 사용하는 AI와 연결합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>지금 쓰는 AI에 작업판을 연결하세요.</h3><p>AI와 아이디어를 검토한 뒤 “이 결정을 작업판에 반영해줘”라고 요청하세요. 연결된 AI가 관련 노드와 선을 읽고, 요청한 내용을 저장합니다.</p><a class="primary-button" href="/account.html">내 계정에서 AI 연결 →</a><small>각자 본인의 작업판 계정으로 연결해 주세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>한 번 연결하기</strong><small>계정 화면의 MCP 주소를 AI 앱에 등록하고 접근을 승인합니다.</small></span></div><div><b>02</b><span><strong>대화에서 변경 요청</strong><small>담당자, 후속 과제, 노드와 연결을 어떻게 바꿀지 알려주세요.</small></span></div><div><b>03</b><span><strong>함께 확인하기</strong><small>저장한 내용은 팀원들의 작업판에 반영되고 수정자와 변경 이력이 남습니다.</small></span></div></div></div><p class="ai-guide-note">작업판은 공유 저장소에 보관됩니다. 작업판을 열어 둔 컴퓨터가 없어도 다른 팀원이 접속할 수 있어요. AI가 작업판에 남긴 결정은 3D 구조 지도와 계정 화면의 변경 이력에서 확인하세요.</p></section>`;
   return `<section id="ai-guide" class="ai-guide"><div class="section-title"><div><span class="eyebrow">AI COLLABORATION</span><h2>AI와 함께 쓰는 방법</h2></div><span>AI 대화는 평소 사용하는 도구에서 진행합니다</span></div><div class="ai-guide-grid"><div class="ai-guide-main"><div class="ai-guide-icon">✦</div><h3>작업판의 현재 상태를 AI에게 건네세요.</h3><p>AI가 실험 가설, 화면 구성, 연결을 제안하거나 JSON을 수정하도록 요청할 수 있습니다. 이 버튼은 현재 작업판 데이터와 형식을 요청문에 담아 복사합니다.</p><button class="primary-button" data-action="copy-ai-prompt">AI 요청문 복사 →</button><small>클립보드에만 복사됩니다. 원하는 AI 대화창에 직접 붙여 넣으세요.</small></div><div class="ai-steps"><div><b>01</b><span><strong>복사해 AI에게 전달</strong><small>프로젝트 목표와 원하는 작업을 요청문에 덧붙입니다.</small></span></div><div><b>02</b><span><strong>결과를 검토</strong><small>화면 이름, 연결, 문구를 확인하고 JSON으로 저장합니다.</small></span></div><div><b>03</b><span><strong>불러와 직접 눌러보기</strong><small>상단 불러오기로 반영하고 흐름도와 프로토타입을 확인합니다.</small></span></div></div></div><p class="ai-guide-note">작업판의 디자인·기능 자체를 바꾸려면 이 폴더를 AI 코딩 도구에서 열고 원하는 변경을 요청하세요. 작업판 데이터는 서버를 켠 컴퓨터의 <b>data/board.json</b>에 저장되고, 접속한 모든 팀원에게 실시간으로 반영됩니다. AI에게 건넬 때는 <b>내보내기</b>나 AI 요청문 복사를 사용하세요.</p></section>`;
@@ -356,7 +368,7 @@ function render() {
     if (!$('#spatial-frame')) $('#app').innerHTML = '<iframe id="spatial-frame" title="기획·UI·MCP·백엔드 3D 구조 지도" src="./spatial.html?embed=1" style="width:100%;height:calc(100vh - 140px);min-height:700px;border:0;border-radius:16px"></iframe>';
     return;
   }
-  $("#app").innerHTML = ready ? ({ home, lab, wireframe, flow, prototype })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>${cloud ? "공유 작업판을 불러오고 있어요. 연결이 지연되면 잠시 후 새로고침해주세요." : "작업판 서버가 켜져 있는지 확인해 주세요."}</p></div>`;
+  $("#app").innerHTML = ready ? ({ home, todos, lab, wireframe, flow, prototype })[route]() : `<div class="empty-state collab-loading"><div class="empty-icon">⟳</div><h2>공동 작업판에 연결하는 중…</h2><p>${cloud ? "공유 작업판을 불러오고 있어요. 연결이 지연되면 잠시 후 새로고침해주세요." : "작업판 서버가 켜져 있는지 확인해 주세요."}</p></div>`;
   if (ready && route === "flow") { applyScale(); drawLines(); }
   decoratePresence();
 }

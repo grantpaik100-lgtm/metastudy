@@ -1,4 +1,20 @@
 /* Transferable workboard design system; change these tokens for another project's brand. */
+.todo-hierarchy{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0;margin:0 0 28px}
+.todo-hierarchy li{position:relative;padding:21px 24px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.todo-hierarchy li:first-child{background:var(--lilac);border-color:#dcd3f6}
+.todo-hierarchy li+li::before{content:'→';position:absolute;left:-15px;top:43%;width:16px;text-align:center;color:var(--purple);background:var(--canvas)}
+.todo-level{display:block;color:var(--purple);font-size:10px;font-weight:800;letter-spacing:.1em;margin-bottom:13px}
+.todo-hierarchy strong{font-size:17px;letter-spacing:-.03em}
+.todo-hierarchy p{font-size:12px;color:var(--muted);line-height:1.6;margin:7px 0 0}
+.todo-board{background:var(--surface);border:1px solid var(--border);border-radius:18px;overflow:hidden}
+.todo-board-head{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding:19px 24px}
+.todo-board-head h2{font-size:15px;margin:0;letter-spacing:-.02em}
+.todo-board-head>span{font-size:11px;color:var(--muted);background:var(--canvas);border-radius:99px;padding:5px 9px}
+.todo-empty{min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:35px 20px}
+.todo-empty-mark{width:62px;height:62px;border-radius:18px;background:var(--lilac);color:var(--purple);display:grid;place-items:center;font-size:31px;margin-bottom:19px}
+.todo-empty h3{font-size:18px;letter-spacing:-.03em;margin:0 0 10px}
+.todo-empty p{font-size:13px;color:var(--muted);line-height:1.8;margin:0}
+@media(max-width:640px){.todo-hierarchy{grid-template-columns:1fr;gap:12px;margin-bottom:20px}.todo-hierarchy li{padding:16px 20px}.todo-hierarchy li+li::before{content:'↓';left:25px;top:-14px;height:16px;line-height:16px}.todo-level{margin-bottom:7px}.todo-board-head{padding:17px 20px}.todo-empty{min-height:270px}}
 :root{--ink:#26223b;--muted:#777287;--purple:#7464c9;--purple-dark:#5444a5;--lilac:#f1ecff;--surface:#fff;--border:#e8e3f2;--canvas:#faf9fd;--shadow:0 18px 55px rgba(53,39,98,.09)}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
