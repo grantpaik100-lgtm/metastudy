@@ -82,7 +82,7 @@ try {
   const init=await request('/mcp',{token,body:{jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'test',version:'1'}}}});assert.equal(init.data.result.serverInfo.name,'studymeta-workboard');
   assert.equal((await request('/mcp',{token,body:{jsonrpc:'2.0',method:'notifications/initialized'}})).status,202);
   assert.equal((await request('/mcp',{token})).status,405);
-  const tools=await request('/mcp',{token,body:{jsonrpc:'2.0',id:2,method:'tools/list'}});assert.equal(tools.data.result.tools.length,8);
+  const tools=await request('/mcp',{token,body:{jsonrpc:'2.0',id:2,method:'tools/list'}});assert.deepEqual(tools.data.result.tools.map(t=>t.name).sort(),['get_workboard','search_workboard','update_workboard','get_workboard_history','list_meetings','get_meeting','save_meeting_summary','read_team_chat','get_team_planning','save_team_plan_item','get_experiment_discussion','create_experiment_poll'].sort());
   assert.equal((await rpc(token,'get_workboard')).data.result.structuredContent.spatial.nodes.length,59);
   const current=await store.snapshot(),beforeRev=current.rev;
   const invalid=await rpc(token,'update_workboard',{requestId:randomUUID(),reason:'원자성 검증',operations:[{type:'spatial.node.update',id:node.id,expectedVersion:3,fields:{owner:'저장되면 안 됨'}},{type:'spatial.edge.create',item:{id:randomUUID(),title:'잘못된 연결',from:node.id,to:'missing'}}]});

@@ -3,6 +3,7 @@ import { createAuth, hash, SCOPES } from './auth.mjs';
 import { handleMcp } from './mcp.mjs';
 import { createMeetings, cronAuthorized } from './meetings.mjs';
 import { createProfiles } from './profiles.mjs';
+import { createPlanning } from './planning.mjs';
 
 const MAX_BODY=2*1024*1024;
 export async function bodyOf(req) {
@@ -28,6 +29,7 @@ export function createHandler({store,origin,env=process.env}={}) {
   const auth=createAuth(store,origin),resource=auth.resource;
   const meetings=createMeetings(store,env);
   const profiles=createProfiles(store);
+  const planning=createPlanning(store);
   const metadata={resource,authorization_servers:[origin],scopes_supported:SCOPES,resource_name:'StudyMeta 공동 작업판',bearer_methods_supported:['header']};
   const oauth={issuer:origin,authorization_endpoint:`${origin}/oauth/authorize`,token_endpoint:`${origin}/oauth/token`,
     registration_endpoint:`${origin}/oauth/register`,revocation_endpoint:`${origin}/oauth/revoke`,
@@ -84,11 +86,19 @@ export function createHandler({store,origin,env=process.env}={}) {
         if(method!=='POST') return json(res,405,{message:'Use POST for stateless Streamable HTTP'},{Allow:'POST'});
         const version=req.headers['mcp-protocol-version'];
         if(version&&!['2024-11-05','2025-03-26','2025-06-18','2025-11-25'].includes(version)) throw new HttpError(400,'Unsupported MCP protocol version');
-        const result=await handleMcp(await bodyOf(req),identity,store,meetings);
+        const result=await handleMcp(await bodyOf(req),identity,store,meetings,planning);
         return json(res,result?200:202,result||undefined);
       }
       const initial=['/api/session','/api/password'].includes(path);
       const {user,session}=await auth.authenticate(req,{initial});
+      if(path==='/api/planning/items'&&method==='GET')return json(res,200,await planning.list());
+      if(path==='/api/planning/history'&&method==='GET')return json(res,200,await planning.history(url.searchParams.get('id')));
+      if(path==='/api/lab/discussion'&&method==='GET')return json(res,200,await planning.discussion(user,url.searchParams.get('experiment')));
+      const planningWrites={'/api/planning/save':'save','/api/lab/poll':'createPoll','/api/lab/vote':'vote','/api/lab/close':'closePoll','/api/lab/feedback':'feedback'};
+      if(method==='POST'&&planningWrites[path]){
+        await auth.rate(`planning:${user.id}:${path}`,path==='/api/lab/feedback'?10:60,60);
+        return json(res,200,await planning[planningWrites[path]](user,await bodyOf(req)));
+      }
       if(path==='/api/profiles'&&method==='GET')return json(res,200,await profiles.list());
       if(path==='/api/profiles'&&method==='POST'){
         await auth.rate(`profile:${user.id}`,30,60);

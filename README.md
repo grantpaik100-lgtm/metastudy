@@ -48,6 +48,10 @@ workboard/                       공동 작업판 + 기획/UI/MCP/백엔드 구�
   profiles.css / companion.js     프로필 화면과 이동·숨김 가능한 개인 캐릭터
   virtual-room.js / virtual-room.css 캐릭터 좌석과 실제 공유 화면을 담는 가상 회의실
   cloud/profiles.mjs / profiles.sql 로그인 계정별 프로필 API·비공개 이미지 저장
+  team-planning.js / planning-dates.js  목표·팀/창업 일정·한국 날짜 달력
+  lab-discussion.js / planning.css 실험 투표·익명 의견과 일정 화면
+  cloud/planning.mjs / planning.sql 일정·투표·익명 의견 저장소와 API
+  test-planning.mjs               세 계정 공동 일정·투표·익명성 검증
   test-profiles.mjs               프로필 권한·캐릭터·실제 통화/공유 화면 검증
   meeting-storage.js              미전송 녹음 보관·음성 처리·ZIP 내려받기
   speech-worker.js / vendor/      PC에서 실행하는 공개 음성인식 모델 런타임

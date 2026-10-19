@@ -5,6 +5,8 @@ import { applyOp, blank, normalizeBoard, validUrl } from "./board-ops.js";
 import { cloud, identity, apiFetch, connectEvents } from "./transport.js";
 import { showMeetings, hideMeetings, startMeetingNotices } from './meetings.js';
 import {profileFor,profileEvents,avatarMarkup} from './profiles.js';
+import {showPlanning,hidePlanning} from './team-planning.js';
+import './lab-discussion.js';
 profileEvents.addEventListener('change',()=>{if(document.querySelector('#collab-presence'))renderPresence();});
 
 const KEY = "workboard-template-v1"; // 공동 작업 전 이 브라우저에만 저장하던 작업판. 서버로 옮길 때만 읽는다.
@@ -312,7 +314,7 @@ function lab() {
   const button = `<button class="primary-button" data-action="add-experiment">+ 실험 추가</button>`;
   return `${pageHeader("ROOM 01 / EXPLORE", "실험실", "새로운 화면, 인터랙션, 가설을 독립적으로 시험하는 공간입니다.", button)}
   <div class="room-hint"><strong>실험실 사용법</strong><span>무엇을 확인하려는지 한 문장으로 적고, 결과가 정해지면 화면 목록에 반영하세요.</span></div>
-  ${state.experiments.length ? `<div class="experiment-grid">${state.experiments.map((item, index) => `<article class="experiment-card" data-presence-id="${escapeHtml(item.id)}"><div class="card-top"><span class="index-label">EXPERIMENT ${String(index + 1).padStart(2, "0")}</span><span class="status ${item.status === "검토 완료" ? "done" : item.status === "보류" ? "paused" : "in-progress"}">${escapeHtml(item.status)}</span></div><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.question || "검증할 질문을 적어 주세요.")}</p><div class="card-actions">${validUrl(item.url) ? `<a href="${escapeHtml(validUrl(item.url))}" target="_blank" rel="noopener noreferrer">참고 링크 ↗</a>` : ""}<button data-action="edit-experiment" data-id="${escapeHtml(item.id)}">편집</button><button data-action="delete-experiment" data-id="${escapeHtml(item.id)}">삭제</button></div></article>`).join("")}</div>` : empty("⌁", "첫 실험을 준비해 볼까요?", "기능이나 화면의 가설을 적어 두면 실험실 카드로 쌓입니다.", "add-experiment", "+ 첫 실험 추가")}`;
+  ${state.experiments.length ? `<div class="experiment-grid">${state.experiments.map((item, index) => `<article class="experiment-card" data-presence-id="${escapeHtml(item.id)}"><div class="card-top"><span class="index-label">EXPERIMENT ${String(index + 1).padStart(2, "0")}</span><span class="status ${item.status === "검토 완료" ? "done" : item.status === "보류" ? "paused" : "in-progress"}">${escapeHtml(item.status)}</span></div><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.question || "검증할 질문을 적어 주세요.")}</p><div class="card-actions">${validUrl(item.url) ? `<a href="${escapeHtml(validUrl(item.url))}" target="_blank" rel="noopener noreferrer">참고 링크 ↗</a>` : ""}<button data-lab-discuss="${escapeHtml(item.id)}">투표 · 익명 피드백</button><button data-action="edit-experiment" data-id="${escapeHtml(item.id)}">편집</button><button data-action="delete-experiment" data-id="${escapeHtml(item.id)}">삭제</button></div></article>`).join("")}</div>` : empty("⌁", "첫 실험을 준비해 볼까요?", "기능이나 화면의 가설을 적어 두면 실험실 카드로 쌓입니다.", "add-experiment", "+ 첫 실험 추가")}`;
 }
 function sectionLines(screen) { return String(screen.sections || "").split("\n").map((value) => value.trim()).filter(Boolean); }
 function phoneContent(screen, interactive = false) {
@@ -367,6 +369,8 @@ function drawLines() {
 function render() {
   nav();
   const route = currentRoute();
+  if(ready&&route==='todos'){$('#app').hidden=true;hideMeetings();showPlanning(location.hash.split('/')[1]);return;}
+  hidePlanning();
   if(ready&&['chat','meetings'].includes(route)){$('#app').hidden=true;showMeetings(route,location.hash.split('/')[1]);return;}
   $('#app').hidden=false;hideMeetings();
   if (ready && ['spatial','idea','ux','mcp','backend'].includes(route)) {

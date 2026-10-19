@@ -19,3 +19,6 @@ cloud/import-structure.mjs
 cloud/meetings.sql
 cloud/provision-meetings.mjs
 prepare-speech.mjs
+
+cloud/profiles.sql
+cloud/planning.sql

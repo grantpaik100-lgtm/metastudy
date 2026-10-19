@@ -23,7 +23,7 @@ const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_PATH||'C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const out=new URL('./test-output/',import.meta.url);mkdirSync(out,{recursive:true});
 const runtime=new URL('runtime-'+Date.now()+'/',out);mkdirSync(runtime,{recursive:true});
-for(const file of ['profiles.js','profile-editor.js','profiles.css','companion.js','virtual-room.js','virtual-room.css','meetings.js','meetings.css','meeting-call.js','meeting-storage.js','server.mjs','board-ops.js','spatial-ops.js','transport.js','app.js','index.html','styles.css','collab.css','spatial.html','spatial-view.js','trace-graph.js','structure.css','plane-content.js','product-ui-preview.html','product-preview-bridge.js','study-spatial-seed.json'])copyFileSync(new URL(file,import.meta.url),new URL(file,runtime));
+for(const file of ['team-planning.js','planning-dates.js','lab-discussion.js','planning.css','profiles.js','profile-editor.js','profiles.css','companion.js','virtual-room.js','virtual-room.css','meetings.js','meetings.css','meeting-call.js','meeting-storage.js','server.mjs','board-ops.js','spatial-ops.js','transport.js','app.js','index.html','styles.css','collab.css','spatial.html','spatial-view.js','trace-graph.js','structure.css','plane-content.js','product-ui-preview.html','product-preview-bridge.js','study-spatial-seed.json'])copyFileSync(new URL(file,import.meta.url),new URL(file,runtime));
 const port=42000+Math.floor(Math.random()*10000);
 const server=spawn(process.execPath,['server.mjs'],{cwd:fileURLToPath(runtime),env:{...process.env,PORT:String(port)},stdio:'ignore',windowsHide:true});
 const host='http://127.0.0.1:'+port;

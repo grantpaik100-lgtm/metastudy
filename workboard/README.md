@@ -43,6 +43,11 @@ AI에게 작업판 **디자인이나 기능 자체**를 고치게 하려면 이 
 
 ## 파일
 
+- `team-planning.js` / `planning-dates.js` / `planning.css` — Phase/목표 편집, 한국 날짜 기반 달력, 팀·창업 일정
+- `lab-discussion.js` — 실험별 투표와 익명 피드백 화면
+- `cloud/planning.mjs` / `cloud/planning.sql` — 별도 저장소·버전 검사·투표 잠금·작성자 없는 의견 저장
+- `test-planning.mjs` — 세 계정 일정·투표·익명성·MCP·모바일 검증
+
 - `profiles.js` / `profile-editor.js` / `profiles.css` — 표시 이름·사진·캐릭터 이미지 등록과 팀 화면 반영
 - `companion.js` — 개인 캐릭터의 떠 있는 표시·드래그·키보드 이동·숨김
 - `virtual-room.js` / `virtual-room.css` — 캐릭터 좌석·마이크 상태·실제 화면공유 스크린
