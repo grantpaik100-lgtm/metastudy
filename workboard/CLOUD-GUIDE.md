@@ -73,13 +73,13 @@ MCP는 노드·선 삭제나 작업판 전체 교체를 제공하지 않는다. 
 
 ## 운영과 재배포
 
-1. `cloud/schema.sql`을 대상 Supabase SQL 편집기에서 실행한다. 전용 테이블·함수만 생성/갱신한다.
+1. `cloud/schema.sql`, `cloud/meetings.sql`, `cloud/profiles.sql`을 순서대로 대상 Supabase SQL 편집기에서 실행한다. 전용 테이블·함수·회의 파일 저장소만 생성/갱신한다.
 2. `.env.example`을 `.env.local`로 복사하고 값을 로컬에서 입력한다.
 3. 최초에만 `node cloud/provision.mjs`로 세 계정과 보드를 만든다. 기존 계정/보드는 덮어쓰지 않는다.
 4. Vercel 프로젝트의 루트는 이 `workboard/` 디렉터리다. 서버용 환경변수는
    `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WORKBOARD_URL`, `WORKBOARD_BOARD_ID`다.
    `WORKBOARD_USERNAMES`는 로컬 계정 생성용이며 배포 환경에 필요 없다.
-5. `node test-cloud.mjs`, `node test-spatial.mjs`를 실행하고 `vercel deploy --prod`로 배포한다.
+5. `node test-cloud.mjs`, `node test-spatial.mjs`, `node test-profiles.mjs`를 실행하고 `vercel deploy --prod`로 배포한다. 프로필 검증은 별도 계정과 작업판에서 이미지 저장·권한·실제 통화·공유 화면·퇴장 경쟁 상황을 확인하고 정리한다.
 
 배포 파일에는 명시한 `cloud/assets.mjs`의 화면·스타일·스크립트·음성인식 실행 파일와 서버 코드만 포함된다. `private/`, `.env*`, `data/`, 테스트 결과,
 초기 작업판 JSON과 SQL 파일은 공개 정적 자산에서 제외한다. Git 자동 배포는 연결하지 않는다.

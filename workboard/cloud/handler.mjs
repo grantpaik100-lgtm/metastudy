@@ -2,6 +2,7 @@ import { createStore, HttpError } from './store.mjs';
 import { createAuth, hash, SCOPES } from './auth.mjs';
 import { handleMcp } from './mcp.mjs';
 import { createMeetings, cronAuthorized } from './meetings.mjs';
+import { createProfiles } from './profiles.mjs';
 
 const MAX_BODY=2*1024*1024;
 export async function bodyOf(req) {
@@ -26,6 +27,7 @@ export function createHandler({store,origin,env=process.env}={}) {
   store=store||createStore({url:env.SUPABASE_URL,key:env.SUPABASE_SERVICE_ROLE_KEY,boardId:env.WORKBOARD_BOARD_ID});
   const auth=createAuth(store,origin),resource=auth.resource;
   const meetings=createMeetings(store,env);
+  const profiles=createProfiles(store);
   const metadata={resource,authorization_servers:[origin],scopes_supported:SCOPES,resource_name:'StudyMeta 공동 작업판',bearer_methods_supported:['header']};
   const oauth={issuer:origin,authorization_endpoint:`${origin}/oauth/authorize`,token_endpoint:`${origin}/oauth/token`,
     registration_endpoint:`${origin}/oauth/register`,revocation_endpoint:`${origin}/oauth/revoke`,
@@ -87,6 +89,15 @@ export function createHandler({store,origin,env=process.env}={}) {
       }
       const initial=['/api/session','/api/password'].includes(path);
       const {user,session}=await auth.authenticate(req,{initial});
+      if(path==='/api/profiles'&&method==='GET')return json(res,200,await profiles.list());
+      if(path==='/api/profiles'&&method==='POST'){
+        await auth.rate(`profile:${user.id}`,30,60);
+        return json(res,200,await profiles.save(user,await bodyOf(req)));
+      }
+      if(path==='/api/profiles/image'&&method==='GET'){
+        const image=await profiles.image(url.searchParams.get('user'),url.searchParams.get('kind'));
+        res.writeHead(200,{...security,'Content-Type':image.type,'Content-Length':image.bytes.length});return res.end(image.bytes);
+      }
       if(path.startsWith('/api/meetings/')) {
         const action=path.slice('/api/meetings/'.length);
         if(method==='GET') {

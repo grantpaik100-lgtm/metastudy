@@ -44,6 +44,11 @@ workboard/                       공동 작업판 + 기획/UI/MCP/백엔드 구�
   MEETINGS-GUIDE.md               채팅·음성회의·녹음·PC 음성인식·30일 보관 안내
   meetings.js / meetings.css      팀 채팅·음성회의·삭제 예정 알림 화면
   meeting-call.js                 직접 통화·화면 공유·참여자별 녹음
+  profiles.js / profile-editor.js 팀원 표시 이름·사진·캐릭터 설정
+  profiles.css / companion.js     프로필 화면과 이동·숨김 가능한 개인 캐릭터
+  virtual-room.js / virtual-room.css 캐릭터 좌석과 실제 공유 화면을 담는 가상 회의실
+  cloud/profiles.mjs / profiles.sql 로그인 계정별 프로필 API·비공개 이미지 저장
+  test-profiles.mjs               프로필 권한·캐릭터·실제 통화/공유 화면 검증
   meeting-storage.js              미전송 녹음 보관·음성 처리·ZIP 내려받기
   speech-worker.js / vendor/      PC에서 실행하는 공개 음성인식 모델 런타임
   cloud/meetings.mjs / meetings.sql 회의 전용 저장소·API·보관 기간 처리

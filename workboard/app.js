@@ -4,6 +4,8 @@
 import { applyOp, blank, normalizeBoard, validUrl } from "./board-ops.js";
 import { cloud, identity, apiFetch, connectEvents } from "./transport.js";
 import { showMeetings, hideMeetings, startMeetingNotices } from './meetings.js';
+import {profileFor,profileEvents,avatarMarkup} from './profiles.js';
+profileEvents.addEventListener('change',()=>{if(document.querySelector('#collab-presence'))renderPresence();});
 
 const KEY = "workboard-template-v1"; // 공동 작업 전 이 브라우저에만 저장하던 작업판. 서버로 옮길 때만 읽는다.
 const NAME_KEY = "workboard-collab-name";
@@ -187,9 +189,9 @@ function setEditing(itemId, mode = "edit") {
 function initials(name) { return [...String(name).trim()].slice(0, 1).join("") || "?"; }
 function renderPresence() {
   const peers = cloud ? [...new Map(Object.entries(collab.peers).map(pair=>[pair[1].userId,pair])).values()] : Object.entries(collab.peers);
-  const list = peers.map(([peerId, peer]) => `<span class="collab-chip" style="--collab-color:${escapeHtml(peer.color)}" title="${escapeHtml(peer.name)}${peerId === clientId ? " (나)" : ""}"><b>${escapeHtml(initials(peer.name))}</b><span>${escapeHtml(peer.name)}${peerId === clientId ? " · 나" : ""}</span></span>`).join("");
+  const list = peers.map(([peerId, raw]) => {const peer={...raw,name:profileFor(raw.userId,raw.name).displayName};return `<span class="collab-chip" style="--collab-color:${escapeHtml(peer.color)}" title="${escapeHtml(peer.name)}${peerId === clientId ? " (나)" : ""}"><b>${cloud?avatarMarkup(peer.userId,peer.name):escapeHtml(initials(peer.name))}</b><span>${escapeHtml(peer.name)}${peerId === clientId ? " · 나" : ""}</span></span>`;}).join("");
   $("#collab-presence").innerHTML = `<span class="collab-status ${collab.online ? "online" : "offline"}"><i></i>${collab.online ? `${peers.length}명 접속 중` : "연결 끊김 · 다시 연결 중"}</span><span class="collab-chips">${list}</span><button class="ghost-button collab-rename" data-action="rename">이름 바꾸기</button>`;
-  if(cloud) $(".collab-rename").outerHTML='<a class="ghost-button" href="/account.html">계정 · AI 연결</a>';
+  if(cloud) $(".collab-rename").outerHTML='<a class="ghost-button" href="/account.html">내 프로필 · AI 연결</a>';
   decoratePresence();
 }
 // 다른 사람이 편집하거나 옮기고 있는 카드에 테두리와 이름표를 붙인다.

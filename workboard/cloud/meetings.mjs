@@ -87,7 +87,9 @@ export function createMeetings(store,env=process.env) {
    }
    if(b.action!=='poll')throw new HttpError(400,'지원하지 않는 통화 요청입니다.');
    // Only one participant shares a screen at a time; peers resolve a rare simultaneous request in the UI.
-   await store.patch('call_peers',{id:`eq.${id}`,user_id:`eq.${user.id}`},{seen_at:now(),muted:b.muted===true,sharing:b.sharing===true});
+   // A heartbeat that read the peer before leave must not revive the departed seat.
+   const updated=await store.patch('call_peers',{id:`eq.${id}`,user_id:`eq.${user.id}`,seen_at:`gt.${new Date(Date.now()-45000).toISOString()}`},{seen_at:now(),muted:b.muted===true,sharing:b.sharing===true});
+   if(!updated.length)throw new HttpError(409,'통화에서 나갔어요. 다시 입장해주세요.');
   }
   const cursor=Number(b.cursor)||0;
   const [peers,signals]=await Promise.all([store.rows('call_peers',{room_id:`eq.${r.id}`,seen_at:`gt.${new Date(Date.now()-45000).toISOString()}`,order:'joined_at.asc'}),store.rows('call_signals',{room_id:`eq.${r.id}`,recipient:`eq.${id}`,id:`gt.${cursor}`,order:'id.asc',limit:200})]);

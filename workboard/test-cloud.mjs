@@ -132,7 +132,7 @@ try {
   await pageA.waitForFunction(()=>document.querySelector('#toast').textContent.includes('변경됐어요'));
   assert.equal(await pageA.locator('[name=owner]').inputValue(),'저장하지 않은 내 초안');
   await pageB.screenshot({path:new URL('cloud-spatial.png',out).pathname.replace(/^\/([A-Za-z]:)/,'$1'),fullPage:true});
-  await pageB.goto(origin+'/#spatial');await pageB.locator('iframe').waitFor();assert(await pageB.getByRole('link',{name:'계정 · AI 연결'}).isVisible());
+  await pageB.goto(origin+'/#spatial');await pageB.locator('iframe').waitFor();assert(await pageB.getByRole('link',{name:'내 프로필 · AI 연결'}).isVisible());
   await pageB.goto(origin+'/#home');await pageB.getByRole('link',{name:'내 계정에서 AI 연결 →'}).waitFor();
   await pageB.goto(origin+'/#wireframe');const deleteButton=pageB.locator('[data-action=delete-screen]').first();await deleteButton.waitFor();
   const screenCount=await pageB.locator('.wire-card').count(),revisionBeforeFailure=await store.version();
