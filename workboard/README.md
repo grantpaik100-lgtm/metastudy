@@ -3,6 +3,8 @@
 > **현재 사용 안내:** [클라우드 공동 작업·로그인·MCP](./CLOUD-GUIDE.md), [네 상세 공간과 구현 관계 지도](./STRUCTURE-GUIDE.md), [회의·채팅·녹음 안내](./MEETINGS-GUIDE.md)를 먼저 읽으세요. 로컬 서버 실행은 [SPATIAL-GUIDE.md](./SPATIAL-GUIDE.md)를 참고하세요.
 > 아래는 원본 ZIP의 이전 설명입니다. 현재 작업판은 공유 DB와 로그인·MCP, 기획/UI/MCP/백엔드 상세 공간을 제공합니다.
 
+동료와 코드를 함께 수정하려면 [공동 개발 시작 안내](./CLOUD-GUIDE.md#동료가-작업판-코드를-수정하기)를 따르세요. 현재 기준 브랜치는 `codex/spatial-workboard`이며, 작업판 코드는 `workboard/`에 있습니다.
+
 루미아 작업실의 **구조와 사용 흐름**을 참고한 독립형 빈 작업판입니다. 루미아 화면, 데이터, API, 계정, 환경변수는 포함하지 않습니다.
 
 작업판을 브라우저 한쪽에, Codex나 Claude 같은 AI 작업 도구를 다른 쪽에 두고 함께 작업하는 운영 방식은 [AI_SIDE_BY_SIDE_WORKFLOW.md](./AI_SIDE_BY_SIDE_WORKFLOW.md)를 먼저 읽어 주세요.

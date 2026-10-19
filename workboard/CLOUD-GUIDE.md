@@ -73,6 +73,49 @@ AI는 먼저 해당 항목을 읽고 `expectedVersion`과 새 `requestId` UUID�
 MCP는 노드·선 삭제나 작업판 전체 교체를 제공하지 않는다. 코드·PR·실제 배포를 변경하지 않으며
 사용자가 확정한 내용과 근거만 작업판에 기록한다.
 
+## 동료가 작업판 코드를 수정하기
+
+작업판 로그인은 공유 데이터 편집 권한이다. 코드 공동 개발은 각자의 GitHub 계정으로 한다.
+저장소 공동 작업자에게는 코드 읽기·쓰기 권한이 있다. 관리자가
+[저장소의 Collaborators 설정](https://github.com/grantpaik100-lgtm/metastudy/settings/access)에서 확인한다.
+초대받은 경우 본인이 GitHub에서 초대를 수락한다. 작업판 비밀번호나 다른 사람의 GitHub 계정을 공유할 필요는 없다.
+
+현재 공동 개발의 기준은 `codex/spatial-workboard` 브랜치다.
+[최신 작업판 코드](https://github.com/grantpaik100-lgtm/metastudy/tree/codex/spatial-workboard/workboard)는 이 브랜치의 `workboard/` 폴더에 있다.
+처음 개발용 복사본을 만들 때 다음 순서로 받는다. Git과 Node.js가 필요하며, 현재 검증 환경은 Node.js 24다.
+
+```sh
+git clone --branch codex/spatial-workboard https://github.com/grantpaik100-lgtm/metastudy.git
+cd metastudy
+git switch -c codex/workboard-your-topic
+cd workboard
+npm run dev
+```
+
+`your-topic`은 작업 내용을 나타내는 고유한 이름으로 바꾼다. AI 개발 도구에서는 복사한 `metastudy` 폴더를 연다.
+브라우저의 `http://127.0.0.1:4173`에서 로컬 작업판을 확인한다. 이 기본 실행에는 운영 비밀번호나 서버 키가 필요 없다.
+로컬 데이터는 해당 PC에만 저장되며 처음에는 빈 작업판일 수 있다. 지도·화면의 기본 편집은 확인할 수 있지만,
+로그인·공유 일정·투표·프로필·회의 등 클라우드 기능의 전체 검증에는 별도 개발 DB와 환경 설정이 필요하다.
+운영용 `.env.local`, `private/`, 계정 비밀번호, 연결 토큰을 Git에 올리지 않는다.
+클라우드 기능을 수정했다면 PR에 검증이 필요한 범위를 적고, 설정된 검증 환경에서 관련 테스트를 실행한다.
+
+AI에게 시작할 때 전달할 요청 예시:
+
+> 이 저장소의 AGENTS.md와 workboard/CLOUD-GUIDE.md를 읽고 작업판 개발을 도와줘.
+> codex/spatial-workboard에서 시작한 내 작업 브랜치를 사용하고, 수정 대상은 workboard/ 안의 코드야.
+> 저장소 루트의 index.html은 학습자 모델 데모이므로 수정하지 마.
+> 내가 요청한 기능을 구현하고 관련 화면과 저장 동작을 검증해줘.
+> 검증하지 못한 부분은 명시하고, 변경 이유와 검증 결과를 담은 PR을 준비해줘.
+
+작업 후 자신의 브랜치를 GitHub에 올리고, **base를 `codex/spatial-workboard`로 지정한 PR**을 만든다.
+공유 개발 브랜치의 새 변경을 받을 때는 작성 중인 작업을 먼저 커밋한 뒤 `git fetch origin`과
+`git merge origin/codex/spatial-workboard`로 반영한다. 충돌이 있으면 의도를 확인하며 해결한다.
+다른 사람의 브랜치를 덮어쓰거나 강제로 푸시하지 않는다.
+
+현재 GitHub 자동 배포는 연결되어 있지 않다. PR을 검토하고 필요한 검증을 마친 뒤 기존 Vercel 프로젝트의
+배포 담당자가 반영한다. GitHub 코드 권한만으로 운영 DB나 Vercel 관리 권한이 생기지는 않는다.
+`main` 병합은 저장소 지침대로 사용자 승인 후 진행한다.
+
 ## 저장과 인증
 
 - 별도 Vercel 프로젝트의 `api/gateway.js`가 웹과 MCP 요청을 처리한다. 외부 AI 모델을 호출하지 않는다.
