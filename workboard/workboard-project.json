@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "projectName": "StudyMeta 학생용 UI (design.md v0.5)",
+  "screens": [
+    {
+      "id": "onboarding-basic",
+      "title": "온보딩 1 · 기본 정보",
+      "purpose": "학교·학년·전공을 최소한만 받아 시작 장벽을 낮춥니다. 모두 선택 입력입니다.",
+      "sections": "학교 이름 (선택)\n학년 (선택)\n전공 (선택)\n입력하지 않고 넘어갈 수 있다는 안내",
+      "actionLabel": "다음: 과목 등록",
+      "url": "",
+      "status": "확정",
+      "x": 15,
+      "y": 10
+    },
+    {
+      "id": "onboarding-course",
+      "title": "온보딩 2 · 과목 등록",
+      "purpose": "학생이 과목명을 직접 입력해 등록합니다. 최소 1과목이 필요하고 이후 언제든 추가할 수 있습니다.",
+      "sections": "과목명 직접 입력 (프리셋 선택 아님)\n학습자료 업로드 — PDF·노트, 스킵 가능\n시험 일정 입력 — 이름+날짜, 과목당 여러 개\n+ 과목 추가로 반복 등록\n과목 0개면 진행 불가 안내",
+      "actionLabel": "등록 완료",
+      "url": "",
+      "status": "확정",
+      "x": 285,
+      "y": 10
+    },
+    {
+      "id": "onboarding-analyze",
+      "title": "온보딩 3 · 자료 분석 중",
+      "purpose": "업로드한 자료에서 개념과 스킬을 추출합니다. 별도 진단 테스트는 두지 않습니다.",
+      "sections": "과목별 분석 진행 상태\n추출된 개념 미리보기\n자료 없는 과목은 이 단계를 건너뜀\n분석 실패 시 재시도 안내",
+      "actionLabel": "분석 완료",
+      "url": "",
+      "status": "작업 중",
+      "x": 555,
+      "y": 10
+    },
+    {
+      "id": "onboarding-planner-seed",
+      "title": "온보딩 4 · 플래너 초안",
+      "purpose": "시험 일정을 입력한 과목을 대상으로 첫 학습 계획을 만들어 화면 C에 넣어 둡니다.",
+      "sections": "시험 일정이 있는 과목만 대상\nD-day 순으로 초안 배치\n시험 일정이 없는 과목은 플래너에 나오지 않는다는 안내",
+      "actionLabel": "학습 시작하기",
+      "url": "",
+      "status": "확정",
+      "x": 825,
+      "y": 10
+    },
+    {
+      "id": "screen-a-dashboard",
+      "title": "화면 A · 과목별 학습 현황",
+      "purpose": "지금 뭘 잘하고 있고 뭘 더 챙겨야 하는지 학생이 스스로 관리하는 진입 화면입니다.",
+      "sections": "과목 탭 + 과목 추가\n과목 요약 배너 — 예상과 실제가 맞는 정도를 한 문장으로\n스킬 카드 그리드 — 스킬별로 각각 독립 표시\n카드당 상태 문구 1줄 + 배지 최대 2개\n약한 스킬 먼저 보기 토글",
+      "actionLabel": "스킬 카드 열기",
+      "url": "",
+      "status": "확정",
+      "x": 825,
+      "y": 190
+    },
+    {
+      "id": "screen-a-skill-detail",
+      "title": "화면 A′ · 스킬 상세",
+      "purpose": "카드를 누르면 같은 화면에서 아래로 펼쳐지는 상세 패널입니다. 화면 전환은 없습니다.",
+      "sections": "최근 풀이 이력 요약\n스킬 상태 전체를 학생용 문구로 표시\n전이·상태 확신은 이 패널에서만 노출\n이 스킬 연습하기 CTA",
+      "actionLabel": "이 스킬 연습하기",
+      "url": "",
+      "status": "확정",
+      "x": 555,
+      "y": 190
+    },
+    {
+      "id": "practice",
+      "title": "문제 풀이",
+      "purpose": "선택한 스킬의 문제를 풉니다. 푸는 과정 자체가 관찰로 쌓입니다.",
+      "sections": "문제 본문\n답안 입력\n힌트 요청 — 사용 여부가 기록됨\n풀이 시간과 시도 횟수 기록",
+      "actionLabel": "답안 제출하기",
+      "url": "",
+      "status": "작업 중",
+      "x": 285,
+      "y": 190
+    },
+    {
+      "id": "screen-b-feedback",
+      "title": "화면 B · 즉시 피드백",
+      "purpose": "문제를 푼 직후 결과와 달라진 점, 다음에 할 일을 한 화면에서 보여줍니다.",
+      "sections": "① 결과 배너 — 정답·오답 한 줄 반응\n② 이번에 달라진 점 — 변화가 있는 항목만 최대 2~3장\n③ 다음 추천 행동 — 지시가 아니라 제안 톤\n④ 자세히 보기 — 기본 접힘, 옵트인",
+      "actionLabel": "다음 문제 풀어보기",
+      "url": "",
+      "status": "확정",
+      "x": 15,
+      "y": 190
+    },
+    {
+      "id": "screen-b-detail",
+      "title": "화면 B′ · 자세히 보기",
+      "purpose": "감지된 관찰과 관련 상태를 색상 강조로 펼쳐 보여주는 옵트인 패널입니다.",
+      "sections": "감지된 관찰 칩 — 색상 강조\n관련 상태 카드 전체\n내부 식별자는 노출하지 않고 학생용 라벨만\n변화가 없는 항목은 변화 없음으로 표시",
+      "actionLabel": "접기",
+      "url": "",
+      "status": "확정",
+      "x": 15,
+      "y": 370
+    },
+    {
+      "id": "screen-c-planner",
+      "title": "화면 C · 학습 플래너",
+      "purpose": "여러 과목의 시험 일정을 한눈에 조율하고, 시험일까지 무엇을 언제 공부할지 확인합니다.",
+      "sections": "C-1 전체 시험 일정 — D-day 순 정렬\nC-2 선택한 시험까지의 일별 계획\n카드는 시험 × 스킬 × 배지 단위로 분리\n드래그로 날짜 재배치 — 시험일 이후 칸은 잠금\n터치 환경을 위한 좌우 이동 버튼\n완료 체크하면 계획에서 제외",
+      "actionLabel": "현황으로 돌아가기",
+      "url": "",
+      "status": "확정",
+      "x": 825,
+      "y": 370
+    }
+  ],
+  "experiments": [
+    {
+      "id": "exp-data-structure",
+      "title": "화면 A·C 데이터 구조 정의",
+      "question": "과목 → 자료 → 추출된 스킬 목록, 과목 → 시험 목록 → 날짜를 어떤 구조로 잡아야 화면 A와 C가 같은 원본을 공유할 수 있을까?",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-analyze-status-ui",
+      "title": "자료 분석 처리 상태 UI",
+      "question": "자료 업로드 후 스킬 추출이 진행되는 동안 진행률과 실패 시 재시도를 어떻게 보여줘야 학생이 기다릴 만하다고 느낄까?",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-planner-drag",
+      "title": "플래너 드래그 재배치 상세 스펙",
+      "question": "드래그 중 시각 피드백과 모바일 터치 대응을 어떻게 설계해야 계획 재배치가 쉬울까? 좌우 이동 버튼만으로 충분한 경우는?",
+      "url": "",
+      "status": "진행 중"
+    },
+    {
+      "id": "exp-detail-expand",
+      "title": "자세히 보기 확장 인터랙션",
+      "question": "옵트인 확장 패널을 화면 A′와 B′에서 같은 패턴으로 재사용할 때, 학생이 부담 없이 열어볼 만한 진입 문구와 애니메이션은?",
+      "url": "",
+      "status": "진행 중"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-01",
+      "from": "onboarding-basic",
+      "to": "onboarding-course",
+      "label": "다음: 과목 등록"
+    },
+    {
+      "id": "link-02",
+      "from": "onboarding-course",
+      "to": "onboarding-analyze",
+      "label": "등록 완료"
+    },
+    {
+      "id": "link-03",
+      "from": "onboarding-analyze",
+      "to": "onboarding-planner-seed",
+      "label": "분석 완료"
+    },
+    {
+      "id": "link-04",
+      "from": "onboarding-planner-seed",
+      "to": "screen-a-dashboard",
+      "label": "학습 시작하기"
+    },
+    {
+      "id": "link-05",
+      "from": "screen-a-dashboard",
+      "to": "screen-a-skill-detail",
+      "label": "스킬 카드 열기"
+    },
+    {
+      "id": "link-06",
+      "from": "screen-a-dashboard",
+      "to": "screen-c-planner",
+      "label": "플래너 보기"
+    },
+    {
+      "id": "link-07",
+      "from": "screen-a-dashboard",
+      "to": "onboarding-course",
+      "label": "+ 과목 추가"
+    },
+    {
+      "id": "link-08",
+      "from": "screen-a-skill-detail",
+      "to": "practice",
+      "label": "이 스킬 연습하기"
+    },
+    {
+      "id": "link-09",
+      "from": "practice",
+      "to": "screen-b-feedback",
+      "label": "답안 제출하기"
+    },
+    {
+      "id": "link-10",
+      "from": "screen-b-feedback",
+      "to": "screen-b-detail",
+      "label": "자세히 보기"
+    },
+    {
+      "id": "link-11",
+      "from": "screen-b-feedback",
+      "to": "practice",
+      "label": "다음 문제 풀어보기"
+    },
+    {
+      "id": "link-12",
+      "from": "screen-b-feedback",
+      "to": "screen-a-dashboard",
+      "label": "현황으로 돌아가기"
+    },
+    {
+      "id": "link-13",
+      "from": "screen-c-planner",
+      "to": "screen-a-dashboard",
+      "label": "현황으로 돌아가기"
+    }
+  ]
+}

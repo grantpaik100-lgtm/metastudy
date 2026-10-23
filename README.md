@@ -36,6 +36,36 @@ tests/
   mcp.integration.test.ts        실제 MCP client 호출 테스트
 index.html                       기존 Learner Model 연구 데모
 service-prototype.html           가입부터 화면 A/B/C까지의 전체 서비스 프로토타입
+workboard/                       공동 작업판 + 기획/UI/MCP/백엔드 구현 관계 지도
+  cloud/                          공유 DB·로그인·OAuth·MCP·배포 준비
+  api/gateway.js                  작업판 전용 Vercel API
+  transport.js                    메인·내장 지도 공유 상태 조회, 백그라운드 중지·복귀 동기화
+  test-sync.mjs                   운영 DB 없는 조회 횟수·초안·다중 사용자 회귀 검증
+  CLOUD-GUIDE.md                  세 사람 공동 사용·AI 연결·운영 안내
+  STRUCTURE-GUIDE.md              네 상세 공간·실제 UI·소스 근거와 구현 경로 사용 안내
+  MEETINGS-GUIDE.md               채팅·음성회의·녹음·PC 음성인식·30일 보관 안내
+  meetings.js / meetings.css      팀 채팅·음성회의·삭제 예정 알림 화면
+  meeting-call.js                 직접 통화·화면 공유·참여자별 녹음
+  profiles.js / profile-editor.js 팀원 표시 이름·사진·캐릭터 설정
+  profiles.css / companion.js     프로필 화면과 이동·숨김 가능한 개인 캐릭터
+  virtual-room.js / virtual-room.css 캐릭터 좌석과 실제 공유 화면을 담는 가상 회의실
+  cloud/profiles.mjs / profiles.sql 로그인 계정별 프로필 API·비공개 이미지 저장
+  team-planning.js / planning-dates.js  목표·팀/창업 일정·한국 날짜 달력
+  lab-discussion.js / planning.css 실험 투표·익명 의견과 일정 화면
+  cloud/planning.mjs / planning.sql 일정·투표·익명 의견 저장소와 API
+  test-planning.mjs               세 계정 공동 일정·투표·익명성 검증
+  test-profiles.mjs               프로필 권한·캐릭터·실제 통화/공유 화면 검증
+  meeting-storage.js              미전송 녹음 보관·음성 처리·ZIP 내려받기
+  speech-worker.js / vendor/      PC에서 실행하는 공개 음성인식 모델 런타임
+  cloud/meetings.mjs / meetings.sql 회의 전용 저장소·API·보관 기간 처리
+  test-meetings.mjs / test-speech.mjs 실제 통화·한국어 음성 검증
+  spatial-view.js / structure.css 독립된 네 공간·실제 요소의 관계선
+  trace-graph.js                 구현 경로 탐색·근거 상태와 누락 표시
+  test-atlas.mjs                 실제 버튼 좌표·경로·모바일 지도 검증
+  plane-content.js               기획 위계·UI 흐름·MCP 요청·파일/함수 구조 표현
+  product-ui-preview.html        가상 데이터로 실행하는 제품 UI 소스 스냅샷
+  build-structure.mjs            제품 소스에서 코드 관계와 미리보기 생성
+  structure-import.mjs          기존 팀 편집을 보존하는 구조 데이터 추가
 viewer.html                      Supabase Learner Context 검증 Viewer
 learner-card-preview.html        StudyMeta MCP Apps 카드의 독립 브라우저 미리보기 (build 생성)
 deliverables/                    제출용 IR Deck 및 발표 가이드
@@ -43,6 +73,13 @@ design.md                        학생용 UI 설계 문서
 AGENTS.md                        저장소 작업 및 Learner Model 보존 지침
 md/                              공개 저장소에서 제외되는 로컬 연구 노트
 ```
+
+## 3D 구조 지도 작업판
+
+`workboard/README.md`의 실행 안내를 따라 `workboard/server.mjs`를 실행합니다.
+기존 화면 21개와 흐름 29개를 보존하고, 59개 노드·63개 관계의 초기 연결 초안을 추가했습니다.
+노드와 연결선의 담당자·날짜·후속 과제·근거 및 수정 이력을 서버에 저장합니다.
+현재 작업은 다운로드 자료에서 복원한 별도 로컬 작업판이며 운영 학습 서비스는 변경하지 않습니다.
 
 ## Student Model 데이터 계층
 
