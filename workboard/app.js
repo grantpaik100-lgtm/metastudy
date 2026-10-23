@@ -2,7 +2,7 @@
 // 공동 작업: 클라우드는 공유 DB, 로컬 서버는 data/board.json을 원본으로 사용한다.
 // 이 브라우저의 변경은 op 하나씩 서버로 보내고, 서버가 정한 순서의 op를 모든 사람이 똑같이 적용한다.
 import { applyOp, blank, normalizeBoard, validUrl } from "./board-ops.js";
-import { cloud, identity, apiFetch, connectEvents } from "./transport.js";
+import { cloud, identity, apiFetch, connectEvents, refreshBoard, setEmbeddedBoardActive } from "./transport.js";
 import { showMeetings, hideMeetings, startMeetingNotices } from './meetings.js';
 import {profileFor,profileEvents,avatarMarkup} from './profiles.js';
 import {showPlanning,hidePlanning} from './team-planning.js';
@@ -133,6 +133,7 @@ async function resync() {
   if (resyncing) return;
   resyncing = true;
   try {
+    if(cloud){await refreshBoard();return;}
     const response = await apiFetch("/api/state", { headers: { "ngrok-skip-browser-warning": "1" } });
     if (response.ok) { const data = await response.json(); replaceState(data.board, data.rev); }
   } catch { /* 연결이 돌아오면 hello 이벤트가 다시 전체 상태를 보낸다. */ }
@@ -225,10 +226,11 @@ function connect() {
     ready = true;
     replaceState(data.board, data.rev);
     renderPresence();
-    sendPresence(); // 다시 연결됐을 때 바뀐 이름과 편집 중 표시를 서버에 다시 알린다.
+    if(!cloud)sendPresence(); // 클라우드의 접속 표시는 공유 transport가 한 번만 보낸다.
     if (first) migrateLocalBoard();
   });
   source.addEventListener("op", (event) => receiveOp(JSON.parse(event.data)));
+  source.addEventListener("open", () => {if(!collab.online){collab.online=true;renderPresence();}});
   source.addEventListener("presence", (event) => { collab.peers = JSON.parse(event.data).peers; renderPresence(); });
   source.onerror = () => {
     collab.online = false;
@@ -369,6 +371,7 @@ function drawLines() {
 function render() {
   nav();
   const route = currentRoute();
+  setEmbeddedBoardActive($('#spatial-frame'),ready&&['spatial','idea','ux','mcp','backend'].includes(route));
   if(ready&&route==='todos'){$('#app').hidden=true;hideMeetings();showPlanning(location.hash.split('/')[1]);return;}
   hidePlanning();
   if(ready&&['chat','meetings'].includes(route)){$('#app').hidden=true;showMeetings(route,location.hash.split('/')[1]);return;}

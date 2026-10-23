@@ -45,6 +45,8 @@ AI에게 작업판 **디자인이나 기능 자체**를 고치게 하려면 이 
 
 ## 파일
 
+- `transport.js` — 메인 화면·내장 지도의 단일 상태 조회, 비활성 탭 중지와 복귀 동기화
+- `test-sync.mjs` — 운영 DB 없이 중복 조회·초안 보존·두 사용자 동기화·알림 유지 검증
 - `team-planning.js` / `planning-dates.js` / `planning.css` — Phase/목표 편집, 한국 날짜 기반 달력, 팀·창업 일정
 - `lab-discussion.js` — 실험별 투표와 익명 피드백 화면
 - `cloud/planning.mjs` / `cloud/planning.sql` — 별도 저장소·버전 검사·투표 잠금·작성자 없는 의견 저장

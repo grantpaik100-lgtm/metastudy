@@ -39,6 +39,8 @@ service-prototype.html           가입부터 화면 A/B/C까지의 전체 서�
 workboard/                       공동 작업판 + 기획/UI/MCP/백엔드 구현 관계 지도
   cloud/                          공유 DB·로그인·OAuth·MCP·배포 준비
   api/gateway.js                  작업판 전용 Vercel API
+  transport.js                    메인·내장 지도 공유 상태 조회, 백그라운드 중지·복귀 동기화
+  test-sync.mjs                   운영 DB 없는 조회 횟수·초안·다중 사용자 회귀 검증
   CLOUD-GUIDE.md                  세 사람 공동 사용·AI 연결·운영 안내
   STRUCTURE-GUIDE.md              네 상세 공간·실제 UI·소스 근거와 구현 경로 사용 안내
   MEETINGS-GUIDE.md               채팅·음성회의·녹음·PC 음성인식·30일 보관 안내
