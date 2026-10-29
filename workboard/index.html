@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f7f4ff" />
+  <title>작업판 템플릿</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./collab.css" />
+  <link rel="stylesheet" href="./meetings.css" />
+<link rel="stylesheet" href="./profiles.css"><link rel="stylesheet" href="./virtual-room.css"><link rel="stylesheet" href="./planning.css"></head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="작업판 메뉴">
+      <a class="brand" href="#home" aria-label="작업판 홈">
+        <span class="brand-mark">✳</span>
+        <span><strong>WORKBOARD</strong><small>UI 작업실 · 공동 작업</small></span>
+      </a>
+      <div class="sidebar-label">WORKSPACE</div>
+      <nav id="nav" class="nav"></nav>
+      <div class="sidebar-bottom">
+        <span class="sidebar-dot"></span>
+        <span>실시간 공동 작업 · 서버 저장</span>
+      </div>
+    </aside>
+    <div class="main-column">
+      <header class="topbar">
+        <div class="breadcrumb"><span id="project-breadcrumb">새 프로젝트</span><span class="slash">/</span><strong id="page-breadcrumb">작업판</strong></div>
+        <div class="top-actions">
+          <div id="collab-presence" class="collab-presence"></div>
+          <button class="ghost-button ai-top-button" data-action="ai-guide">✦ AI와 함께</button>
+          <button class="ghost-button" data-action="export">↗ 내보내기</button>
+          <button class="ghost-button" data-action="import">↙ 불러오기</button>
+          <input id="import-file" type="file" accept="application/json,.json" hidden />
+        </div>
+      </header>
+      <main id="app" tabindex="-1"></main>
+    </div>
+  </div>
+  <dialog id="editor" class="editor-dialog" aria-labelledby="editor-title">
+    <form id="editor-form" method="dialog">
+      <div class="dialog-head"><div><span class="eyebrow">WORKBOARD / EDIT</span><h2 id="editor-title"></h2></div><button class="icon-button" type="button" data-action="close-dialog" aria-label="닫기">×</button></div>
+      <div id="editor-fields"></div>
+      <div class="dialog-actions"><button class="ghost-button" type="button" data-action="close-dialog">취소</button><button class="primary-button" type="submit">저장하기 →</button></div>
+    </form>
+  </dialog>
+  <div id="toast" role="status"></div>
+  <script type="module" src="./app.js"></script><script type="module" src="./companion.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "workboard-template",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "dev:cloud": "node cloud/local.mjs",
+    "build": "node cloud/build.mjs",
+    "test:cloud": "node test-cloud.mjs",
+    "test:sync": "node test-sync.mjs"
+  }
+}
