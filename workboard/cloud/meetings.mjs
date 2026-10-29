@@ -177,5 +177,16 @@ export function createMeetings(store,env=process.env) {
   if(boardRooms.length)await store.remove('call_signals',{room_id:`in.(${boardRooms.map(r=>r.id).join(',')})`,created_at:`lt.${new Date(clock-DAY).toISOString()}`});
   return {ok:true,deleted};
  }
- return {list,detail,chat,send,createRoom,updateRoom,summary,call,upload,prepareFile,completeFile,download,transcript,notices,readNotice,maintenance};
+ // 회의 기록 삭제: 저장소의 녹음·첨부 파일을 지우고 회의 행을 지운다. 대화·참여자·신호·회의록 수정 이력·알림은 DB에서 함께 지워진다(on delete cascade).
+ async function deleteRoom(user,b={}) {
+  const r=await room(b.roomId);
+  if(b.title!==r.title)throw new HttpError(409,'회의 제목이 바뀌었어요. 새로고침한 뒤 다시 시도해주세요.');
+  const live=await store.rows('call_peers',{room_id:`eq.${r.id}`,seen_at:`gt.${new Date(Date.now()-45000).toISOString()}`,limit:1});
+  if(live.length)throw new HttpError(409,'아직 통화 중인 사람이 있어요. 모두 나간 뒤 삭제해주세요.');
+  const files=await store.rows('media',{...scope,room_id:`eq.${r.id}`,deleted_at:'is.null',limit:3000});
+  for(let i=0;i<files.length;i+=100){const batch=files.slice(i,i+100).map(f=>f.object_path).filter(Boolean);if(batch.length)await storage(`object/${BUCKET}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefixes:batch})});}
+  await store.remove('rooms',{...scope,id:`eq.${r.id}`});
+  return {ok:true,deleted:{id:r.id,title:r.title,files:files.length,by:user.username}};
+ }
+ return {list,detail,chat,send,createRoom,updateRoom,deleteRoom,summary,call,upload,prepareFile,completeFile,download,transcript,notices,readNotice,maintenance};
 }
