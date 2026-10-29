@@ -54,7 +54,8 @@ AI에게 작업판 **디자인이나 기능 자체**를 고치게 하려면 이 
 
 - `profiles.js` / `profile-editor.js` / `profiles.css` — 표시 이름·사진·캐릭터 이미지 등록과 팀 화면 반영
 - `companion.js` — 개인 캐릭터의 떠 있는 표시·드래그·키보드 이동·숨김
-- `virtual-room.js` / `virtual-room.css` — 캐릭터 좌석·마이크 상태·실제 화면공유 스크린
+- `virtual-room.js` / `virtual-room.css` — CSS 3D 회의실(끌어서 둘러보기): 캐릭터 좌석·마이크 상태·벽면 실제 화면공유 스크린
+- `block-character.js` / `character-template.png` — 캐릭터 전개도(2:1 PNG)를 3D 블록 캐릭터로 조립, 오리지널 기본 캐릭터 3종, 빈 전개도 템플릿
 - `cloud/profiles.mjs` / `cloud/profiles.sql` — 본인 프로필 변경과 로그인한 팀원만 볼 수 있는 이미지 저장
 - `test-profiles.mjs` — 별도 세 계정으로 프로필·통화·화면공유·반응형 검증
 - `trace-graph.js` — 기획에서 구현까지의 방향 있는 경로 탐색과 근거 상태
