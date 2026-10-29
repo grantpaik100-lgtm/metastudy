@@ -117,7 +117,7 @@ export function createHandler({store,origin,env=process.env}={}) {
           if(action==='download')return json(res,200,await meetings.download(url.searchParams.get('id')));
           if(action==='notices')return json(res,200,await meetings.notices(user));
         }
-        const writes={send:'send',create:'createRoom',update:'updateRoom',summary:'summary',call:'call',upload:'upload','file-prepare':'prepareFile','file-complete':'completeFile',transcript:'transcript',read:'readNotice'};
+        const writes={send:'send',create:'createRoom',update:'updateRoom',delete:'deleteRoom',summary:'summary',call:'call',upload:'upload','file-prepare':'prepareFile','file-complete':'completeFile',transcript:'transcript',read:'readNotice'};
         if(method==='POST'&&writes[action]) {
           if(action!=='call')await auth.rate(`meetings:${user.id}:${action}`,action==='upload'?180:120,60);
           return json(res,200,await meetings[writes[action]](user,await bodyOf(req)));
