@@ -11,6 +11,7 @@ export class MeetingCall extends EventTarget {
   this.local.getAudioTracks()[0].onended=()=>{if(this.active){this.emit('error','마이크 연결이 끊겼어요. 다시 입장해주세요.');this.stop();}};
   this.emit('state');
  }
+ broadcast(message){const text=JSON.stringify(message);for(const c of this.connections.values())if(c.data?.readyState==='open'){try{c.data.send(text);}catch{}}}
  signal(to,payload){return this.api('call',{action:'signal',roomId:this.room.id,peerId:this.id,to,payload});}
  connection(p){
   if(this.connections.has(p.id))return this.connections.get(p.id);
@@ -18,6 +19,10 @@ export class MeetingCall extends EventTarget {
   const entry={pc,id:p.id,sessionId:this.id,makingOffer:false,ignoreOffer:false,settingAnswer:false,polite:this.id>p.id,candidates:[],chain:Promise.resolve()};this.connections.set(p.id,entry);
   for(const track of this.local.getTracks())pc.addTrack(track,this.local);
   entry.video=pc.addTransceiver('video',{direction:'sendrecv'}).sender;
+  // 회의 공간 위치(걷기·앉기)는 서버를 거치지 않고 브라우저끼리 바로 주고받는다. 양쪽이 같은 id로 만드는 사전 합의 채널.
+  entry.data=pc.createDataChannel('room-pose',{negotiated:true,id:0,ordered:false,maxRetransmits:0});
+  entry.data.onopen=()=>this.emit('channel-open',{peerId:p.id});
+  entry.data.onmessage=({data})=>{try{const m=JSON.parse(data);if(m&&m.t==='pose')this.emit('pose',{peerId:p.id,pose:m});}catch{}};
   if(this.screen)entry.video.replaceTrack(this.screen.getVideoTracks()[0]);
   pc.onicecandidate=({candidate})=>{if(candidate&&this.active&&entry.sessionId===this.id)this.signal(p.id,{type:'candidate',candidate:candidate.toJSON()}).catch(e=>this.emit('error',e.message));};
   pc.onnegotiationneeded=async()=>{try{entry.makingOffer=true;await pc.setLocalDescription();if(this.active&&entry.sessionId===this.id)await this.signal(p.id,{type:pc.localDescription.type,sdp:pc.localDescription.sdp});}catch(e){if(this.active&&entry.sessionId===this.id)this.emit('error',e.message);}finally{entry.makingOffer=false;}};
